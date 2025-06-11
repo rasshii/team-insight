@@ -16,6 +16,8 @@
   "editor.semanticHighlighting.enabled": true, // セマンティックハイライトを有効化
   "editor.cursorBlinking": "smooth", // カーソルの点滅をスムーズに
   "editor.cursorSmoothCaretAnimation": "on", // カーソルの移動をスムーズに
+  "editor.cursorStyle": "line", // カーソルのスタイルを線に
+  "editor.cursorWidth": 1, // カーソルの幅を1に設定
   "editor.smoothScrolling": true, // スクロールをスムーズに
   "editor.mouseWheelZoom": true, // Ctrl+マウスホイールでズーム
   "editor.autoClosingBrackets": "never", // 自動で閉じ括弧を挿入しない
