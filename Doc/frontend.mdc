@@ -1,0 +1,126 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# フロントエンド開発ガイド
+
+## 1. 技術スタック
+
+### 1.1 主要技術
+- **フレームワーク**: Next.js (TypeScript)
+- **UIライブラリ**: shadcn/ui
+- **スタイリング**: Tailwind CSS
+- **データ可視化**: D3.js, Recharts
+- **状態管理**: React Query (TanStack Query)
+
+### 1.2 開発環境
+- Node.js 18.x以上
+- pnpm パッケージマネージャー
+- ESLint + Prettier
+- TypeScript 5.x
+
+## 2. プロジェクト構造
+
+```
+src/
+├── app/                    # Next.js 13+ App Router
+│   ├── (auth)/            # 認証関連のルート
+│   │   ├── login/        # ログインページ
+│   │   └── auth/         # 認証コールバック
+│   ├── projects/         # プロジェクト一覧
+│   └── dashboard/        # ダッシュボード
+├── components/            # 共通コンポーネント
+│   ├── ui/              # 基本UIコンポーネント
+│   ├── charts/          # グラフコンポーネント
+│   └── layout/          # レイアウトコンポーネント
+├── lib/                  # ユーティリティ関数
+├── hooks/               # カスタムフック
+├── types/               # TypeScript型定義
+└── styles/              # グローバルスタイル
+```
+
+## 3. 主要コンポーネント
+
+### 3.1 ダッシュボードレイアウト
+- ヘッダー（プロジェクト選択）
+- フィルターバー（期間・チーム選択）
+- KPIサマリーカード
+- ボトルネック分析チャート
+- 生産性トレンドチャート
+
+### 3.2 データ可視化コンポーネント
+- `BottleneckChart`: D3.jsを使用した横棒グラフ
+- `ProductivityTrendChart`: D3.jsを使用した折れ線グラフ
+- `KPICard`: 数値指標の表示カード
+
+## 4. API連携
+
+### 4.1 エンドポイント
+```typescript
+// メトリクスサマリー
+GET /api/v1/metrics/summary
+Query: { projectId: string, from: string, to: string }
+
+// ボトルネック分析
+GET /api/v1/analysis/bottlenecks
+Query: { projectId: string, from: string, to: string }
+
+// 時系列データ
+GET /api/v1/metrics/timeseries
+Query: { projectId: string, from: string, to: string, interval: 'daily' | 'weekly' }
+```
+
+### 4.2 データフェッチング
+- React Queryを使用したデータフェッチング
+- キャッシュ戦略の実装
+- エラーハンドリング
+
+## 5. スタイリングガイドライン
+
+### 5.1 デザインシステム
+- shadcn/uiのコンポーネントをベース
+- Tailwind CSSによるカスタマイズ
+- カラーパレットとタイポグラフィの定義
+
+### 5.2 レスポンシブデザイン
+- モバイルファーストアプローチ
+- ブレークポイントの定義
+- グリッドシステムの活用
+
+## 6. パフォーマンス最適化
+
+### 6.1 実装方針
+- コンポーネントの適切な分割
+- メモ化（useMemo, useCallback）の活用
+- 画像の最適化
+- コード分割
+
+### 6.2 監視と分析
+- Web Vitalsの計測
+- パフォーマンスメトリクスの収集
+- エラートラッキング
+
+## 7. テスト戦略
+
+### 7.1 テスト種類
+- ユニットテスト（Jest）
+- コンポーネントテスト（React Testing Library）
+- E2Eテスト（Cypress）
+
+### 7.2 テストカバレッジ
+- 主要コンポーネントのテスト
+- ユーザーインタラクションのテスト
+- エッジケースの考慮
+
+## 8. デプロイメント
+
+### 8.1 ビルドプロセス
+- 本番用ビルドの最適化
+- 環境変数の管理
+- アセットの最適化
+
+### 8.2 CI/CD
+- GitHub Actionsによる自動デプロイ
+- プレビューデプロイの設定
+- 本番デプロイの承認フロー

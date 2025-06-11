@@ -88,7 +88,7 @@
     },
     // 応答の多様性を設定 (0.0: 決定的, 1.0: 創造的)。安定性を求めるなら低め (0.1 ~ 0.3) が推奨
     "temperature": 0.2,
-    "autoEnable": true, // 自動でAI機能を有効化
+    "autoEnable": false, // 自動でAI機能を無効化
     "autoComplete": "enabled", // AIによる自動補完を有効化
     "autoCompleteDelay": 300 // 自動補完が表示されるまでの遅延 (ms)
   },
