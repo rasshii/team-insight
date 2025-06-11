@@ -1,0 +1,96 @@
+<svg width="800" height="600" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .bg { fill: #f8f9fa; }
+      .card-bg { fill: #ffffff; stroke: #e9ecef; stroke-width: 1; }
+      .header-text { font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif; font-size: 16px; font-weight: bold; fill: #343a40; }
+      .project-text { font-family: sans-serif; font-size: 14px; fill: #6c757d; }
+      .filter-text { font-family: sans-serif; font-size: 13px; fill: #495057; }
+      .section-title { font-family: sans-serif; font-size: 14px; font-weight: bold; fill: #343a40; text-anchor: start; }
+      .kpi-title { font-family: sans-serif; font-size: 14px; fill: #6c757d; text-anchor: middle; }
+      .kpi-value { font-family: sans-serif; font-size: 32px; font-weight: bold; fill: #212529; text-anchor: middle; }
+      .kpi-delta { font-family: sans-serif; font-size: 12px; fill: #198754; text-anchor: middle; }
+      .kpi-delta-neg { font-family: sans-serif; font-size: 12px; fill: #dc3545; text-anchor: middle; }
+      .chart-title { font-family: sans-serif; font-size: 15px; font-weight: 500; fill: #343a40; }
+      .axis-text { font-family: sans-serif; font-size: 12px; fill: #6c757d; text-anchor: end; }
+      .bar-value { font-family: sans-serif; font-size: 13px; fill: #343a40; text-anchor: start; }
+      .bar { fill: #74c0fc; }
+      .bar-hover { fill: #4dabf7; }
+      .line-chart-line { fill: none; stroke: #4c6ef5; stroke-width: 2.5; }
+      .line-chart-dot { fill: #4c6ef5; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="800" height="600" class="bg" />
+
+  <rect x="0" y="0" width="800" height="50" fill="#ffffff" stroke="#dee2e6" stroke-width="1" />
+  <text x="20" y="30" class="header-text">Backlog Team Insight</text>
+  <text x="250" y="30" class="project-text">プロジェクト名: Alpha</text>
+  
+  <rect x="20" y="65" width="180" height="30" rx="4" class="card-bg" />
+  <text x="30" y="85" class="filter-text">期間フィルター: 今月 ▼</text>
+  <rect x="210" y="65" width="160" height="30" rx="4" class="card-bg" />
+  <text x="220" y="85" class="filter-text">チーム/個人: チーム ▼</text>
+  
+  <text x="20" y="130" class="section-title">KPIサマリー</text>
+  
+  <g id="kpi-lead-time">
+    <rect x="20" y="150" width="240" height="100" rx="8" class="card-bg" />
+    <text x="140" y="180" class="kpi-title">平均リードタイム</text>
+    <text x="140" y="215" class="kpi-value">3.5 日</text>
+    <text x="140" y="235" class="kpi-delta-neg">(前月比: +10%)</text>
+  </g>
+  
+  <g id="kpi-tickets-completed">
+    <rect x="280" y="150" width="240" height="100" rx="8" class="card-bg" />
+    <text x="400" y="180" class="kpi-title">完了チケット数</text>
+    <text x="400" y="215" class="kpi-value">58 件</text>
+    <text x="400" y="235" class="kpi-delta">(前月比: +5%)</text>
+  </g>
+  
+  <g id="kpi-due-date-adherence">
+    <rect x="540" y="150" width="240" height="100" rx="8" class="card-bg" />
+    <text x="660" y="180" class="kpi-title">期限遵守率</text>
+    <text x="660" y="215" class="kpi-value">92.5 %</text>
+    <text x="660" y="235" class="kpi-delta">(前月比: +1.2%)</text>
+  </g>
+  
+  <text x="20" y="290" class="section-title">詳細分析</text>
+
+  <g id="chart-bottleneck">
+    <rect x="20" y="310" width="370" height="260" rx="8" class="card-bg" />
+    <text x="40" y="340" class="chart-title">▼ ボトルネック分析 (ステータス別平均滞留日数)</text>
+
+    <text x="100" y="385" class="axis-text">In Review</text>
+    <rect x="110" y="370" width="200" height="25" rx="3" class="bar" />
+    <text x="315" y="385" class="bar-value">5.2日</text>
+    
+    <text x="100" y="425" class="axis-text">In Progress</text>
+    <rect x="110" y="410" width="150" height="25" rx="3" class="bar" />
+    <text x="265" y="425" class="bar-value">3.8日</text>
+    
+    <text x="100" y="465" class="axis-text">Open</text>
+    <rect x="110" y="450" width="60" height="25" rx="3" class="bar" />
+    <text x="175" y="465" class="bar-value">1.5日</text>
+
+    <text x="40" y="550" class="axis-text" style="text-anchor: start; font-style: italic;">*バーにホバーで詳細表示 / クリックで一覧表示</text>
+  </g>
+
+  <g id="chart-trend">
+    <rect x="410" y="310" width="370" height="260" rx="8" class="card-bg" />
+    <text x="430" y="340" class="chart-title">▼ 生産性トレンド (週次)</text>
+
+    <path d="M 440 540 L 750 540" stroke="#adb5bd" stroke-width="1" /> <path d="M 440 360 L 440 540" stroke="#adb5bd" stroke-width="1" /> <path d="M 440 450 L 750 450" stroke="#e9ecef" stroke-width="1" />
+    <path d="M 440 360 L 750 360" stroke="#e9ecef" stroke-width="1" />
+    
+    <path d="M 460 500 C 520 420, 600 400, 680 450 S 740 510, 740 510" class="line-chart-line" />
+    
+    <circle cx="460" cy="500" r="4" class="line-chart-dot" />
+    <circle cx="570" cy="420" r="4" class="line-chart-dot" />
+    <circle cx="680" cy="450" r="4" class="line-chart-dot" />
+    <circle cx="740" cy="510" r="4" class="line-chart-dot" />
+
+    <text x="430" y="560" class="axis-text" style="text-anchor: start;">W1</text>
+    <text x="740" y="560" class="axis-text" style="text-anchor: end;">W4</text>
+  </g>
+</svg>
