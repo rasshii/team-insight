@@ -1,0 +1,14 @@
+# 開発環境用のDockerfile
+FROM node:20-slim
+
+WORKDIR /app
+
+# 必要なパッケージのインストール
+COPY package*.json ./
+RUN npm install
+
+# アプリケーションのコピー
+COPY . .
+
+# アプリケーションの起動
+CMD ["npm", "start"]

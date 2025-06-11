@@ -1,0 +1,101 @@
+[
+  // バックスペースキーの設定
+  {
+    "key": "backspace",
+    "command": "deleteLeft",
+    "when": "textInputFocus && !editorReadonly"
+  },
+  // 基本的な編集操作
+  {
+    "key": "cmd+z",
+    "command": "undo",
+    "when": "textInputFocus && !editorReadonly"
+  },
+  {
+    "key": "cmd+shift+z",
+    "command": "redo",
+    "when": "textInputFocus && !editorReadonly"
+  },
+  {
+    "key": "cmd+x",
+    "command": "cut",
+    "when": "textInputFocus && !editorReadonly"
+  },
+  {
+    "key": "cmd+c",
+    "command": "copy",
+    "when": "textInputFocus && !editorReadonly"
+  },
+  {
+    "key": "cmd+v",
+    "command": "paste",
+    "when": "textInputFocus && !editorReadonly"
+  },
+  // 検索と置換
+  {
+    "key": "cmd+f",
+    "command": "actions.find",
+    "when": "editorFocus"
+  },
+  {
+    "key": "cmd+h",
+    "command": "editor.action.startFindReplaceAction",
+    "when": "editorFocus"
+  },
+  // コメント
+  {
+    "key": "cmd+/",
+    "command": "editor.action.commentLine",
+    "when": "editorTextFocus && !editorReadonly"
+  },
+  // インデント
+  {
+    "key": "tab",
+    "command": "tab",
+    "when": "editorTextFocus && !editorReadonly && !editorTabMovesFocus"
+  },
+  {
+    "key": "shift+tab",
+    "command": "outdent",
+    "when": "editorTextFocus && !editorReadonly && !editorTabMovesFocus"
+  },
+  // カーソル移動
+  {
+    "key": "alt+left",
+    "command": "cursorWordStartLeft",
+    "when": "textInputFocus"
+  },
+  {
+    "key": "alt+right",
+    "command": "cursorWordEndRight",
+    "when": "textInputFocus"
+  },
+  // 選択
+  {
+    "key": "cmd+a",
+    "command": "editor.action.selectAll",
+    "when": "textInputFocus"
+  },
+  // 行操作
+  {
+    "key": "cmd+enter",
+    "command": "editor.action.insertLineAfter",
+    "when": "editorTextFocus && !editorReadonly"
+  },
+  {
+    "key": "cmd+shift+enter",
+    "command": "editor.action.insertLineBefore",
+    "when": "editorTextFocus && !editorReadonly"
+  },
+  // ファイル操作
+  {
+    "key": "cmd+s",
+    "command": "workbench.action.files.save",
+    "when": "editorTextFocus"
+  },
+  {
+    "key": "cmd+shift+s",
+    "command": "workbench.action.files.saveAs",
+    "when": "editorTextFocus"
+  }
+]

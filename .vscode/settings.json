@@ -1,0 +1,167 @@
+// settings.json (ユーザー設定 or .vscode/settings.json)
+{
+  /* =====================================
+   * エディタ表示設定 (Editor Appearance)
+   * ===================================== */
+  "editor.fontFamily": "JetBrains Mono, Menlo, Monaco, 'Courier New', monospace", // プログラミング用フォント
+  "editor.fontSize": 14, // フォントサイズ
+  "editor.lineHeight": 1.5, // 行の高さ
+  "editor.wordWrap": "on", // 行の折り返しを有効化
+  "editor.minimap.enabled": true, // ミニマップの表示
+  "editor.rulers": [80, 100, 120], // 80, 100, 120文字目に縦線を表示
+  "editor.renderWhitespace": "all", // すべての空白文字を可視化
+  "editor.renderControlCharacters": true, // 制御文字を表示
+  "editor.guides.bracketPairs": true, // 対応する括弧のガイド線を表示
+  "editor.bracketPairColorization.enabled": true, // 括弧を色分け
+  "editor.semanticHighlighting.enabled": true, // セマンティックハイライトを有効化
+  "editor.cursorBlinking": "smooth", // カーソルの点滅をスムーズに
+  "editor.cursorSmoothCaretAnimation": "on", // カーソルの移動をスムーズに
+  "editor.cursorStyle": "line", // カーソルのスタイルを線に
+  "editor.cursorWidth": 1, // カーソルの幅を1に設定
+  "editor.smoothScrolling": true, // スクロールをスムーズに
+  "editor.mouseWheelZoom": true, // Ctrl+マウスホイールでズーム
+  "editor.autoClosingBrackets": "never", // 自動で閉じ括弧を挿入しない
+  "editor.autoClosingQuotes": "never", // 自動で閉じ引用符を挿入しない
+  "editor.autoSurround": "never", // 自動で囲み文字を挿入しない
+  "editor.quickSuggestions": {
+    "other": false, // コード内でのクイックサジェストを無効化
+    "comments": false, // コメント内でのクイックサジェストを無効化
+    "strings": false // 文字列内でのクイックサジェストを無効化
+  },
+  "editor.suggestOnTriggerCharacters": false, // トリガー文字でのサジェストを無効化
+  "editor.snippetSuggestions": "top", // スニペットを最優先で表示
+  "editor.wordBasedSuggestions": "currentDocument", // 現在のドキュメントの単語をサジェスト
+  "editor.linkedEditing": true, // HTML/JSXタグの自動編集を有効化
+  "editor.stickyScroll.enabled": true, // スティッキースクロールを有効化
+
+  /* =====================================
+   * コーディング・保存時の動作 (Coding & Saving Behavior)
+   * ===================================== */
+  "editor.tabSize": 2, // タブのサイズをスペース2つ分に
+  "editor.insertSpaces": true, // タブをスペースに変換
+  "editor.detectIndentation": true, // ファイルのインデントを自動検出
+  "editor.formatOnSave": true, // 保存時に自動フォーマット
+  "editor.formatOnPaste": true, // ペースト時に自動フォーマット
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit", // ESLintのルールで自動修正
+    "source.organizeImports": "explicit" // インポート文を自動整理
+  },
+  "editor.acceptSuggestionOnEnter": "on", // Enterキーで補完を確定
+
+  /* =====================================
+   * ファイル管理と検索 (File Management & Search)
+   * ===================================== */
+  "files.autoSave": "afterDelay", // 一定時間後に自動保存
+  "files.autoSaveDelay": 1000, // 自動保存までの時間 (ms)
+  "files.trimTrailingWhitespace": true, // 行末の空白を自動削除
+  "files.insertFinalNewline": true, // ファイル末尾に改行を追加
+  "files.trimFinalNewlines": true, // ファイル末尾の余分な改行を削除
+  "files.encoding": "utf8", // ファイルエンコーディング
+  "files.eol": "\n", // 改行コード
+  "search.exclude": {
+    "**/node_modules": true, // node_modulesを検索対象から除外
+    "**/bower_components": true, // bower_componentsを検索対象から除外
+    "**/dist": true, // distを検索対象から除外
+    "**/*.code-search": true, // .code-searchファイルを検索対象から除外
+    "**/.git": true // .gitを検索対象から除外
+  },
+  "search.useIgnoreFiles": true, // .gitignoreの設定を検索にも適用
+  "search.useGlobalIgnoreFiles": true, // グローバルな.gitignoreも使用
+  "search.quickOpen.includeSymbols": true, // シンボル検索を有効化
+
+  /* =====================================
+   * パフォーマンス最適化 (Performance Optimization)
+   * ===================================== */
+  "files.watcherExclude": {
+    "**/.git/objects/**": true, // Gitオブジェクトの監視を除外
+    "**/node_modules/**": true, // node_modulesの監視を除外
+    "**/dist/**": true, // distの監視を除外
+    "**/.hg/store/**": true // Mercurialストアの監視を除外
+  },
+  "editor.largeFileOptimizations": true, // 大きなファイルの最適化
+  "files.maxMemoryForLargeFilesMB": 4096, // 大きなファイル用のメモリ制限
+
+  /* =====================================
+   * 言語固有の設定 (Language Specific Settings)
+   * ===================================== */
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode", // Prettierをデフォルトフォーマッターに
+    "editor.formatOnSave": true // 保存時に自動フォーマット
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter", // Blackをデフォルトフォーマッターに
+    "editor.formatOnSave": true
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[markdown]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true,
+    "editor.wordWrap": "on", // 行の折り返しを有効化
+    "editor.quickSuggestions": {
+      "other": true,
+      "comments": true,
+      "strings": true
+    }
+  },
+
+  /* =====================================
+   * セキュリティ設定 (Security Settings)
+   * ===================================== */
+  "security.workspace.trust.enabled": true, // ワークスペースの信頼を有効化
+  "security.workspace.trust.untrustedFiles": "prompt", // 信頼されていないファイルを開く際に確認
+
+  /* =====================================
+   * 更新設定 (Update Settings)
+   * ===================================== */
+  "update.mode": "default", // デフォルトの更新チャネルを使用
+  "update.showReleaseNotes": true, // リリースノートを表示
+
+  /* =====================================
+   * Cursor AI 基本設定 (AI Basic Configuration)
+   * ===================================== */
+  "cursor.ai": {
+    "model": {
+      "default": "claude-sonnet-4-20250514", // デフォルトモデル
+      "complex": "claude-opus-4-20250514" // 複雑なタスク用のモデル
+    },
+    "temperature": 0.2, // 応答の多様性（0.0: 決定的, 1.0: 創造的）
+    "autoEnable": false, // 自動でAI機能を無効化
+    "autoComplete": "enabled", // AIによる自動補完を有効化
+    "autoCompleteDelay": 300 // 自動補完が表示されるまでの遅延 (ms)
+  },
+
+  /* =====================================
+   * プライバシーとログ (Privacy & Logging)
+   * ===================================== */
+  "cursor.privacyMode": true, // プライバシーモードを有効化（コードがAIの学習に使われない）
+  "cursor.log.level": "info", // ログレベル（デバッグ時は "debug" に変更）
+
+  /* =====================================
+   * ターミナル設定 (Terminal Settings)
+   * ===================================== */
+  "terminal.integrated.fontFamily": "JetBrains Mono", // ターミナルのフォント
+  "terminal.integrated.fontSize": 14, // ターミナルのフォントサイズ
+  "terminal.integrated.lineHeight": 1.2, // ターミナルの行の高さ
+  "terminal.integrated.cursorBlinking": true, // カーソルの点滅を有効化
+  "terminal.integrated.cursorStyle": "line", // カーソルのスタイル
+  "terminal.integrated.copyOnSelection": true, // 選択時に自動コピー
+  "terminal.integrated.defaultProfile.osx": "zsh", // macOSのデフォルトシェル
+
+  /* =====================================
+   * Git設定 (Git Settings)
+   * ===================================== */
+  "git.enableSmartCommit": true, // スマートコミットを有効化
+  "git.confirmSync": false, // 同期時の確認を無効化
+  "git.autofetch": true, // 自動フェッチを有効化
+  "git.pruneOnFetch": true, // フェッチ時に不要なブランチを削除
+  "git.allowNoVerifyCommit": false, // 検証なしのコミットを禁止
+  "git.suggestSmartCommit": true, // スマートコミットを提案
+  "git.supportCancellation": true // 操作のキャンセルをサポート
+}
