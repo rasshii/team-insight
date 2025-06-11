@@ -1,193 +1,6 @@
-# docker-compose.yml
-# Mine-CMS開発環境のDocker Compose設定ファイル
-#
-# このファイルは、複数のDockerコンテナを定義し、それらがどのように
-# 連携するかを記述しています。
-
 version: "3.8"
 
-# ネットワーク定義
-# 全てのコンテナが同じネットワーク内で通信できるようにします
-networks:
-  team-insight-network:
-    driver: bridge # ブリッジネットワークを使用（デフォルト）
-
-# ボリューム定義
-# データの永続化のためのボリュームを定義します
-volumes:
-  mysql-data: # MySQLのデータを保存
-  redis-data: # Redisのデータを保存
-  composer-cache: # Composerのキャッシュを保存（ビルド高速化）
-  yarn-cache: # Yarnのキャッシュを保存（ビルド高速化）
-  postgres_data:
-  redis_data:
-  backend_cache:
-
-# サービス定義
-# 各コンテナ（サービス）の設定を定義します
 services:
-  # ===========================================
-  # Nginxサービス（リバースプロキシ）
-  # ===========================================
-  nginx:
-    build:
-      context: ./infrastructure/docker/nginx
-      dockerfile: Dockerfile
-    container_name: team-insight-nginx
-    ports:
-      - "80:80" # ホストの80番ポートをコンテナの80番ポートにマッピング
-    volumes:
-      - ./infrastructure/docker/nginx/nginx.conf:/etc/nginx/nginx.conf
-    depends_on:
-      - frontend
-      - backend
-    networks:
-      - team-insight-network
-    restart: unless-stopped # 異常終了時は自動的に再起動
-
-  # ===========================================
-  # フロントエンドサービス（Next.js）
-  # ===========================================
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: ../infrastructure/docker/frontend/Dockerfile
-    container_name: team-insight-frontend
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    environment:
-      REACT_APP_API_URL: http://localhost:8000
-    ports:
-      - "3000:3000"
-    depends_on:
-      - backend
-    networks:
-      - team-insight-network
-    command: npm start
-
-  # ===========================================
-  # バックエンドサービス（Laravel）
-  # ===========================================
-  backend:
-    build:
-      context: ./backend
-      dockerfile: ../infrastructure/docker/backend/Dockerfile
-    container_name: team-insight-backend
-    volumes:
-      - ./backend:/app
-      - backend_cache:/root/.cache
-    environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/team_insight
-      REDIS_URL: redis://redis:6379
-      PYTHONPATH: /app
-    ports:
-      - "8000:8000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - team-insight-network
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-
-  # ===========================================
-  # MySQLサービス（データベース）
-  # ===========================================
-  mysql:
-    image: mysql:8.0 # MySQL 8.0を使用
-    container_name: mine-cms-mysql
-    volumes:
-      # データの永続化
-      - mysql-data:/var/lib/mysql
-      # 初期化SQLスクリプト（必要に応じて）
-      - ./infrastructure/docker/mysql/init:/docker-entrypoint-initdb.d
-      # カスタム設定ファイル
-      - ./infrastructure/docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf
-    environment:
-      # rootパスワード
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      # アプリケーション用データベース
-      - MYSQL_DATABASE=${DB_DATABASE}
-      # アプリケーション用ユーザー
-      - MYSQL_USER=${DB_USERNAME}
-      - MYSQL_PASSWORD=${DB_PASSWORD}
-      # タイムゾーン設定
-      - TZ=Asia/Tokyo
-    ports:
-      - "3306:3306" # MySQLのデフォルトポート
-    networks:
-      - team-insight-network
-    restart: unless-stopped
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "mysqladmin",
-          "ping",
-          "-h",
-          "localhost",
-          "-u",
-          "root",
-          "-p${MYSQL_ROOT_PASSWORD}",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # ===========================================
-  # Redisサービス（キャッシュ・セッション管理）
-  # ===========================================
-  redis:
-    build:
-      context: ./infrastructure/docker/redis
-      dockerfile: Dockerfile
-    container_name: team-insight-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - team-insight-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # ===========================================
-  # phpMyAdminサービス（データベース管理UI）
-  # ===========================================
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin:latest
-    container_name: mine-cms-phpmyadmin
-    environment:
-      - PMA_HOST=mysql # 接続先のMySQLサービス名
-      - PMA_USER=root
-      - PMA_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - UPLOAD_LIMIT=100M # アップロードサイズ制限
-    ports:
-      - "8080:80" # phpMyAdminのWebUI
-    depends_on:
-      - mysql
-    networks:
-      - team-insight-network
-    restart: unless-stopped
-
-  # ===========================================
-  # Mailhogサービス（開発用メールサーバー）
-  # ===========================================
-  mailhog:
-    image: mailhog/mailhog:latest
-    container_name: mine-cms-mailhog
-    ports:
-      - "1025:1025" # SMTPポート
-      - "8025:8025" # Web UIポート
-    networks:
-      - team-insight-network
-    restart: unless-stopped
-
   # PostgreSQL Database
   postgres:
     build:
@@ -210,3 +23,96 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # Redis Cache
+  redis:
+    build:
+      context: ./infrastructure/docker/redis
+      dockerfile: Dockerfile
+    container_name: team-insight-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - team-insight-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API (FastAPI)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../infrastructure/docker/backend/Dockerfile
+    container_name: team-insight-backend
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/team_insight
+      REDIS_URL: redis://redis:6379
+      PYTHONPATH: /app
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key-here}
+      DEBUG: ${DEBUG:-True}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - backend_cache:/root/.cache
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - team-insight-network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Frontend Application (React)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../infrastructure/docker/frontend/Dockerfile
+    container_name: team-insight-frontend
+    environment:
+      REACT_APP_API_URL: http://localhost:8000
+      REACT_APP_ENVIRONMENT: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - team-insight-network
+    command: yarn start
+
+  # Nginx Reverse Proxy
+  nginx:
+    build:
+      context: ./infrastructure/docker/nginx
+      dockerfile: Dockerfile
+    container_name: team-insight-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./infrastructure/docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - team-insight-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  backend_cache:
+    driver: local
+
+networks:
+  team-insight-network:
+    driver: bridge

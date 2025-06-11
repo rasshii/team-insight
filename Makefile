@@ -6,9 +6,9 @@
 
 # 変数定義
 DOCKER_COMPOSE := docker-compose
-FRONTEND_CONTAINER := team-insight-frontend
-BACKEND_CONTAINER := team-insight-backend
-DB_CONTAINER := team-insight-postgres
+FRONTEND_CONTAINER := frontend
+BACKEND_CONTAINER := backend
+DB_CONTAINER := postgres
 
 # ヘルプ
 .PHONY: help
@@ -37,12 +37,7 @@ help:
 .PHONY: setup
 setup:
 	@echo "🚀 Team Insight 開発環境をセットアップしています..."
-	@echo "📦 必要なディレクトリを作成..."
-	@mkdir -p infrastructure/docker/postgresql/conf
-	@mkdir -p infrastructure/docker/redis
-	@mkdir -p infrastructure/docker/nginx
-	@mkdir -p infrastructure/docker/frontend
-	@mkdir -p infrastructure/docker/backend
+	@echo "📦 必要なディレクトリを確認..."
 	@echo "🐳 Dockerイメージをビルド..."
 	@$(DOCKER_COMPOSE) build
 	@echo "🚀 サービスを起動..."

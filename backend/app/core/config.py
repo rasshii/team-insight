@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     # データベース設定
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/team_insight"
 
+    # Redis設定
+    REDIS_URL: str = "redis://redis:6379"
+
     # CORS設定
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = ["http://localhost:3000"]
 

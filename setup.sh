@@ -59,8 +59,9 @@ EOF
     echo -e "${GREEN}✅ backend/.env を作成しました${NC}"
 fi
 
-# Makefileを使用してセットアップ
+# Docker環境を構築
 echo -e "\n${YELLOW}🚀 Docker環境を構築しています...${NC}"
-make setup
+docker-compose build
+docker-compose up -d
 
 echo -e "\n${GREEN}✅ セットアップが完了しました！${NC}"

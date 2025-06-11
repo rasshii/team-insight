@@ -2,17 +2,18 @@
 
 チーム分析とコラボレーションのためのプラットフォーム
 
-## 🚀 クイックスタート
+---
 
-### 前提条件
+## 🚀 初回セットアップ
 
-以下のツールがインストールされている必要があります：
+### 必要なツール
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - [Git](https://git-scm.com/)
-- Make（macOS と Linux は標準搭載、Windows は[こちら](http://gnuwin32.sourceforge.net/packages/make.htm)）
+- Make（macOS/Linux は標準搭載、Windows は[こちら](http://gnuwin32.sourceforge.net/packages/make.htm)）
+- Node.js 22.x（yarn v4 は corepack で自動管理されます）
 
-### 初回セットアップ
+### 手順
 
 1. **リポジトリをクローン**
 
@@ -21,80 +22,86 @@
    cd team-insight
    ```
 
-2. **自動セットアップを実行**
+2. **セットアップスクリプトを実行**
 
    ```bash
    chmod +x setup.sh
    ./setup.sh
    ```
 
-   または、Makefile を使用：
+   または
 
    ```bash
    make setup
    ```
 
-これで開発環境の構築は完了です！🎉
+3. **初回のみフロントエンド依存解決**
 
-### アクセス URL
+   ```bash
+   cd frontend
+   corepack enable
+   yarn install
+   cd ..
+   ```
 
-- **フロントエンド**: http://localhost:3000
-- **バックエンド API**: http://localhost:8000
-- **PostgreSQL**: localhost:5432
-- **Redis**: localhost:6379
+4. **サービス起動**
 
-## 📖 日常的な使い方
+   ```bash
+   make start
+   ```
 
-### サービスの起動
+5. **アクセス URL**
+   - フロントエンド: http://localhost:3000
+   - バックエンド API: http://localhost:8000
+   - Nginx 経由: http://localhost
+   - PostgreSQL: localhost:5432
+   - Redis: localhost:6379
 
-```bash
-make start
-```
+---
 
-### サービスの停止
+## 🏃 日常運用コマンド
 
-```bash
-make stop
-```
+| 操作                 | コマンド例            | 説明                               |
+| -------------------- | --------------------- | ---------------------------------- |
+| サービス起動         | `make start`          | 全サービスをバックグラウンド起動   |
+| サービス停止         | `make stop`           | 全サービスを停止                   |
+| サービス再起動       | `make restart`        | 全サービスを再起動                 |
+| サービス状態確認     | `make status`         | サービスの状態一覧を表示           |
+| 全ログ表示           | `make logs`           | 全サービスのログをリアルタイム表示 |
+| フロントエンドログ   | `make frontend-logs`  | フロントエンドのログのみ表示       |
+| バックエンドログ     | `make backend-logs`   | バックエンドのログのみ表示         |
+| DB ログ              | `make db-logs`        | データベースのログのみ表示         |
+| フロントエンドシェル | `make frontend-shell` | フロントエンドコンテナに入る       |
+| バックエンドシェル   | `make backend-shell`  | バックエンドコンテナに入る         |
+| DB シェル            | `make db-shell`       | psql で DB に入る                  |
+| クリーンアップ       | `make clean`          | コンテナ・ボリュームを全削除       |
+| イメージ再ビルド     | `make rebuild`        | Docker イメージを再ビルド          |
+| DB マイグレーション  | `make migrate`        | Alembic で DB マイグレーション実行 |
+| バックエンドテスト   | `make test`           | バックエンドの pytest を実行       |
+| コマンド一覧         | `make help`           | すべてのコマンドを表示             |
 
-### サービスの再起動
+---
 
-```bash
-make restart
-```
+## 🛠️ 技術スタック
 
-### ログの確認
+- **フロントエンド**: React + TypeScript, Tailwind CSS v3, shadcn/ui, Yarn v4, Node.js v22
+- **バックエンド**: FastAPI, Python 3.11
+- **データベース**: PostgreSQL 15
+- **キャッシュ**: Redis 7
+- **インフラ**: Docker Compose, Nginx
 
-すべてのサービスのログ：
+---
 
-```bash
-make logs
-```
-
-特定のサービスのログ：
-
-```bash
-make frontend-logs  # フロントエンドのログ
-make backend-logs   # バックエンドのログ
-make db-logs        # データベースのログ
-```
-
-### コンテナへの接続
-
-```bash
-make frontend-shell  # フロントエンドコンテナ
-make backend-shell   # バックエンドコンテナ
-make db-shell        # データベースコンテナ（psqlクライアント）
-```
-
-## 🛠️ 開発ガイド
-
-### プロジェクト構成
+## 🗂️ プロジェクト構成
 
 ```
 team-insight/
 ├── frontend/          # React + TypeScript フロントエンド
+│   ├── .yarnrc.yml
+│   ├── postcss.config.js
+│   ├── ...
 ├── backend/           # FastAPI バックエンド
+│   └── app/
 ├── infrastructure/    # Docker設定ファイル
 │   └── docker/
 │       ├── frontend/
@@ -103,76 +110,60 @@ team-insight/
 │       ├── redis/
 │       └── nginx/
 ├── docker-compose.yml # Docker Compose設定
-├── Makefile          # 便利なコマンド集
-└── setup.sh          # 初回セットアップスクリプト
+├── Makefile           # 便利なコマンド集
+└── setup.sh           # 初回セットアップスクリプト
 ```
 
-### データベースマイグレーション
+---
 
-```bash
-make migrate
-```
+## 🧩 トラブルシューティング
 
-### テストの実行
+- **ポート競合**
+  3000, 8000, 5432, 6379, 80 が他のプロセスで使われていないか確認
 
-```bash
-make test
-```
+- **Docker 権限エラー（Linux）**
 
-### 環境のクリーンアップ
+  ```bash
+  sudo usermod -aG docker $USER
+  # その後ログアウト・再ログイン
+  ```
 
-コンテナとボリュームをすべて削除：
+- **サービスが起動しない場合**
 
-```bash
-make clean
-```
+  1. Docker が起動しているか確認
+  2. `docker-compose logs <service名>` でエラー確認
+  3. `make clean` → `make setup` で再構築
 
-### イメージの再ビルド
+- **フロントエンド依存関係の問題**
 
-```bash
-make rebuild
-```
+  ```bash
+  cd frontend
+  corepack enable
+  yarn install
+  cd ..
+  docker-compose build frontend
+  docker-compose restart frontend
+  ```
 
-## 🔧 トラブルシューティング
+- **バックエンドで pydantic の extra_forbidden エラー**
+  - `app/core/config.py` の `Settings` クラスに `REDIS_URL: str = "redis://redis:6379"` を追加
 
-### ポートが既に使用されている場合
-
-他のサービスが同じポートを使用している可能性があります。以下のポートが空いていることを確認してください：
-
-- 3000 (フロントエンド)
-- 8000 (バックエンド)
-- 5432 (PostgreSQL)
-- 6379 (Redis)
-- 80 (Nginx)
-
-### Docker の権限エラー
-
-Linux の場合、docker グループにユーザーを追加する必要があります：
-
-```bash
-sudo usermod -aG docker $USER
-```
-
-その後、ログアウトして再度ログインしてください。
-
-### サービスが起動しない場合
-
-1. Docker が起動していることを確認
-2. `docker-compose logs <service-name>` でエラーログを確認
-3. `make clean` で環境をクリーンアップしてから再度 `make setup`
-
-## 📝 その他のコマンド
-
-利用可能なすべてのコマンドを確認：
-
-```bash
-make help
-```
+---
 
 ## 🤝 コントリビューション
 
-1. feature ブランチを作成 (`git checkout -b feature/amazing-feature`)
-2. 変更をコミット (`git commit -m 'Add some amazing feature'`)
-3. ブランチをプッシュ (`git push origin feature/amazing-feature`)
+1. feature ブランチを作成
+   `git checkout -b feature/your-feature`
+2. 変更をコミット
+   `git commit -m 'Add your feature'`
+3. ブランチをプッシュ
+   `git push origin feature/your-feature`
 4. プルリクエストを作成
 
+---
+
+## 💡 補足
+
+- `.gitignore`はプロジェクトルートと frontend 配下の両方に設置し、用途ごとに管理しています。
+- Node.js 22 + Yarn v4(Corepack) + Tailwind CSS v3 + Docker Compose の組み合わせで安定動作を確認済みです。
+- 詳細なコマンドや運用フローは`Makefile`や本 README を参照してください。
