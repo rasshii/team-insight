@@ -64,4 +64,40 @@ echo -e "\n${YELLOW}🚀 Docker環境を構築しています...${NC}"
 docker-compose build
 docker-compose up -d
 
+# データベースが起動するまで待機
+echo -e "\n${YELLOW}⏳ データベースの起動を待っています...${NC}"
+max_attempts=30
+attempt=0
+while [ $attempt -lt $max_attempts ]; do
+    if docker-compose exec -T postgres pg_isready -U postgres > /dev/null 2>&1; then
+        echo -e "${GREEN}✅ データベースが起動しました${NC}"
+        break
+    fi
+    echo -n "."
+    sleep 2
+    attempt=$((attempt + 1))
+done
+
+if [ $attempt -eq $max_attempts ]; then
+    echo -e "\n${RED}❌ データベースの起動がタイムアウトしました${NC}"
+    exit 1
+fi
+
+# データベースマイグレーションの実行
+echo -e "\n${YELLOW}🗃️  データベースマイグレーションを実行しています...${NC}"
+docker-compose exec -T backend alembic upgrade head
+echo -e "${GREEN}✅ マイグレーションが完了しました${NC}"
+
+# サービスの状態確認
+echo -e "\n${YELLOW}📊 サービスの状態を確認しています...${NC}"
+docker-compose ps
+
 echo -e "\n${GREEN}✅ セットアップが完了しました！${NC}"
+echo -e "\n${BLUE}アクセスURL:${NC}"
+echo -e "  - フロントエンド: ${GREEN}http://localhost:3000${NC}"
+echo -e "  - バックエンドAPI: ${GREEN}http://localhost:8000${NC}"
+echo -e "  - APIドキュメント: ${GREEN}http://localhost:8000/docs${NC}"
+echo -e "\n${YELLOW}💡 ヒント:${NC}"
+echo -e "  - ログを確認: ${BLUE}make logs${NC}"
+echo -e "  - サービス停止: ${BLUE}make stop${NC}"
+echo -e "  - サービス再起動: ${BLUE}make restart${NC}"

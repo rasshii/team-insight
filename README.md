@@ -35,6 +35,15 @@
    make setup
    ```
 
+   このコマンドで以下が自動的に実行されます：
+
+   - 環境変数ファイル（.env）の作成
+   - Docker イメージのビルド
+   - 全サービスの起動
+   - データベースの起動待機
+   - **データベースマイグレーションの実行**（テーブル作成）
+   - サービス状態の確認
+
 3. **初回のみフロントエンド依存解決**
 
    ```bash
@@ -44,18 +53,25 @@
    cd ..
    ```
 
-4. **サービス起動**
-
-   ```bash
-   make start
-   ```
-
-5. **アクセス URL**
+4. **アクセス URL**
    - フロントエンド: http://localhost:3000
    - バックエンド API: http://localhost:8000
-   - Nginx 経由: http://localhost
+   - API ドキュメント: http://localhost:8000/docs
    - PostgreSQL: localhost:5432
    - Redis: localhost:6379
+
+### セットアップ後の確認
+
+```bash
+# サービスの状態確認
+make status
+
+# マイグレーションの状態確認
+docker-compose exec backend alembic current
+
+# ログの確認（問題がある場合）
+make logs
+```
 
 ---
 
@@ -92,6 +108,212 @@
 
 ---
 
+## 🗃️ データベースマイグレーション
+
+### Alembic を使用したマイグレーション管理
+
+バックエンドでは Alembic を使用してデータベースのスキーマ管理を行っています。
+
+#### 基本的なマイグレーションコマンド
+
+```bash
+# 最新のマイグレーションを適用
+make migrate
+# または
+docker-compose exec backend alembic upgrade head
+
+# 現在のマイグレーション状態を確認
+docker-compose exec backend alembic current
+
+# マイグレーション履歴を確認
+docker-compose exec backend alembic history
+```
+
+#### 新しいマイグレーションファイルの作成
+
+1. **モデルを作成・変更した場合**
+
+   ```bash
+   # backend/app/models/ にモデルファイルを作成
+   # backend/app/db/base.py にモデルをインポート（重要！）
+   ```
+
+2. **自動マイグレーション生成**
+
+   ```bash
+   docker-compose exec backend alembic revision --autogenerate -m "説明的なメッセージ"
+   ```
+
+3. **手動マイグレーション作成**
+   ```bash
+   docker-compose exec backend alembic revision -m "説明的なメッセージ"
+   ```
+
+#### マイグレーションのロールバック
+
+```bash
+# 1つ前のバージョンに戻す
+docker-compose exec backend alembic downgrade -1
+
+# 特定のバージョンに戻す
+docker-compose exec backend alembic downgrade <revision_id>
+
+# 全てのマイグレーションを取り消す
+docker-compose exec backend alembic downgrade base
+```
+
+#### 注意事項
+
+- 新しいモデルを作成したら、必ず `backend/app/db/base.py` にインポートを追加してください
+- マイグレーションファイルは `backend/migrations/versions/` に保存されます
+- 本番環境へのデプロイ前に、必ずマイグレーションファイルをレビューしてください
+
+---
+
+## 🧪 テスト
+
+### バックエンドテスト（pytest）
+
+#### テストの実行
+
+```bash
+# 全てのテストを実行
+make test
+# または
+docker-compose exec backend pytest
+
+# 詳細な出力付きでテストを実行
+docker-compose exec backend pytest -v
+
+# 特定のテストファイルを実行
+docker-compose exec backend pytest tests/test_auth.py
+
+# 特定のテスト関数を実行
+docker-compose exec backend pytest tests/test_auth.py::test_get_authorization_url
+
+# カバレッジレポート付きでテストを実行
+docker-compose exec backend pytest --cov=app --cov-report=html
+```
+
+#### テストファイルの作成
+
+1. **テストファイルの配置**
+
+   ```
+   backend/
+   ├── app/           # アプリケーションコード
+   └── tests/         # テストコード
+       ├── conftest.py    # pytest設定とfixture
+       ├── test_auth.py   # 認証関連のテスト
+       └── test_*.py      # その他のテスト
+   ```
+
+2. **基本的なテストの書き方**
+
+   ```python
+   # tests/test_example.py
+   import pytest
+   from fastapi.testclient import TestClient
+   from app.main import app
+
+   client = TestClient(app)
+
+   def test_example_endpoint():
+       response = client.get("/api/v1/example")
+       assert response.status_code == 200
+       assert response.json() == {"message": "Hello World"}
+   ```
+
+3. **Fixture の使用**
+
+   ```python
+   # tests/conftest.py
+   import pytest
+   from app.db.session import SessionLocal
+   from app.models.user import User
+
+   @pytest.fixture(scope="function")
+   def test_user():
+       """テスト用ユーザーを作成するfixture"""
+       db = SessionLocal()
+       user = User(
+           email="test@example.com",
+           hashed_password="dummy_hash",
+           full_name="Test User"
+       )
+       db.add(user)
+       db.commit()
+       db.refresh(user)
+
+       yield user
+
+       # クリーンアップ
+       db.delete(user)
+       db.commit()
+       db.close()
+   ```
+
+4. **非同期関数のモック**
+
+   ```python
+   from unittest.mock import AsyncMock, patch
+
+   @patch("app.services.external_api.fetch_data")
+   def test_async_function(mock_fetch):
+       mock_fetch.return_value = AsyncMock(return_value={"data": "test"})
+       # テストコード
+   ```
+
+#### テストのベストプラクティス
+
+- テストは独立して実行できるようにする
+- Fixture を使用してテストデータを管理する
+- 外部 API やサービスはモックを使用する
+- テスト後は必ずデータをクリーンアップする
+- 意味のあるテスト名を付ける（`test_<機能>_<条件>_<期待結果>`）
+
+---
+
+## 📝 開発フロー
+
+### 新機能開発の流れ
+
+1. **モデルの作成**
+
+   ```bash
+   # backend/app/models/new_model.py を作成
+   # backend/app/db/base.py にインポートを追加
+   ```
+
+2. **マイグレーションの生成と適用**
+
+   ```bash
+   docker-compose exec backend alembic revision --autogenerate -m "Add new model"
+   docker-compose exec backend alembic upgrade head
+   ```
+
+3. **API エンドポイントの実装**
+
+   ```bash
+   # backend/app/api/v1/new_endpoint.py を作成
+   # backend/app/api/v1/__init__.py にルーターを追加
+   ```
+
+4. **テストの作成**
+
+   ```bash
+   # backend/tests/test_new_endpoint.py を作成
+   make test
+   ```
+
+5. **フロントエンドの実装**
+   ```bash
+   # frontend/src/components/NewComponent.tsx を作成
+   # frontend/src/services/api.ts にAPIクライアントを追加
+   ```
+
+---
+
 ## 🗂️ プロジェクト構成
 
 ```
@@ -101,7 +323,16 @@ team-insight/
 │   ├── postcss.config.js
 │   ├── ...
 ├── backend/           # FastAPI バックエンド
-│   └── app/
+│   ├── app/
+│   │   ├── api/       # APIエンドポイント
+│   │   ├── core/      # 設定、セキュリティ
+│   │   ├── db/        # データベース設定
+│   │   ├── models/    # SQLAlchemyモデル
+│   │   ├── schemas/   # Pydanticスキーマ
+│   │   └── services/  # ビジネスロジック
+│   ├── migrations/    # Alembicマイグレーション
+│   ├── tests/         # pytestテスト
+│   └── alembic.ini    # Alembic設定
 ├── infrastructure/    # Docker設定ファイル
 │   └── docker/
 │       ├── frontend/
@@ -146,7 +377,19 @@ team-insight/
   ```
 
 - **バックエンドで pydantic の extra_forbidden エラー**
+
   - `app/core/config.py` の `Settings` クラスに `REDIS_URL: str = "redis://redis:6379"` を追加
+
+- **マイグレーションエラー**
+
+  - `alembic.ini` の `sqlalchemy.url` が正しく設定されているか確認
+  - モデルが `backend/app/db/base.py` にインポートされているか確認
+  - データベースが起動しているか確認: `docker-compose ps postgres`
+
+- **テストエラー**
+  - テスト用データベースが正しく設定されているか確認
+  - Fixture が正しく `conftest.py` に定義されているか確認
+  - モックが適切に設定されているか確認（同期/非同期の違いに注意）
 
 ---
 
