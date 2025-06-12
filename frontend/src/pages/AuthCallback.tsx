@@ -7,7 +7,6 @@
 
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { authService } from "../services/auth.service";
 
 /**
  * 認証コールバックページコンポーネント
@@ -20,9 +19,10 @@ const AuthCallback: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const { handleCallback } = useAuth();
 
   useEffect(() => {
-    const handleCallback = async () => {
+    const processCallback = async () => {
       try {
         // URLパラメータから認証コードとstateを取得
         const code = searchParams.get("code");
@@ -33,7 +33,7 @@ const AuthCallback: React.FC = () => {
         }
 
         // 認証コールバックを処理
-        await authService.handleCallback(code, state);
+        await handleCallback(code, state);
 
         // 認証成功後、ダッシュボードにリダイレクト
         navigate("/dashboard");
@@ -54,8 +54,8 @@ const AuthCallback: React.FC = () => {
       }
     };
 
-    handleCallback();
-  }, [navigate, searchParams]);
+    processCallback();
+  }, [navigate, searchParams, handleCallback]);
 
   /**
    * ローディング表示

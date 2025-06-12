@@ -7,7 +7,7 @@
 
 import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../hooks/useAuth";
 
 /**
  * プライベートルートのプロパティ
@@ -23,13 +23,13 @@ interface PrivateRouteProps {
  * ローディング中は、ローディング表示を行います。
  */
 const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, isInitialized } = useAuth();
   const location = useLocation();
 
   /**
    * ローディング中の表示
    */
-  if (loading) {
+  if (!isInitialized || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
