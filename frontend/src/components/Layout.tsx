@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 import { Button } from "./ui/button";
 
 interface LayoutProps {
@@ -7,6 +8,8 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
+  const { user, logout } = useAuth();
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="border-b">
@@ -30,6 +33,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <Button variant="ghost" asChild>
                 <Link to="/team">チーム</Link>
               </Button>
+            </div>
+            <div className="flex items-center space-x-4">
+              {/* ユーザー情報 */}
+              {user && (
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm text-gray-700">{user.name}</span>
+                  <Button variant="outline" size="sm" onClick={logout}>
+                    ログアウト
+                  </Button>
+                </div>
+              )}
             </div>
           </nav>
         </div>

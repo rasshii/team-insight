@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     # CORS設定
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = ["http://localhost:3000"]
 
+    # Backlog OAuth2.0設定
+    BACKLOG_CLIENT_ID: str = ""  # 環境変数から読み込まれます
+    BACKLOG_CLIENT_SECRET: str = ""  # 環境変数から読み込まれます
+    BACKLOG_REDIRECT_URI: str = "http://localhost:3000/auth/callback"
+    BACKLOG_SPACE_KEY: str = ""  # BacklogのスペースキーまたはドメインのプレフィックスをOAuth認証時に使用
+
     class Config:
         case_sensitive = True
         env_file = ".env"
