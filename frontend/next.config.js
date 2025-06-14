@@ -3,6 +3,10 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   output: "standalone",
+  poweredByHeader: false,
+  generateBuildId: async () => {
+    return "build-" + Date.now();
+  },
   async rewrites() {
     return [
       {

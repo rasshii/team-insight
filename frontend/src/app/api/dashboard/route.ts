@@ -4,14 +4,49 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const response = await fetch("http://localhost:8000/api/dashboard", {
-      credentials: "include",
-    });
-    const data = await response.json();
-    return NextResponse.json(data);
+    // ダミーデータを返す
+    const dashboardData = {
+      projects: [
+        {
+          id: 1,
+          name: "プロジェクトA",
+          key: "PROJ-A",
+          status: "active",
+          issueCount: 15,
+        },
+        {
+          id: 2,
+          name: "プロジェクトB",
+          key: "PROJ-B",
+          status: "active",
+          issueCount: 8,
+        },
+      ],
+      teams: [
+        {
+          id: 1,
+          name: "開発チーム",
+          memberCount: 5,
+        },
+        {
+          id: 2,
+          name: "デザインチーム",
+          memberCount: 3,
+        },
+      ],
+      stats: {
+        totalProjects: 2,
+        totalTeams: 2,
+        totalIssues: 23,
+        activeIssues: 18,
+      },
+    };
+
+    return NextResponse.json(dashboardData);
   } catch (error) {
+    console.error("Dashboard API Error:", error);
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      { error: "サーバーエラーが発生しました" },
       { status: 500 }
     );
   }

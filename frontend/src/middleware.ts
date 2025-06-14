@@ -15,7 +15,7 @@ export function middleware(request: NextRequest) {
 
   // 保護されたパスにアクセスしようとしているが、認証されていない場合
   if (isProtectedPath && !isAuthenticated) {
-    const url = new URL("/login", request.url);
+    const url = new URL("/auth/login", request.url);
     url.searchParams.set("from", pathname);
     return NextResponse.redirect(url);
   }
