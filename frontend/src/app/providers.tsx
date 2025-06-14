@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Provider } from "react-redux";
 import { LoadingSpinner } from "../components/ui/loading-spinner";
 import { store } from "../store";
@@ -18,22 +18,7 @@ const AuthInitializer = ({ children }: { children: React.ReactNode }) => {
   );
   const [isClient, setIsClient] = useState(false);
   const initRef = useRef({ client: false, auth: false });
-  const redirectRef = useRef(false);
-  const callbackProcessedRef = useRef(false);
-  const redirectInProgressRef = useRef(false);
   const renderCountRef = useRef(0);
-
-  // リダイレクト処理
-  const handleRedirect = useCallback(
-    (targetPath: string) => {
-      if (!redirectInProgressRef.current) {
-        console.log(`リダイレクト開始: ${targetPath}`);
-        redirectInProgressRef.current = true;
-        router.replace(targetPath);
-      }
-    },
-    [router]
-  );
 
   // クライアントサイドの初期化
   useEffect(() => {
@@ -53,49 +38,20 @@ const AuthInitializer = ({ children }: { children: React.ReactNode }) => {
     }
   }, [isClient, dispatch]);
 
-  // コールバックページの処理
+  // 認証状態に応じたリダイレクト
   useEffect(() => {
-    if (
-      isInitialized &&
-      pathname === "/auth/callback" &&
-      !callbackProcessedRef.current
-    ) {
-      console.log("コールバックページ処理中");
-      callbackProcessedRef.current = true;
-
-      // 認証が完了したらダッシュボードにリダイレクト
-      if (isAuthenticated) {
-        console.log("認証完了: ダッシュボードにリダイレクト");
-        handleRedirect("/dashboard");
-      }
+    if (!isInitialized) return; // 初期化が終わるまで何もしない
+    const isAuthPage = pathname === "/auth/login";
+    const isRootPage = pathname === "/";
+    if (!isAuthenticated && !isAuthPage) {
+      console.log("未認証状態: ログインページにリダイレクト");
+      router.replace("/auth/login");
+    } else if (isAuthenticated && (isAuthPage || isRootPage)) {
+      console.log("認証済み状態: ダッシュボードにリダイレクト");
+      router.replace("/dashboard");
+      console.log("リダイレクト実行");
     }
-  }, [isInitialized, isAuthenticated, pathname, handleRedirect]);
-
-  // 通常の認証状態に応じたリダイレクト
-  useEffect(() => {
-    if (
-      isInitialized &&
-      !redirectRef.current &&
-      pathname !== "/auth/callback"
-    ) {
-      const isAuthPage = pathname === "/auth/login";
-      const isRootPage = pathname === "/";
-
-      if (isAuthenticated) {
-        if (isAuthPage || isRootPage) {
-          console.log("認証済み状態: ダッシュボードにリダイレクト");
-          redirectRef.current = true;
-          handleRedirect("/dashboard");
-        }
-      } else {
-        if (!isAuthPage) {
-          console.log("未認証状態: ログインページにリダイレクト");
-          redirectRef.current = true;
-          handleRedirect("/auth/login");
-        }
-      }
-    }
-  }, [isInitialized, isAuthenticated, pathname, handleRedirect]);
+  }, [isInitialized, isAuthenticated, pathname, router]);
 
   // デバッグ用のログ
   useEffect(() => {

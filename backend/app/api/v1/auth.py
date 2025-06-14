@@ -6,7 +6,7 @@
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from typing import Optional
@@ -143,7 +143,8 @@ async def handle_callback(
 
         logger.info(f"認証コールバック成功 - user_id: {user.id}")
 
-        return TokenResponse(
+        # レスポンスを作成
+        response = TokenResponse(
             access_token=access_token,
             token_type="bearer",
             user=UserInfoResponse(
@@ -153,6 +154,14 @@ async def handle_callback(
                 name=user.name,
                 user_id=user.user_id
             )
+        )
+
+        # Set-Cookieヘッダーを設定
+        return JSONResponse(
+            content=response.model_dump(),
+            headers={
+                "Set-Cookie": f"auth_token={access_token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800"
+            }
         )
 
     except Exception as e:
@@ -203,7 +212,8 @@ async def refresh_token(
         from app.core.security import create_access_token
         access_token = create_access_token(data={"sub": str(current_user.id)})
 
-        return TokenResponse(
+        # レスポンスを作成
+        response = TokenResponse(
             access_token=access_token,
             token_type="bearer",
             user=UserInfoResponse(
@@ -213,6 +223,14 @@ async def refresh_token(
                 name=current_user.name,
                 user_id=current_user.user_id
             )
+        )
+
+        # Set-Cookieヘッダーを設定
+        return JSONResponse(
+            content=response.model_dump(),
+            headers={
+                "Set-Cookie": f"auth_token={access_token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800"
+            }
         )
 
     except Exception as e:

@@ -25,14 +25,26 @@ interface PrivateRouteProps {
  * ローディング中は、ローディング表示を行います。
  */
 export function PrivateRoute({ children }: PrivateRouteProps) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isInitialized, user } = useAuth();
   const router = useRouter();
 
+  // 認証状態のログ出力
+  console.log("PrivateRoute useAuth:", {
+    isAuthenticated,
+    isInitialized,
+    user,
+  });
+
   useEffect(() => {
+    if (!isInitialized) return; // 初期化が終わるまで何もしない
     if (!isAuthenticated) {
-      router.push("/auth/login");
+      router.replace("/auth/login");
     }
-  }, [isAuthenticated, router]);
+  }, [isInitialized, isAuthenticated, router]);
+
+  if (!isInitialized) {
+    return <div>認証情報を確認中...</div>; // 必要に応じてスピナーに変更可
+  }
 
   if (!isAuthenticated) {
     return null;

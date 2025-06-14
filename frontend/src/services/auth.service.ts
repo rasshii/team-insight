@@ -50,7 +50,10 @@ class AuthService {
    * localStorageが使用可能かチェック
    */
   private isLocalStorageAvailable(): boolean {
-    return typeof window !== "undefined" && window.localStorage;
+    return (
+      typeof window !== "undefined" &&
+      typeof window.localStorage !== "undefined"
+    );
   }
 
   /**
@@ -140,6 +143,8 @@ class AuthService {
       console.log("トークンとユーザー情報を保存開始");
       if (response.data.access_token) {
         this.saveToken(response.data.access_token);
+        // クッキーにも保存（セキュリティ要件に応じてSecure/HttpOnly/Path/Expiresを調整）
+        document.cookie = `auth_token=${response.data.access_token}; path=/; max-age=604800; SameSite=Lax`;
       } else {
         console.error("トークンが含まれていません");
       }
