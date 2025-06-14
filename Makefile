@@ -49,7 +49,7 @@ setup:
 	@$(DOCKER_COMPOSE) up -d
 	@echo "⏳ データベースの起動を待機中..."
 	@for i in $$(seq 1 30); do \
-		if $(DOCKER_COMPOSE) exec -T $(DB_CONTAINER) pg_isready -U postgres > /dev/null 2>&1; then \
+		if $(DOCKER_COMPOSE) exec -T $(DB_CONTAINER) pg_isready -U team_insight_user > /dev/null 2>&1; then \
 			echo "✅ データベースが起動しました"; \
 			break; \
 		fi; \
@@ -144,7 +144,7 @@ backend-shell:
 # データベースシェル
 .PHONY: db-shell
 db-shell:
-	@$(DOCKER_COMPOSE) exec $(DB_CONTAINER) psql -U postgres -d team_insight
+	@$(DOCKER_COMPOSE) exec $(DB_CONTAINER) psql -U team_insight_user -d team_insight
 
 # データベースマイグレーション
 .PHONY: migrate

@@ -1,14 +1,20 @@
 # 開発環境用のDockerfile
-FROM node:20-slim
+FROM node:20-alpine
 
+# 作業ディレクトリの設定
 WORKDIR /app
 
 # 必要なパッケージのインストール
-COPY package*.json ./
-RUN npm install
+RUN apk add --no-cache python3 make g++
 
-# アプリケーションのコピー
-COPY . .
+# パッケージマネージャーの設定
+COPY package.json yarn.lock ./
 
-# アプリケーションの起動
-CMD ["npm", "start"]
+# 依存関係のインストール
+RUN yarn install --network-timeout 100000
+
+# ポートの公開
+EXPOSE 3000
+
+# 開発サーバーの起動
+CMD ["yarn", "dev"]
