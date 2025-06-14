@@ -7,7 +7,7 @@
   "editor.fontSize": 14, // フォントサイズ
   "editor.lineHeight": 1.5, // 行の高さ
   "editor.wordWrap": "on", // 行の折り返しを有効化
-  "editor.minimap.enabled": true, // ミニマップの表示
+  "editor.minimap.enabled": false, // ミニマップの表示
   "editor.rulers": [80, 100, 120], // 80, 100, 120文字目に縦線を表示
   "editor.renderWhitespace": "all", // すべての空白文字を可視化
   "editor.renderControlCharacters": true, // 制御文字を表示

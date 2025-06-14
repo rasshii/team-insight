@@ -6,6 +6,7 @@
  */
 
 import { useCallback } from "react";
+import type { RootState } from "../store";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import {
   clearError,
@@ -20,7 +21,7 @@ import {
  */
 interface UseAuthReturn {
   /** 現在のユーザー情報 */
-  user: ReturnType<typeof useAppSelector>["auth"]["user"];
+  user: RootState["auth"]["user"];
   /** ローディング状態 */
   loading: boolean;
   /** エラー情報 */
