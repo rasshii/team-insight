@@ -20,56 +20,56 @@
   }
   :root {
     --background: 0 0% 100%;
-    --foreground: 220 100% 20%;
+    --foreground: 92 49% 20%;
     --card: 0 0% 100%;
-    --card-foreground: 220 100% 20%;
+    --card-foreground: 92 49% 20%;
     --popover: 0 0% 100%;
-    --popover-foreground: 220 100% 20%;
-    --primary: 220 100% 35%; /* Backlogのメインカラー #2E5BB1 */
+    --popover-foreground: 92 49% 20%;
+    --primary: 92 49% 54%; /* Backlogグリーン #7AC143 */
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 20% 95%;
-    --secondary-foreground: 220 100% 35%;
-    --muted: 220 20% 95%;
-    --muted-foreground: 220 20% 45%;
-    --accent: 220 100% 35%;
+    --secondary: 92 30% 90%; /* 薄いグリーン */
+    --secondary-foreground: 92 49% 54%;
+    --muted: 92 30% 90%;
+    --muted-foreground: 92 20% 45%;
+    --accent: 92 49% 54%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 220 20% 90%;
-    --input: 220 20% 90%;
-    --ring: 220 100% 35%;
-    --chart-1: 220 100% 35%; /* Backlogのメインカラー */
-    --chart-2: 220 100% 45%; /* 少し明るい青 */
-    --chart-3: 220 100% 25%; /* 少し暗い青 */
-    --chart-4: 220 100% 55%; /* より明るい青 */
-    --chart-5: 220 100% 65%; /* 最も明るい青 */
+    --border: 92 20% 85%;
+    --input: 92 20% 85%;
+    --ring: 92 49% 54%;
+    --chart-1: 92 49% 54%; /* メイングリーン */
+    --chart-2: 92 49% 64%; /* 明るめグリーン */
+    --chart-3: 92 49% 44%; /* 暗めグリーン */
+    --chart-4: 92 49% 74%; /* さらに明るいグリーン */
+    --chart-5: 92 49% 34%; /* さらに暗いグリーン */
     --radius: 0.5rem;
   }
   .dark {
-    --background: 220 100% 10%;
+    --background: 92 49% 15%;
     --foreground: 0 0% 98%;
-    --card: 220 100% 15%;
+    --card: 92 49% 20%;
     --card-foreground: 0 0% 98%;
-    --popover: 220 100% 15%;
+    --popover: 92 49% 20%;
     --popover-foreground: 0 0% 98%;
-    --primary: 220 100% 35%; /* Backlogのメインカラー */
+    --primary: 92 49% 54%; /* Backlogグリーン */
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 100% 20%;
+    --secondary: 92 49% 34%;
     --secondary-foreground: 0 0% 98%;
-    --muted: 220 100% 20%;
-    --muted-foreground: 220 20% 80%;
-    --accent: 220 100% 35%;
+    --muted: 92 49% 24%;
+    --muted-foreground: 92 20% 80%;
+    --accent: 92 49% 54%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 220 100% 20%;
-    --input: 220 100% 20%;
-    --ring: 220 100% 35%;
-    --chart-1: 220 100% 35%; /* Backlogのメインカラー */
-    --chart-2: 220 100% 45%; /* 少し明るい青 */
-    --chart-3: 220 100% 25%; /* 少し暗い青 */
-    --chart-4: 220 100% 55%; /* より明るい青 */
-    --chart-5: 220 100% 65%; /* 最も明るい青 */
+    --border: 92 49% 24%;
+    --input: 92 49% 24%;
+    --ring: 92 49% 54%;
+    --chart-1: 92 49% 54%;
+    --chart-2: 92 49% 64%;
+    --chart-3: 92 49% 44%;
+    --chart-4: 92 49% 74%;
+    --chart-5: 92 49% 34%;
   }
 }
 
@@ -78,13 +78,13 @@
     @apply px-4 py-2 rounded-md font-medium transition-colors;
   }
   .btn-primary {
-    @apply bg-[#2E5BB1] text-white hover:bg-[#254A8F];
+    @apply bg-[#7AC143] text-white hover:bg-[#6DB33F];
   }
   .btn-secondary {
-    @apply bg-[#E8EEF7] text-[#2E5BB1] hover:bg-[#D1DCEF];
+    @apply bg-[#E6F4D7] text-[#7AC143] hover:bg-[#CDE9B0];
   }
   .input {
-    @apply w-full px-3 py-2 border border-[#D1DCEF] rounded-md focus:outline-none focus:ring-2 focus:ring-[#2E5BB1];
+    @apply w-full px-3 py-2 border border-[#CDE9B0] rounded-md focus:outline-none focus:ring-2 focus:ring-[#7AC143];
   }
   .card {
     @apply bg-white rounded-lg shadow-md p-6;
