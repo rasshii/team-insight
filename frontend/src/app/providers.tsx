@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Provider } from "react-redux";
 import { useAuth } from "../hooks/useAuth";
 import { store } from "../store";
@@ -8,14 +8,16 @@ import { initializeAuth } from "../store/slices/authSlice";
 
 function AuthInitializer({ children }: { children: React.ReactNode }) {
   const { isInitialized } = useAuth();
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    setIsClient(true);
     if (!isInitialized) {
       store.dispatch(initializeAuth());
     }
   }, [isInitialized]);
 
-  if (!isInitialized) {
+  if (!isClient || !isInitialized) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">

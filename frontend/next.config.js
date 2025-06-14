@@ -34,13 +34,7 @@ const nextConfig = {
       },
     ];
   },
-  async generateStaticParams() {
-    return {
-      dynamicParams: true,
-    };
-  },
   staticPageGenerationTimeout: 0,
-  dynamicParams: true,
 };
 
 module.exports = nextConfig;
