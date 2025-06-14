@@ -100,11 +100,21 @@ make logs
 
 ## 🛠️ 技術スタック
 
-- **フロントエンド**: React + TypeScript, Tailwind CSS v3, shadcn/ui, Yarn v4, Node.js v22
+- **フロントエンド**: Next.js 14, React + TypeScript, Tailwind CSS v3, shadcn/ui, Yarn v4, Node.js v22
 - **バックエンド**: FastAPI, Python 3.11
 - **データベース**: PostgreSQL 15
 - **キャッシュ**: Redis 7
 - **インフラ**: Docker Compose, Nginx
+
+### フロントエンドの主な機能
+
+- **App Router**: Next.js 14 の App Router を使用した最新のルーティング
+- **Server Components**: パフォーマンス最適化のためのサーバーコンポーネント
+- **API Routes**: バックエンドとの通信のための API ルート
+- **Middleware**: 認証やリダイレクトのためのミドルウェア
+- **TypeScript**: 型安全性の確保
+- **Tailwind CSS**: モダンなスタイリング
+- **shadcn/ui**: 再利用可能な UI コンポーネント
 
 ---
 

@@ -1,33 +1,22 @@
 "use client";
 
-/**
- * ログインページ
- *
- * ユーザーがBacklog OAuth2.0認証を開始するためのページです。
- */
+import { useAuth } from "@/hooks/useAuth";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
-import { useRouter } from "next/navigation";
-import React, { useState } from "react";
-import { useAuth } from "../hooks/useAuth";
-
-/**
- * ログインページコンポーネント
- *
- * Backlogアカウントでのログインボタンを表示し、
- * 認証フローを開始します。
- */
-const Login: React.FC = () => {
+export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login, isAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // すでに認証済みの場合は、ダッシュボードにリダイレクト
-  React.useEffect(() => {
+  useEffect(() => {
     if (isAuthenticated) {
-      router.push("/dashboard");
+      const from = searchParams?.get("from") || "/dashboard";
+      router.replace(from);
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, router, searchParams]);
 
   /**
    * ログインボタンのクリックハンドラー
@@ -156,6 +145,4 @@ const Login: React.FC = () => {
       </div>
     </div>
   );
-};
-
-export default Login;
+}

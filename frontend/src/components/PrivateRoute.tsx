@@ -5,9 +5,11 @@
  * 未認証ユーザーをログインページにリダイレクトします。
  */
 
-import React from "react";
-import { Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth";
+"use client";
+
+import { useAuth } from "@/hooks/useAuth";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 /**
  * プライベートルートのプロパティ
@@ -22,36 +24,19 @@ interface PrivateRouteProps {
  * 認証状態を確認し、未認証の場合はログインページにリダイレクトします。
  * ローディング中は、ローディング表示を行います。
  */
-const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
-  const { isAuthenticated, loading, isInitialized } = useAuth();
-  const location = useLocation();
+export function PrivateRoute({ children }: PrivateRouteProps) {
+  const { isAuthenticated } = useAuth();
+  const router = useRouter();
 
-  /**
-   * ローディング中の表示
-   */
-  if (!isInitialized || loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">読み込み中...</p>
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push("/auth/login");
+    }
+  }, [isAuthenticated, router]);
 
-  /**
-   * 未認証の場合はログインページにリダイレクト
-   * 現在のパスを保存して、ログイン後に元のページに戻れるようにする
-   */
   if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return null;
   }
 
-  /**
-   * 認証済みの場合は子コンポーネントを表示
-   */
   return <>{children}</>;
-};
-
-export default PrivateRoute;
+}

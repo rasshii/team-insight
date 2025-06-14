@@ -1,5 +1,5 @@
+import Link from "next/link";
 import React from "react";
-import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { Button } from "./ui/button";
 
@@ -16,22 +16,22 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="container mx-auto px-4 py-4">
           <nav className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Link to="/" className="text-xl font-bold">
+              <Link href="/" className="text-xl font-bold">
                 Team Insight
               </Link>
             </div>
             <div className="flex items-center space-x-4">
               <Button variant="ghost" asChild>
-                <Link to="/">ホーム</Link>
+                <Link href="/">ホーム</Link>
               </Button>
               <Button variant="ghost" asChild>
-                <Link to="/dashboard">ダッシュボード</Link>
+                <Link href="/dashboard">ダッシュボード</Link>
               </Button>
               <Button variant="ghost" asChild>
-                <Link to="/projects">プロジェクト</Link>
+                <Link href="/projects">プロジェクト</Link>
               </Button>
               <Button variant="ghost" asChild>
-                <Link to="/team">チーム</Link>
+                <Link href="/team">チーム</Link>
               </Button>
             </div>
             <div className="flex items-center space-x-4">

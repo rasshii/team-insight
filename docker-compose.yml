@@ -68,20 +68,22 @@ services:
       - team-insight-network
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
-  # Frontend Application (React)
+  # Frontend Application (Next.js)
   frontend:
     build:
       context: ./frontend
       dockerfile: ../infrastructure/docker/frontend/Dockerfile
     container_name: team-insight-frontend
     environment:
-      REACT_APP_API_URL: http://localhost:8000
-      REACT_APP_ENVIRONMENT: development
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: 1
     ports:
       - "3000:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
+      - /app/.next
     depends_on:
       - backend
     networks:

@@ -17,6 +17,13 @@ RUN yarn install
 # アプリケーションのソースコードをコピー
 COPY . .
 
+# ビルドに必要な環境変数を設定
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Next.jsのビルドを実行
+RUN yarn build
+
 EXPOSE 3000
 
 CMD ["yarn", "start"]
