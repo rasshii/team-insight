@@ -42,19 +42,14 @@ echo -e "${GREEN}✅ 必要なコマンドが確認できました${NC}"
 # 環境変数ファイルの作成
 echo -e "\n${YELLOW}📝 環境変数ファイルを作成しています...${NC}"
 
-if [ ! -f frontend/.env ]; then
-    cat > frontend/.env << EOF
-REACT_APP_API_URL=http://localhost:8000
-EOF
-    echo -e "${GREEN}✅ frontend/.env を作成しました${NC}"
-fi
-
 if [ ! -f backend/.env ]; then
     cat > backend/.env << EOF
-DATABASE_URL=postgresql://postgres:postgres@postgres:5432/team_insight
+DATABASE_URL=postgresql://team_insight_user:team_insight_password@postgres:5432/team_insight
 REDIS_URL=redis://redis:6379
 SECRET_KEY=your-secret-key-here
 DEBUG=True
+CORS_ORIGINS=["http://localhost:3000"]
+LOG_LEVEL=INFO
 EOF
     echo -e "${GREEN}✅ backend/.env を作成しました${NC}"
 fi
@@ -64,4 +59,40 @@ echo -e "\n${YELLOW}🚀 Docker環境を構築しています...${NC}"
 docker-compose build
 docker-compose up -d
 
+# データベースが起動するまで待機
+echo -e "\n${YELLOW}⏳ データベースの起動を待っています...${NC}"
+max_attempts=30
+attempt=0
+while [ $attempt -lt $max_attempts ]; do
+    if docker-compose exec -T postgres pg_isready -U team_insight_user > /dev/null 2>&1; then
+        echo -e "${GREEN}✅ データベースが起動しました${NC}"
+        break
+    fi
+    echo -n "."
+    sleep 2
+    attempt=$((attempt + 1))
+done
+
+if [ $attempt -eq $max_attempts ]; then
+    echo -e "\n${RED}❌ データベースの起動がタイムアウトしました${NC}"
+    exit 1
+fi
+
+# データベースマイグレーションの実行
+echo -e "\n${YELLOW}🗃️  データベースマイグレーションを実行しています...${NC}"
+docker-compose exec -T backend alembic upgrade head
+echo -e "${GREEN}✅ マイグレーションが完了しました${NC}"
+
+# サービスの状態確認
+echo -e "\n${YELLOW}📊 サービスの状態を確認しています...${NC}"
+docker-compose ps
+
 echo -e "\n${GREEN}✅ セットアップが完了しました！${NC}"
+echo -e "\n${BLUE}アクセスURL:${NC}"
+echo -e "  - フロントエンド: ${GREEN}http://localhost:3000${NC}"
+echo -e "  - バックエンドAPI: ${GREEN}http://localhost:8000${NC}"
+echo -e "  - APIドキュメント: ${GREEN}http://localhost:8000/docs${NC}"
+echo -e "\n${YELLOW}💡 ヒント:${NC}"
+echo -e "  - ログを確認: ${BLUE}make logs${NC}"
+echo -e "  - サービス停止: ${BLUE}make stop${NC}"
+echo -e "  - サービス再起動: ${BLUE}make restart${NC}"

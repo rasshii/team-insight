@@ -8,21 +8,24 @@ services:
       dockerfile: Dockerfile
     container_name: team-insight-postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: team_insight_user
+      POSTGRES_PASSWORD: team_insight_password
       POSTGRES_DB: team_insight
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infrastructure/docker/postgresql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./infrastructure/docker/postgresql/conf/postgresql.conf:/etc/postgresql/postgresql.conf
     networks:
       - team-insight-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U team_insight_user -d team_insight"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   # Redis Cache
   redis:
@@ -30,17 +33,21 @@ services:
       context: ./infrastructure/docker/redis
       dockerfile: Dockerfile
     container_name: team-insight-redis
+    environment:
+      REDIS_PASSWORD: team_insight_redis_password
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+      - ./infrastructure/docker/redis/redis.conf:/usr/local/etc/redis/redis.conf
     networks:
       - team-insight-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "team_insight_redis_password", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   # Backend API (FastAPI)
   backend:
@@ -49,11 +56,13 @@ services:
       dockerfile: ../infrastructure/docker/backend/Dockerfile
     container_name: team-insight-backend
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/team_insight
-      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://team_insight_user:team_insight_password@postgres:5432/team_insight
+      REDIS_URL: redis://:team_insight_redis_password@redis:6379/0
       PYTHONPATH: /app
       SECRET_KEY: ${SECRET_KEY:-your-secret-key-here}
       DEBUG: ${DEBUG:-True}
+      BACKEND_CORS_ORIGINS: http://localhost:3000,http://frontend:3000
+      LOG_LEVEL: INFO
     ports:
       - "8000:8000"
     volumes:
@@ -67,26 +76,32 @@ services:
     networks:
       - team-insight-network
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
 
-  # Frontend Application (React)
+  # Frontend Application (Next.js)
   frontend:
     build:
       context: ./frontend
-      dockerfile: ../infrastructure/docker/frontend/Dockerfile
+      dockerfile: ../infrastructure/docker/frontend/Dockerfile.dev
     container_name: team-insight-frontend
     environment:
-      REACT_APP_API_URL: http://localhost:8000
-      REACT_APP_ENVIRONMENT: development
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+      NODE_ENV: development
+      NEXT_TELEMETRY_DISABLED: 1
+      PORT: 3000
     ports:
       - "3000:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
+      - /app/.next
     depends_on:
       - backend
     networks:
       - team-insight-network
-    command: yarn start
+    command: yarn dev
+    restart: unless-stopped
 
   # Nginx Reverse Proxy
   nginx:

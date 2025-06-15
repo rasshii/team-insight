@@ -16,7 +16,7 @@ help:
 	@echo "Team Insight - 開発環境管理コマンド"
 	@echo ""
 	@echo "使用可能なコマンド:"
-	@echo "  make setup          - 初回セットアップ（Docker環境構築）"
+	@echo "  make setup          - 初回セットアップ（Docker環境構築 + DB初期化）"
 	@echo "  make start          - 全サービスを起動"
 	@echo "  make stop           - 全サービスを停止"
 	@echo "  make restart        - 全サービスを再起動"
@@ -32,6 +32,11 @@ help:
 	@echo "  make frontend-shell - フロントエンドコンテナに接続"
 	@echo "  make backend-shell  - バックエンドコンテナに接続"
 	@echo "  make db-shell       - データベースコンテナに接続"
+	@echo ""
+	@echo "データベース操作:"
+	@echo "  make migrate        - DBマイグレーションを実行"
+	@echo "  make migrate-down   - マイグレーションを1つ戻す"
+	@echo "  make migrate-history - マイグレーション履歴を表示"
 
 # 初回セットアップ
 .PHONY: setup
@@ -42,13 +47,26 @@ setup:
 	@$(DOCKER_COMPOSE) build
 	@echo "🚀 サービスを起動..."
 	@$(DOCKER_COMPOSE) up -d
-	@echo "⏳ サービスの起動を待機中..."
-	@sleep 10
+	@echo "⏳ データベースの起動を待機中..."
+	@for i in $$(seq 1 30); do \
+		if $(DOCKER_COMPOSE) exec -T $(DB_CONTAINER) pg_isready -U team_insight_user > /dev/null 2>&1; then \
+			echo "✅ データベースが起動しました"; \
+			break; \
+		fi; \
+		echo -n "."; \
+		sleep 2; \
+	done
+	@echo ""
+	@echo "🗃️  データベースマイグレーションを実行..."
+	@$(DOCKER_COMPOSE) exec -T $(BACKEND_CONTAINER) alembic upgrade head
+	@echo "✅ マイグレーションが完了しました"
+	@echo ""
 	@echo "✅ セットアップが完了しました！"
 	@echo ""
 	@echo "アクセスURL:"
 	@echo "  - フロントエンド: http://localhost:3000"
 	@echo "  - バックエンドAPI: http://localhost:8000"
+	@echo "  - APIドキュメント: http://localhost:8000/docs"
 	@echo "  - PostgreSQL: localhost:5432"
 	@echo "  - Redis: localhost:6379"
 
@@ -126,14 +144,27 @@ backend-shell:
 # データベースシェル
 .PHONY: db-shell
 db-shell:
-	@$(DOCKER_COMPOSE) exec $(DB_CONTAINER) psql -U postgres -d team_insight
+	@$(DOCKER_COMPOSE) exec $(DB_CONTAINER) psql -U team_insight_user -d team_insight
 
 # データベースマイグレーション
 .PHONY: migrate
 migrate:
 	@echo "🗄️  データベースマイグレーションを実行..."
-	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) python -m alembic upgrade head
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) alembic upgrade head
 	@echo "✅ マイグレーションが完了しました"
+
+# マイグレーションを1つ戻す
+.PHONY: migrate-down
+migrate-down:
+	@echo "⬇️  マイグレーションを1つ戻します..."
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) alembic downgrade -1
+	@echo "✅ ロールバックが完了しました"
+
+# マイグレーション履歴表示
+.PHONY: migrate-history
+migrate-history:
+	@echo "📜 マイグレーション履歴:"
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) alembic history
 
 # テスト実行
 .PHONY: test
