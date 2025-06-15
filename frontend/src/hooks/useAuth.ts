@@ -6,6 +6,7 @@
  */
 
 import { useCallback } from "react";
+import type { RootState } from "../store";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import {
   clearError,
@@ -20,7 +21,7 @@ import {
  */
 interface UseAuthReturn {
   /** 現在のユーザー情報 */
-  user: ReturnType<typeof useAppSelector>["auth"]["user"];
+  user: RootState["auth"]["user"];
   /** ローディング状態 */
   loading: boolean;
   /** エラー情報 */
@@ -57,7 +58,10 @@ export const useAuth = (): UseAuthReturn => {
    */
   const login = useCallback(async () => {
     try {
+      console.log("ログイン処理開始");
       const result = await dispatch(getAuthorizationUrl()).unwrap();
+      console.log("認証URL取得成功:", result);
+      console.log("認証URLへリダイレクト:", result.authorization_url);
       // Backlogの認証ページにリダイレクト
       window.location.href = result.authorization_url;
     } catch (error) {
@@ -70,7 +74,9 @@ export const useAuth = (): UseAuthReturn => {
    * ログアウト処理
    */
   const logout = useCallback(() => {
+    console.log("ログアウト処理開始");
     dispatch(logoutAction());
+    console.log("ホームページへリダイレクト");
     // ホームページにリダイレクト
     window.location.href = "/";
   }, [dispatch]);
@@ -81,9 +87,13 @@ export const useAuth = (): UseAuthReturn => {
   const handleCallback = useCallback(
     async (code: string, state: string) => {
       try {
+        console.log("認証コールバック処理開始 - useAuth");
+        console.log("code:", code);
+        console.log("state:", state);
         await dispatch(handleAuthCallback({ code, state })).unwrap();
+        console.log("認証コールバック処理成功 - useAuth");
       } catch (error) {
-        console.error("認証コールバックの処理に失敗しました:", error);
+        console.error("認証コールバックの処理に失敗しました - useAuth:", error);
         throw error;
       }
     },

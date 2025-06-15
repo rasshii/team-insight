@@ -1,412 +1,620 @@
 # Team Insight
 
-チーム分析とコラボレーションのためのプラットフォーム
+> Backlog のデータを活用したチーム分析ツール。チームのパフォーマンスを可視化し、ボトルネックの特定や生産性の向上を支援します。
 
----
+## 📋 目次
 
-## 🚀 初回セットアップ
+- [概要](#概要)
+- [技術スタック](#技術スタック)
+- [セットアップ](#セットアップ)
+- [開発ガイド](#開発ガイド)
+  - [Makefile コマンド一覧](#makefileコマンド一覧)
+  - [バックエンド開発](#バックエンド開発)
+  - [フロントエンド開発](#フロントエンド開発)
+  - [データベース管理](#データベース管理)
+  - [テスト](#テスト)
+- [アーキテクチャ](#アーキテクチャ)
+- [トラブルシューティング](#トラブルシューティング)
+- [コントリビューション](#コントリビューション)
 
-### 必要なツール
+## 概要
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- [Git](https://git-scm.com/)
-- Make（macOS/Linux は標準搭載、Windows は[こちら](http://gnuwin32.sourceforge.net/packages/make.htm)）
-- Node.js 22.x（yarn v4 は corepack で自動管理されます）
+Team Insight は、Backlog API と連携してチームの開発プロセスを分析・可視化する Web アプリケーションです。
 
-### 手順
+### 主な機能
 
-1. **リポジトリをクローン**
+- **Backlog OAuth 認証**: セキュアな OAuth2.0 認証
+- **ダッシュボード**: プロジェクトとチームの統計情報を一覧表示
+- **プロジェクト分析**: 課題の進捗状況やボトルネックを可視化
+- **チーム分析**: メンバーの生産性やワークロードを分析
 
-   ```bash
-   git clone <repository-url>
-   cd team-insight
-   ```
+## 技術スタック
 
-2. **セットアップスクリプトを実行**
+### バックエンド
 
-   ```bash
-   chmod +x setup.sh
-   ./setup.sh
-   ```
+- **FastAPI** (Python 3.11): 高速で型安全な Web API フレームワーク
+- **SQLAlchemy 2.0**: ORM とデータベース管理
+- **PostgreSQL 15**: メインデータベース
+- **Redis 7**: キャッシュとセッション管理
+- **Alembic**: データベースマイグレーション
 
-   または
+### フロントエンド
 
-   ```bash
-   make setup
-   ```
+- **React 18**: UI フレームワーク
+- **TypeScript 5**: 型安全な開発
+- **Redux Toolkit**: 状態管理
+- **shadcn/ui**: UI コンポーネントライブラリ
+- **Tailwind CSS v3**: ユーティリティファースト CSS
+- **Yarn v4 (Berry)**: パッケージ管理
 
-   このコマンドで以下が自動的に実行されます：
+### インフラ
 
-   - 環境変数ファイル（.env）の作成
-   - Docker イメージのビルド
-   - 全サービスの起動
-   - データベースの起動待機
-   - **データベースマイグレーションの実行**（テーブル作成）
-   - サービス状態の確認
+- **Docker & Docker Compose**: コンテナ化と開発環境
+- **Nginx**: リバースプロキシ
+- **Node.js v22 LTS**: フロントエンドランタイム
 
-3. **初回のみフロントエンド依存解決**
+## セットアップ
 
-   ```bash
-   cd frontend
-   corepack enable
-   yarn install
-   cd ..
-   ```
+### 前提条件
 
-4. **アクセス URL**
-   - フロントエンド: http://localhost:3000
-   - バックエンド API: http://localhost:8000
-   - API ドキュメント: http://localhost:8000/docs
-   - PostgreSQL: localhost:5432
-   - Redis: localhost:6379
+- Docker Desktop
+- Git
+- Backlog OAuth アプリケーションの登録
 
-### セットアップ後の確認
+### 初回セットアップ
+
+1. **リポジトリのクローン**
 
 ```bash
-# サービスの状態確認
-make status
-
-# マイグレーションの状態確認
-docker-compose exec backend alembic current
-
-# ログの確認（問題がある場合）
-make logs
+git clone https://github.com/your-org/team-insight.git
+cd team-insight
 ```
 
----
+2. **環境変数の設定**
 
-## 🏃 日常運用コマンド
+バックエンド環境変数 (`backend/.env`):
 
-| 操作                 | コマンド例            | 説明                               |
-| -------------------- | --------------------- | ---------------------------------- |
-| サービス起動         | `make start`          | 全サービスをバックグラウンド起動   |
-| サービス停止         | `make stop`           | 全サービスを停止                   |
-| サービス再起動       | `make restart`        | 全サービスを再起動                 |
-| サービス状態確認     | `make status`         | サービスの状態一覧を表示           |
-| 全ログ表示           | `make logs`           | 全サービスのログをリアルタイム表示 |
-| フロントエンドログ   | `make frontend-logs`  | フロントエンドのログのみ表示       |
-| バックエンドログ     | `make backend-logs`   | バックエンドのログのみ表示         |
-| DB ログ              | `make db-logs`        | データベースのログのみ表示         |
-| フロントエンドシェル | `make frontend-shell` | フロントエンドコンテナに入る       |
-| バックエンドシェル   | `make backend-shell`  | バックエンドコンテナに入る         |
-| DB シェル            | `make db-shell`       | psql で DB に入る                  |
-| クリーンアップ       | `make clean`          | コンテナ・ボリュームを全削除       |
-| イメージ再ビルド     | `make rebuild`        | Docker イメージを再ビルド          |
-| DB マイグレーション  | `make migrate`        | Alembic で DB マイグレーション実行 |
-| バックエンドテスト   | `make test`           | バックエンドの pytest を実行       |
-| コマンド一覧         | `make help`           | すべてのコマンドを表示             |
+```env
+# データベース設定
+DATABASE_URL=postgresql://team_insight_user:team_insight_password@postgres:5432/team_insight
 
----
+# Redis設定
+REDIS_URL=redis://redis:6379/0
 
-## 🛠️ 技術スタック
+# セキュリティ
+SECRET_KEY=your-secret-key-here
+ACCESS_TOKEN_EXPIRE_MINUTES=30
 
-- **フロントエンド**: React + TypeScript, Tailwind CSS v3, shadcn/ui, Yarn v4, Node.js v22
-- **バックエンド**: FastAPI, Python 3.11
-- **データベース**: PostgreSQL 15
-- **キャッシュ**: Redis 7
-- **インフラ**: Docker Compose, Nginx
+# Backlog OAuth設定
+BACKLOG_CLIENT_ID=your-client-id
+BACKLOG_CLIENT_SECRET=your-client-secret
+BACKLOG_REDIRECT_URI=http://localhost:3000/auth/callback
+BACKLOG_SPACE_KEY=your-space-key
+```
 
----
-
-## 🗃️ データベースマイグレーション
-
-### Alembic を使用したマイグレーション管理
-
-バックエンドでは Alembic を使用してデータベースのスキーマ管理を行っています。
-
-#### 基本的なマイグレーションコマンド
+3. **セットアップスクリプトの実行**
 
 ```bash
-# 最新のマイグレーションを適用
+# 実行権限を付与
+chmod +x setup.sh
+
+# セットアップ実行
+./setup.sh
+```
+
+または
+
+```bash
+make setup
+```
+
+4. **アプリケーションへのアクセス**
+
+- フロントエンド: http://localhost:3000
+- バックエンド API: http://localhost:8000
+- API ドキュメント: http://localhost:8000/docs
+
+## 開発ガイド
+
+### Makefile コマンド一覧
+
+#### 基本操作
+
+```bash
+make start          # 開発サーバーを起動
+make stop           # 開発サーバーを停止
+make restart        # 開発サーバーを再起動
+make status         # サービスの状態を確認
+make logs           # 全サービスのログを表示
+```
+
+#### データベース操作
+
+```bash
+make db-shell      # PostgreSQLに接続
+make db-backup     # データベースのバックアップを作成
+make db-restore    # バックアップから復元
+make migrate       # 最新のマイグレーションを適用
+make migrate-rollback  # 最後のマイグレーションをロールバック
+```
+
+#### 開発用コマンド
+
+```bash
+make test          # テストを実行
+make test-coverage # カバレッジレポート付きでテスト実行
+make lint          # コードの静的解析を実行
+make format        # コードをフォーマット
+make clean         # コンテナとボリュームを削除
+```
+
+#### コンテナ操作
+
+```bash
+make build         # 全イメージをビルド
+make rebuild       # 全イメージを再ビルド
+make ps            # コンテナの状態を表示
+make shell         # バックエンドコンテナのシェルに入る
+```
+
+### バックエンド開発
+
+#### ディレクトリ構造
+
+```
+backend/
+├── app/
+│   ├── api/          # APIエンドポイント
+│   │   └── v1/       # APIバージョン1
+│   ├── core/         # 設定とセキュリティ
+│   ├── db/           # データベース関連
+│   ├── models/       # SQLAlchemyモデル
+│   ├── schemas/      # Pydanticスキーマ
+│   ├── services/     # ビジネスロジック
+│   └── main.py       # アプリケーションエントリーポイント
+├── alembic/          # データベースマイグレーション
+└── tests/            # テストコード
+```
+
+#### 新しい API エンドポイントの追加
+
+1. **スキーマの定義** (`app/schemas/your_feature.py`):
+
+```python
+from pydantic import BaseModel, Field
+from typing import Optional
+
+class YourFeatureResponse(BaseModel):
+    """レスポンススキーマ"""
+    id: int = Field(..., description="ID")
+    name: str = Field(..., description="名前")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "id": 1,
+                "name": "サンプル"
+            }
+        }
+```
+
+2. **モデルの定義** (`app/models/your_feature.py`):
+
+```python
+from sqlalchemy import Column, Integer, String
+from app.db.base_class import Base
+
+class YourFeature(Base):
+    """データベースモデル"""
+    __tablename__ = "your_features"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+```
+
+3. **サービスの実装** (`app/services/your_feature_service.py`):
+
+```python
+from sqlalchemy.orm import Session
+from app.models.your_feature import YourFeature
+
+class YourFeatureService:
+    """ビジネスロジック"""
+
+    async def get_all(self, db: Session):
+        """すべてのデータを取得"""
+        return db.query(YourFeature).all()
+
+your_feature_service = YourFeatureService()
+```
+
+4. **API エンドポイントの実装** (`app/api/v1/your_feature.py`):
+
+```python
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from typing import List
+
+from app.db.session import get_db
+from app.schemas.your_feature import YourFeatureResponse
+from app.services.your_feature_service import your_feature_service
+from app.core.security import get_current_active_user
+
+router = APIRouter(prefix="/your-feature", tags=["your-feature"])
+
+@router.get("/", response_model=List[YourFeatureResponse])
+async def get_your_features(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """データ一覧を取得"""
+    return await your_feature_service.get_all(db)
+```
+
+5. **ルーターの登録** (`app/api/v1/__init__.py`):
+
+```python
+from .your_feature import router as your_feature_router
+# 既存のインポートに追加
+
+api_router.include_router(your_feature_router)
+```
+
+### フロントエンド開発
+
+#### ディレクトリ構造
+
+```
+frontend/
+├── src/
+│   ├── app/              # Next.js App Router
+│   │   ├── (routes)/     # ページコンポーネント
+│   │   ├── api/          # APIルート
+│   │   └── layout.tsx    # ルートレイアウト
+│   ├── components/       # 再利用可能なコンポーネント
+│   │   └── ui/          # shadcn/uiコンポーネント
+│   ├── hooks/           # カスタムフック
+│   ├── services/        # APIクライアント
+│   ├── store/           # Redux store
+│   │   └── slices/      # Redux slices
+│   └── types/           # TypeScript型定義
+```
+
+#### 新しいページの追加
+
+1. **型定義** (`src/types/your-feature.ts`):
+
+```typescript
+export interface YourFeature {
+  id: number;
+  name: string;
+}
+```
+
+2. **API サービス** (`src/services/your-feature.service.ts`):
+
+```typescript
+import axios from "axios";
+import { YourFeature } from "@/types/your-feature";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+class YourFeatureService {
+  async getAll(): Promise<YourFeature[]> {
+    const response = await axios.get(`${API_BASE_URL}/api/v1/your-feature`);
+    return response.data;
+  }
+}
+
+export const yourFeatureService = new YourFeatureService();
+```
+
+3. **Redux Slice** (`src/store/slices/yourFeatureSlice.ts`):
+
+```typescript
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import { yourFeatureService } from "@/services/your-feature.service";
+import { YourFeature } from "@/types/your-feature";
+
+interface YourFeatureState {
+  items: YourFeature[];
+  loading: boolean;
+  error: string | null;
+}
+
+const initialState: YourFeatureState = {
+  items: [],
+  loading: false,
+  error: null,
+};
+
+export const fetchYourFeatures = createAsyncThunk(
+  "yourFeature/fetchAll",
+  async () => {
+    return await yourFeatureService.getAll();
+  }
+);
+
+const yourFeatureSlice = createSlice({
+  name: "yourFeature",
+  initialState,
+  reducers: {},
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchYourFeatures.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchYourFeatures.fulfilled, (state, action) => {
+        state.loading = false;
+        state.items = action.payload;
+      })
+      .addCase(fetchYourFeatures.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || "エラーが発生しました";
+      });
+  },
+});
+
+export default yourFeatureSlice.reducer;
+```
+
+4. **ページコンポーネント** (`src/app/your-feature/page.tsx`):
+
+```typescript
+"use client";
+
+import { useEffect } from "react";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { fetchYourFeatures } from "@/store/slices/yourFeatureSlice";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+
+export default function YourFeaturePage() {
+  const dispatch = useAppDispatch();
+  const { items, loading, error } = useAppSelector(
+    (state) => state.yourFeature
+  );
+
+  useEffect(() => {
+    dispatch(fetchYourFeatures());
+  }, [dispatch]);
+
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6">
+        <Skeleton className="h-[200px] w-full" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto p-6">
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto p-6">
+      <h1 className="text-3xl font-bold mb-6">Your Feature</h1>
+      <div className="grid gap-4">
+        {items.map((item) => (
+          <Card key={item.id}>
+            <CardHeader>
+              <CardTitle>{item.name}</CardTitle>
+            </CardHeader>
+            <CardContent>{/* コンテンツ */}</CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+### データベース管理
+
+#### マイグレーション
+
+```bash
+# 新しいマイグレーションの作成
+make migration-create name="migration_name"
+
+# マイグレーションの適用
 make migrate
-# または
-docker-compose exec backend alembic upgrade head
 
-# 現在のマイグレーション状態を確認
-docker-compose exec backend alembic current
+# マイグレーションのロールバック
+make migrate-rollback
 
-# マイグレーション履歴を確認
-docker-compose exec backend alembic history
+# マイグレーション履歴の確認
+make migration-history
 ```
 
-#### 新しいマイグレーションファイルの作成
-
-1. **モデルを作成・変更した場合**
-
-   ```bash
-   # backend/app/models/ にモデルファイルを作成
-   # backend/app/db/base.py にモデルをインポート（重要！）
-   ```
-
-2. **自動マイグレーション生成**
-
-   ```bash
-   docker-compose exec backend alembic revision --autogenerate -m "説明的なメッセージ"
-   ```
-
-3. **手動マイグレーション作成**
-   ```bash
-   docker-compose exec backend alembic revision -m "説明的なメッセージ"
-   ```
-
-#### マイグレーションのロールバック
+#### バックアップとリストア
 
 ```bash
-# 1つ前のバージョンに戻す
-docker-compose exec backend alembic downgrade -1
+# バックアップの作成
+make db-backup
 
-# 特定のバージョンに戻す
-docker-compose exec backend alembic downgrade <revision_id>
+# バックアップからの復元
+make db-restore
 
-# 全てのマイグレーションを取り消す
-docker-compose exec backend alembic downgrade base
+# バックアップ一覧の表示
+make db-backup-list
 ```
 
-#### 注意事項
+### テスト
 
-- 新しいモデルを作成したら、必ず `backend/app/db/base.py` にインポートを追加してください
-- マイグレーションファイルは `backend/migrations/versions/` に保存されます
-- 本番環境へのデプロイ前に、必ずマイグレーションファイルをレビューしてください
+#### バックエンドテスト
 
----
+1. **テストファイルの作成** (`backend/tests/test_your_feature.py`):
 
-## 🧪 テスト
+```python
+import pytest
+from fastapi.testclient import TestClient
+from app.main import app
 
-### バックエンドテスト（pytest）
+client = TestClient(app)
 
-#### テストの実行
+def test_get_your_features():
+    """データ一覧取得のテスト"""
+    response = client.get("/api/v1/your-feature")
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+```
+
+2. **テストの実行**:
 
 ```bash
-# 全てのテストを実行
+# すべてのテストを実行
 make test
-# または
-docker-compose exec backend pytest
-
-# 詳細な出力付きでテストを実行
-docker-compose exec backend pytest -v
 
 # 特定のテストファイルを実行
-docker-compose exec backend pytest tests/test_auth.py
+make test path="tests/test_your_feature.py"
 
-# 特定のテスト関数を実行
-docker-compose exec backend pytest tests/test_auth.py::test_get_authorization_url
-
-# カバレッジレポート付きでテストを実行
-docker-compose exec backend pytest --cov=app --cov-report=html
+# カバレッジレポート付きで実行
+make test-coverage
 ```
 
-#### テストファイルの作成
+#### フロントエンドテスト
 
-1. **テストファイルの配置**
+1. **コンポーネントテスト** (`frontend/src/__tests__/YourFeature.test.tsx`):
 
-   ```
-   backend/
-   ├── app/           # アプリケーションコード
-   └── tests/         # テストコード
-       ├── conftest.py    # pytest設定とfixture
-       ├── test_auth.py   # 認証関連のテスト
-       └── test_*.py      # その他のテスト
-   ```
+```typescript
+import { render, screen } from "@testing-library/react";
+import { Provider } from "react-redux";
+import { store } from "@/store";
+import YourFeaturePage from "@/app/your-feature/page";
 
-2. **基本的なテストの書き方**
+describe("YourFeaturePage", () => {
+  it("renders without crashing", () => {
+    render(
+      <Provider store={store}>
+        <YourFeaturePage />
+      </Provider>
+    );
 
-   ```python
-   # tests/test_example.py
-   import pytest
-   from fastapi.testclient import TestClient
-   from app.main import app
-
-   client = TestClient(app)
-
-   def test_example_endpoint():
-       response = client.get("/api/v1/example")
-       assert response.status_code == 200
-       assert response.json() == {"message": "Hello World"}
-   ```
-
-3. **Fixture の使用**
-
-   ```python
-   # tests/conftest.py
-   import pytest
-   from app.db.session import SessionLocal
-   from app.models.user import User
-
-   @pytest.fixture(scope="function")
-   def test_user():
-       """テスト用ユーザーを作成するfixture"""
-       db = SessionLocal()
-       user = User(
-           email="test@example.com",
-           hashed_password="dummy_hash",
-           full_name="Test User"
-       )
-       db.add(user)
-       db.commit()
-       db.refresh(user)
-
-       yield user
-
-       # クリーンアップ
-       db.delete(user)
-       db.commit()
-       db.close()
-   ```
-
-4. **非同期関数のモック**
-
-   ```python
-   from unittest.mock import AsyncMock, patch
-
-   @patch("app.services.external_api.fetch_data")
-   def test_async_function(mock_fetch):
-       mock_fetch.return_value = AsyncMock(return_value={"data": "test"})
-       # テストコード
-   ```
-
-#### テストのベストプラクティス
-
-- テストは独立して実行できるようにする
-- Fixture を使用してテストデータを管理する
-- 外部 API やサービスはモックを使用する
-- テスト後は必ずデータをクリーンアップする
-- 意味のあるテスト名を付ける（`test_<機能>_<条件>_<期待結果>`）
-
----
-
-## 📝 開発フロー
-
-### 新機能開発の流れ
-
-1. **モデルの作成**
-
-   ```bash
-   # backend/app/models/new_model.py を作成
-   # backend/app/db/base.py にインポートを追加
-   ```
-
-2. **マイグレーションの生成と適用**
-
-   ```bash
-   docker-compose exec backend alembic revision --autogenerate -m "Add new model"
-   docker-compose exec backend alembic upgrade head
-   ```
-
-3. **API エンドポイントの実装**
-
-   ```bash
-   # backend/app/api/v1/new_endpoint.py を作成
-   # backend/app/api/v1/__init__.py にルーターを追加
-   ```
-
-4. **テストの作成**
-
-   ```bash
-   # backend/tests/test_new_endpoint.py を作成
-   make test
-   ```
-
-5. **フロントエンドの実装**
-   ```bash
-   # frontend/src/components/NewComponent.tsx を作成
-   # frontend/src/services/api.ts にAPIクライアントを追加
-   ```
-
----
-
-## 🗂️ プロジェクト構成
-
-```
-team-insight/
-├── frontend/          # React + TypeScript フロントエンド
-│   ├── .yarnrc.yml
-│   ├── postcss.config.js
-│   ├── ...
-├── backend/           # FastAPI バックエンド
-│   ├── app/
-│   │   ├── api/       # APIエンドポイント
-│   │   ├── core/      # 設定、セキュリティ
-│   │   ├── db/        # データベース設定
-│   │   ├── models/    # SQLAlchemyモデル
-│   │   ├── schemas/   # Pydanticスキーマ
-│   │   └── services/  # ビジネスロジック
-│   ├── migrations/    # Alembicマイグレーション
-│   ├── tests/         # pytestテスト
-│   └── alembic.ini    # Alembic設定
-├── infrastructure/    # Docker設定ファイル
-│   └── docker/
-│       ├── frontend/
-│       ├── backend/
-│       ├── postgresql/
-│       ├── redis/
-│       └── nginx/
-├── docker-compose.yml # Docker Compose設定
-├── Makefile           # 便利なコマンド集
-└── setup.sh           # 初回セットアップスクリプト
+    expect(screen.getByText("Your Feature")).toBeInTheDocument();
+  });
+});
 ```
 
----
+2. **テストの実行**:
 
-## 🧩 トラブルシューティング
+```bash
+# すべてのテストを実行
+cd frontend
+yarn test
 
-- **ポート競合**
-  3000, 8000, 5432, 6379, 80 が他のプロセスで使われていないか確認
+# ウォッチモードで実行
+yarn test:watch
 
-- **Docker 権限エラー（Linux）**
+# カバレッジレポート付きで実行
+yarn test:coverage
+```
 
-  ```bash
-  sudo usermod -aG docker $USER
-  # その後ログアウト・再ログイン
-  ```
+## アーキテクチャ
 
-- **サービスが起動しない場合**
+### システム構成図
 
-  1. Docker が起動しているか確認
-  2. `docker-compose logs <service名>` でエラー確認
-  3. `make clean` → `make setup` で再構築
+```mermaid
+graph TB
+    subgraph "Frontend"
+        A[React App]
+        B[Redux Store]
+        C[API Client]
+    end
 
-- **フロントエンド依存関係の問題**
+    subgraph "Backend"
+        D[FastAPI]
+        E[Business Logic]
+        F[ORM Layer]
+    end
 
-  ```bash
-  cd frontend
-  corepack enable
-  yarn install
-  cd ..
-  docker-compose build frontend
-  docker-compose restart frontend
-  ```
+    subgraph "Infrastructure"
+        G[PostgreSQL]
+        H[Redis]
+        I[Nginx]
+    end
 
-- **バックエンドで pydantic の extra_forbidden エラー**
+    subgraph "External"
+        J[Backlog API]
+    end
 
-  - `app/core/config.py` の `Settings` クラスに `REDIS_URL: str = "redis://redis:6379"` を追加
+    A --> B
+    B --> C
+    C --> I
+    I --> D
+    D --> E
+    E --> F
+    F --> G
+    E --> H
+    E --> J
+```
 
-- **マイグレーションエラー**
+## トラブルシューティング
 
-  - `alembic.ini` の `sqlalchemy.url` が正しく設定されているか確認
-  - モデルが `backend/app/db/base.py` にインポートされているか確認
-  - データベースが起動しているか確認: `docker-compose ps postgres`
+### よくある問題と解決方法
 
-- **テストエラー**
-  - テスト用データベースが正しく設定されているか確認
-  - Fixture が正しく `conftest.py` に定義されているか確認
-  - モックが適切に設定されているか確認（同期/非同期の違いに注意）
+#### ポート競合エラー
 
----
+```bash
+# 使用中のポートを確認
+lsof -i :3000  # フロントエンド
+lsof -i :8000  # バックエンド
 
-## 🤝 コントリビューション
+# プロセスを終了
+kill -9 [PID]
+```
 
-1. feature ブランチを作成
-   `git checkout -b feature/your-feature`
-2. 変更をコミット
-   `git commit -m 'Add your feature'`
-3. ブランチをプッシュ
-   `git push origin feature/your-feature`
+#### データベース接続エラー
+
+```bash
+# PostgreSQLコンテナの状態を確認
+docker-compose ps postgres
+
+# ログを確認
+docker-compose logs postgres
+
+# データベースを再作成
+docker-compose down -v
+docker-compose up -d
+```
+
+#### 認証エラー
+
+- Backlog OAuth 設定を確認
+- リダイレクト URI が正しいか確認
+- 環境変数が正しく設定されているか確認
+
+### 開発のヒント
+
+1. **API ドキュメント**: http://localhost:8000/docs で対話的に API をテスト
+2. **Redux DevTools**: ブラウザ拡張機能で状態管理をデバッグ
+3. **Docker logs**: `docker-compose logs -f [service]` でリアルタイムログ確認
+4. **Hot Reload**: フロントエンド・バックエンドともに自動リロード対応
+
+## コントリビューション
+
+1. Feature ブランチを作成: `git checkout -b feature/your-feature`
+2. 変更をコミット: `git commit -m 'Add your feature'`
+3. ブランチをプッシュ: `git push origin feature/your-feature`
 4. プルリクエストを作成
 
----
+### コーディング規約
 
-## 💡 補足
+- Python: PEP 8, Black, isort
+- TypeScript: ESLint, Prettier
+- コミット: Conventional Commits
 
-- `.gitignore`はプロジェクトルートと frontend 配下の両方に設置し、用途ごとに管理しています。
-- Node.js 22 + Yarn v4(Corepack) + Tailwind CSS v3 + Docker Compose の組み合わせで安定動作を確認済みです。
-- 詳細なコマンドや運用フローは`Makefile`や本 README を参照してください。
+## 参考資料
+
+- [FastAPI 公式ドキュメント](https://fastapi.tiangolo.com/)
+- [React 公式ドキュメント](https://react.dev/)
+- [Docker Compose 公式ドキュメント](https://docs.docker.com/compose/)
+- [Backlog API 仕様](https://developer.nulab.com/ja/docs/backlog/)

@@ -8,7 +8,7 @@
 import axios from "axios";
 
 // APIのベースURL
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 // 認証関連の型定義
 export interface AuthorizationResponse {
@@ -47,22 +47,45 @@ class AuthService {
   private readonly STATE_KEY = "team_insight_oauth_state";
 
   /**
+   * localStorageが使用可能かチェック
+   */
+  private isLocalStorageAvailable(): boolean {
+    return (
+      typeof window !== "undefined" &&
+      typeof window.localStorage !== "undefined"
+    );
+  }
+
+  /**
    * 認証URLを取得します
    *
    * @returns 認証URLとstateを含むレスポンス
    */
   async getAuthorizationUrl(): Promise<AuthorizationResponse> {
     try {
+      console.log("認証URL取得開始");
       const response = await axios.get<AuthorizationResponse>(
         `${API_BASE_URL}/api/v1/auth/backlog/authorize`
       );
+      console.log("認証URL取得レスポンス:", response.data);
 
       // stateをローカルストレージに保存（CSRF対策）
-      localStorage.setItem(this.STATE_KEY, response.data.state);
+      if (this.isLocalStorageAvailable()) {
+        console.log("localStorage利用可能 - state保存開始");
+        localStorage.setItem(this.STATE_KEY, response.data.state);
+        console.log("保存したstate:", response.data.state);
+        // 保存されたことを確認
+        const savedState = localStorage.getItem(this.STATE_KEY);
+        console.log("保存確認 - state:", savedState);
+      } else {
+        console.warn("localStorageが利用できません");
+      }
 
+      console.log("認証URL取得成功:", response.data.authorization_url);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error("認証URLの取得に失敗しました:", error);
+      console.error("エラー詳細:", error.response?.data);
       throw error;
     }
   }
@@ -76,26 +99,65 @@ class AuthService {
    */
   async handleCallback(code: string, state: string): Promise<TokenResponse> {
     try {
+      console.log("認証コールバック処理開始");
+      console.log("受信したcode:", code);
+      console.log("受信したstate:", state);
+
       // 保存されたstateと比較（CSRF対策）
-      const savedState = localStorage.getItem(this.STATE_KEY);
-      if (savedState !== state) {
+      let savedState: string | null = null;
+      if (this.isLocalStorageAvailable()) {
+        console.log("localStorage利用可能 - state取得開始");
+        savedState = localStorage.getItem(this.STATE_KEY);
+        console.log("保存されたstate:", savedState);
+      } else {
+        console.warn("localStorageが利用できません");
+      }
+
+      // stateが既にクリアされている場合は、処理をスキップ
+      if (!savedState && !state) {
+        console.error("認証状態が見つかりません");
+        throw new Error("認証状態が見つかりません");
+      }
+
+      // savedStateがnullでない場合のみ検証
+      if (savedState && savedState !== state) {
+        console.error("State不一致 - 保存:", savedState, "受信:", state);
         throw new Error("無効なstateパラメータです");
       }
 
-      // stateをクリア
-      localStorage.removeItem(this.STATE_KEY);
+      // stateをクリア（既にクリアされていても問題ない）
+      if (this.isLocalStorageAvailable() && savedState) {
+        console.log("stateをクリア");
+        localStorage.removeItem(this.STATE_KEY);
+      }
 
       // コールバックAPIを呼び出し
+      console.log("コールバックAPI呼び出し開始");
       const response = await axios.post<TokenResponse>(
         `${API_BASE_URL}/api/v1/auth/backlog/callback`,
         { code, state } as CallbackRequest
       );
+      console.log("コールバックAPI呼び出し成功");
 
       // トークンとユーザー情報を保存
-      this.saveToken(response.data.access_token);
-      this.saveUser(response.data.user);
+      console.log("トークンとユーザー情報を保存開始");
+      if (response.data.access_token) {
+        this.saveToken(response.data.access_token);
+        // クッキーにも保存（セキュリティ要件に応じてSecure/HttpOnly/Path/Expiresを調整）
+        document.cookie = `auth_token=${response.data.access_token}; path=/; max-age=604800; SameSite=Lax`;
+      } else {
+        console.error("トークンが含まれていません");
+      }
+
+      if (response.data.user) {
+        this.saveUser(response.data.user);
+      } else {
+        console.error("ユーザー情報が含まれていません");
+      }
+      console.log("トークンとユーザー情報の保存完了");
 
       // Axiosのデフォルトヘッダーに認証トークンを設定
+      console.log("認証ヘッダーを設定");
       this.setAuthHeader(response.data.access_token);
 
       return response.data;
@@ -152,7 +214,16 @@ class AuthService {
    * @param token - アクセストークン
    */
   private saveToken(token: string): void {
-    localStorage.setItem(this.TOKEN_KEY, token);
+    console.log("トークン保存開始");
+    if (this.isLocalStorageAvailable()) {
+      localStorage.setItem(this.TOKEN_KEY, token);
+      console.log("トークン保存完了");
+      // 保存確認
+      const savedToken = localStorage.getItem(this.TOKEN_KEY);
+      console.log("保存されたトークン:", savedToken ? "あり" : "なし");
+    } else {
+      console.warn("localStorageが利用できないため、トークンを保存できません");
+    }
   }
 
   /**
@@ -161,7 +232,18 @@ class AuthService {
    * @param user - ユーザー情報
    */
   private saveUser(user: UserInfo): void {
-    localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+    console.log("ユーザー情報保存開始");
+    if (this.isLocalStorageAvailable()) {
+      localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+      console.log("ユーザー情報保存完了");
+      // 保存確認
+      const savedUser = localStorage.getItem(this.USER_KEY);
+      console.log("保存されたユーザー情報:", savedUser ? "あり" : "なし");
+    } else {
+      console.warn(
+        "localStorageが利用できないため、ユーザー情報を保存できません"
+      );
+    }
   }
 
   /**
@@ -170,7 +252,14 @@ class AuthService {
    * @returns アクセストークン（存在しない場合はnull）
    */
   getToken(): string | null {
-    return localStorage.getItem(this.TOKEN_KEY);
+    console.log("トークン取得開始");
+    if (this.isLocalStorageAvailable()) {
+      const token = localStorage.getItem(this.TOKEN_KEY);
+      console.log("取得したトークン:", token ? "あり" : "なし");
+      return token;
+    }
+    console.warn("localStorageが利用できないため、トークンを取得できません");
+    return null;
   }
 
   /**
@@ -179,12 +268,26 @@ class AuthService {
    * @returns ユーザー情報（存在しない場合はnull）
    */
   getUser(): UserInfo | null {
+    console.log("ユーザー情報取得開始");
+    if (!this.isLocalStorageAvailable()) {
+      console.warn(
+        "localStorageが利用できないため、ユーザー情報を取得できません"
+      );
+      return null;
+    }
+
     const userStr = localStorage.getItem(this.USER_KEY);
-    if (!userStr) return null;
+    if (!userStr) {
+      console.log("保存されたユーザー情報なし");
+      return null;
+    }
 
     try {
-      return JSON.parse(userStr);
-    } catch {
+      const user = JSON.parse(userStr);
+      console.log("取得したユーザー情報:", user);
+      return user;
+    } catch (error) {
+      console.error("ユーザー情報のパースに失敗:", error);
       return null;
     }
   }
@@ -219,22 +322,48 @@ class AuthService {
    */
   logout(): void {
     // ローカルストレージをクリア
-    localStorage.removeItem(this.TOKEN_KEY);
-    localStorage.removeItem(this.USER_KEY);
-    localStorage.removeItem(this.STATE_KEY);
+    if (this.isLocalStorageAvailable()) {
+      localStorage.removeItem(this.TOKEN_KEY);
+      localStorage.removeItem(this.USER_KEY);
+      localStorage.removeItem(this.STATE_KEY);
+    }
 
     // 認証ヘッダーをクリア
     this.clearAuthHeader();
   }
 
   /**
-   * 初期化処理
-   * アプリケーション起動時に呼び出し、保存されたトークンがあれば設定します
+   * 認証サービスを初期化します
    */
-  initialize(): void {
-    const token = this.getToken();
-    if (token) {
-      this.setAuthHeader(token);
+  async initialize(): Promise<void> {
+    console.log("認証サービス初期化開始");
+    if (!this.isLocalStorageAvailable()) {
+      console.warn("localStorageが利用できないため、初期化をスキップします");
+      return;
+    }
+
+    try {
+      const token = this.getToken();
+      const user = this.getUser();
+      console.log("初期化時のトークン状態:", token ? "あり" : "なし");
+      console.log("初期化時のユーザー情報:", user ? "あり" : "なし");
+
+      if (token && user) {
+        console.log("保存されたトークンを使用して認証ヘッダーを設定");
+        this.setAuthHeader(token);
+      } else {
+        console.log("保存されたトークンまたはユーザー情報なし");
+        this.clearAuthHeader();
+        // ローカルストレージをクリア
+        localStorage.removeItem(this.TOKEN_KEY);
+        localStorage.removeItem(this.USER_KEY);
+      }
+    } catch (error) {
+      console.error("認証サービスの初期化中にエラーが発生:", error);
+      this.clearAuthHeader();
+      // エラー時はローカルストレージをクリア
+      localStorage.removeItem(this.TOKEN_KEY);
+      localStorage.removeItem(this.USER_KEY);
     }
   }
 }

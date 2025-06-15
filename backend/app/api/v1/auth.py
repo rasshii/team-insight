@@ -6,10 +6,11 @@
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from typing import Optional
+import logging
 
 from app.db.session import get_db
 from app.services.backlog_oauth import backlog_oauth_service
@@ -20,7 +21,7 @@ from app.schemas.auth import (
     CallbackRequest,
     UserInfoResponse
 )
-from app.core.security import get_current_user
+from app.core.security import get_current_user, get_current_active_user
 from app.models.user import User
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -81,30 +82,42 @@ async def handle_callback(
     Raises:
         HTTPException: state検証失敗またはトークン取得失敗時
     """
+    logger = logging.getLogger(__name__)
+
+    logger.info(f"認証コールバック開始 - code: {request.code[:10]}..., state: {request.state}")
+
     # stateの検証
     oauth_state = db.query(OAuthState).filter(
         OAuthState.state == request.state
     ).first()
 
     if not oauth_state:
+        logger.error(f"無効なstateパラメータ - state: {request.state}")
+        # デバッグ用：現在のstateをすべて表示
+        all_states = db.query(OAuthState).all()
+        logger.debug(f"現在のstate一覧: {[s.state for s in all_states]}")
         raise HTTPException(status_code=400, detail="無効なstateパラメータです")
 
     if oauth_state.is_expired():
+        logger.error(f"stateパラメータの有効期限切れ - state: {request.state}")
         db.delete(oauth_state)
         db.commit()
         raise HTTPException(status_code=400, detail="stateパラメータの有効期限が切れています")
 
     try:
         # 認証コードをアクセストークンに交換
+        logger.info("認証コードをアクセストークンに交換中...")
         token_data = await backlog_oauth_service.exchange_code_for_token(request.code)
 
         # ユーザー情報を取得
+        logger.info("ユーザー情報を取得中...")
         user_info = await backlog_oauth_service.get_user_info(token_data["access_token"])
 
         # ユーザーの作成または更新
         user = db.query(User).filter(User.backlog_id == user_info["id"]).first()
         if not user:
             # 新規ユーザーの作成
+            logger.info(f"新規ユーザーを作成 - backlog_id: {user_info['id']}")
             user = User(
                 backlog_id=user_info["id"],
                 email=user_info.get("mailAddress"),
@@ -114,6 +127,8 @@ async def handle_callback(
             db.add(user)
             db.commit()
             db.refresh(user)
+        else:
+            logger.info(f"既存ユーザーを使用 - user_id: {user.id}")
 
         # トークンを保存
         backlog_oauth_service.save_token(db, user.id, token_data)
@@ -126,7 +141,10 @@ async def handle_callback(
         from app.core.security import create_access_token
         access_token = create_access_token(data={"sub": str(user.id)})
 
-        return TokenResponse(
+        logger.info(f"認証コールバック成功 - user_id: {user.id}")
+
+        # レスポンスを作成
+        response = TokenResponse(
             access_token=access_token,
             token_type="bearer",
             user=UserInfoResponse(
@@ -138,7 +156,16 @@ async def handle_callback(
             )
         )
 
+        # Set-Cookieヘッダーを設定
+        return JSONResponse(
+            content=response.model_dump(),
+            headers={
+                "Set-Cookie": f"auth_token={access_token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800"
+            }
+        )
+
     except Exception as e:
+        logger.error(f"認証処理エラー: {str(e)}", exc_info=True)
         # エラー時はstateを削除
         db.delete(oauth_state)
         db.commit()
@@ -185,7 +212,8 @@ async def refresh_token(
         from app.core.security import create_access_token
         access_token = create_access_token(data={"sub": str(current_user.id)})
 
-        return TokenResponse(
+        # レスポンスを作成
+        response = TokenResponse(
             access_token=access_token,
             token_type="bearer",
             user=UserInfoResponse(
@@ -197,13 +225,21 @@ async def refresh_token(
             )
         )
 
+        # Set-Cookieヘッダーを設定
+        return JSONResponse(
+            content=response.model_dump(),
+            headers={
+                "Set-Cookie": f"auth_token={access_token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800"
+            }
+        )
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"トークンのリフレッシュに失敗しました: {str(e)}")
 
 
 @router.get("/me", response_model=UserInfoResponse)
 async def get_current_user_info(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_active_user)
 ):
     """
     現在ログイン中のユーザー情報を取得します
