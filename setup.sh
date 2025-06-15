@@ -42,19 +42,14 @@ echo -e "${GREEN}✅ 必要なコマンドが確認できました${NC}"
 # 環境変数ファイルの作成
 echo -e "\n${YELLOW}📝 環境変数ファイルを作成しています...${NC}"
 
-if [ ! -f frontend/.env ]; then
-    cat > frontend/.env << EOF
-REACT_APP_API_URL=http://localhost:8000
-EOF
-    echo -e "${GREEN}✅ frontend/.env を作成しました${NC}"
-fi
-
 if [ ! -f backend/.env ]; then
     cat > backend/.env << EOF
-DATABASE_URL=postgresql://postgres:postgres@postgres:5432/team_insight
+DATABASE_URL=postgresql://team_insight_user:team_insight_password@postgres:5432/team_insight
 REDIS_URL=redis://redis:6379
 SECRET_KEY=your-secret-key-here
 DEBUG=True
+CORS_ORIGINS=["http://localhost:3000"]
+LOG_LEVEL=INFO
 EOF
     echo -e "${GREEN}✅ backend/.env を作成しました${NC}"
 fi
@@ -69,7 +64,7 @@ echo -e "\n${YELLOW}⏳ データベースの起動を待っています...${NC}
 max_attempts=30
 attempt=0
 while [ $attempt -lt $max_attempts ]; do
-    if docker-compose exec -T postgres pg_isready -U postgres > /dev/null 2>&1; then
+    if docker-compose exec -T postgres pg_isready -U team_insight_user > /dev/null 2>&1; then
         echo -e "${GREEN}✅ データベースが起動しました${NC}"
         break
     fi

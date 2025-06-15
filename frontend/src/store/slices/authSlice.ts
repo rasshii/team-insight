@@ -41,7 +41,9 @@ const initialState: AuthState = {
 export const getAuthorizationUrl = createAsyncThunk(
   "auth/getAuthorizationUrl",
   async () => {
+    console.log("getAuthorizationUrl - 開始");
     const response = await authService.getAuthorizationUrl();
+    console.log("getAuthorizationUrl - 成功:", response);
     return response;
   }
 );
@@ -52,7 +54,11 @@ export const getAuthorizationUrl = createAsyncThunk(
 export const handleAuthCallback = createAsyncThunk(
   "auth/handleCallback",
   async ({ code, state }: { code: string; state: string }) => {
+    console.log("handleAuthCallback - 開始");
+    console.log("code:", code);
+    console.log("state:", state);
     const response = await authService.handleCallback(code, state);
+    console.log("handleAuthCallback - 成功:", response);
     return response;
   }
 );
@@ -63,7 +69,9 @@ export const handleAuthCallback = createAsyncThunk(
 export const fetchCurrentUser = createAsyncThunk(
   "auth/fetchCurrentUser",
   async () => {
+    console.log("fetchCurrentUser - 開始");
     const user = await authService.getCurrentUser();
+    console.log("fetchCurrentUser - 成功:", user);
     return user;
   }
 );
@@ -74,7 +82,9 @@ export const fetchCurrentUser = createAsyncThunk(
 export const refreshAuthToken = createAsyncThunk(
   "auth/refreshToken",
   async () => {
+    console.log("refreshAuthToken - 開始");
     const response = await authService.refreshToken();
+    console.log("refreshAuthToken - 成功:", response);
     return response;
   }
 );
@@ -83,24 +93,29 @@ export const refreshAuthToken = createAsyncThunk(
  * 認証を初期化する非同期アクション
  */
 export const initializeAuth = createAsyncThunk("auth/initialize", async () => {
-  // 認証サービスを初期化
-  authService.initialize();
+  console.log("initializeAuth - 開始");
+  try {
+    // 認証サービスを初期化
+    await authService.initialize();
 
-  // 保存されたユーザー情報を取得
-  const savedUser = authService.getUser();
+    // 保存されたユーザー情報を取得
+    const savedUser = authService.getUser();
+    const token = authService.getToken();
+    console.log("保存されたユーザー情報:", savedUser);
+    console.log("保存されたトークン:", token ? "あり" : "なし");
 
-  if (authService.isAuthenticated() && savedUser) {
-    // トークンが存在する場合は、最新のユーザー情報を取得
-    try {
-      const currentUser = await authService.getCurrentUser();
-      return currentUser;
-    } catch (error) {
-      // ユーザー情報の取得に失敗した場合は、保存された情報を使用
-      return savedUser;
+    if (token && savedUser) {
+      // トークンが存在する場合は、保存されたユーザー情報を使用
+      console.log("保存された情報を使用");
+      return { user: savedUser, isAuthenticated: true };
     }
-  }
 
-  return null;
+    console.log("保存された情報なし");
+    return { user: null, isAuthenticated: false };
+  } catch (error) {
+    console.error("認証の初期化中にエラーが発生:", error);
+    return { user: null, isAuthenticated: false };
+  }
 });
 
 /**
@@ -204,15 +219,20 @@ const authSlice = createSlice({
       .addCase(initializeAuth.fulfilled, (state, action) => {
         state.loading = false;
         state.isInitialized = true;
-        if (action.payload) {
-          state.user = action.payload;
-          state.isAuthenticated = true;
-        }
+        state.user = action.payload.user;
+        state.isAuthenticated = action.payload.isAuthenticated;
+        console.log("認証状態を更新:", {
+          isAuthenticated: action.payload.isAuthenticated,
+          user: action.payload.user ? "あり" : "なし",
+        });
       })
       .addCase(initializeAuth.rejected, (state, action) => {
         state.loading = false;
         state.isInitialized = true;
         state.error = action.error.message || "認証の初期化に失敗しました";
+        state.user = null;
+        state.isAuthenticated = false;
+        console.log("認証状態を更新: isAuthenticated = false (エラー)");
       });
   },
 });
