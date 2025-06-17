@@ -33,6 +33,7 @@ export function LoginContent() {
       setIsLoading(true);
       setError(null);
       await login();
+      setIsLoading(false);
     } catch (err: any) {
       console.error("ログインに失敗しました:", err);
       // エラーの詳細を表示

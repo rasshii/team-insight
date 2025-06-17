@@ -35,6 +35,8 @@ services:
     container_name: team-insight-redis
     environment:
       REDIS_PASSWORD: team_insight_redis_password
+      REDISCLI_AUTH: team_insight_redis_password
+    command: redis-server /usr/local/etc/redis/redis.conf --requirepass team_insight_redis_password
     ports:
       - "6379:6379"
     volumes:
@@ -58,11 +60,12 @@ services:
     environment:
       DATABASE_URL: postgresql://team_insight_user:team_insight_password@postgres:5432/team_insight
       REDIS_URL: redis://:team_insight_redis_password@redis:6379/0
+      REDISCLI_AUTH: team_insight_redis_password
       PYTHONPATH: /app
       SECRET_KEY: ${SECRET_KEY:-your-secret-key-here}
       DEBUG: ${DEBUG:-True}
-      BACKEND_CORS_ORIGINS: http://localhost:3000,http://frontend:3000
-      LOG_LEVEL: INFO
+      BACKEND_CORS_ORIGINS: http://localhost,http://frontend:3000
+      LOG_LEVEL: DEBUG
     ports:
       - "8000:8000"
     volumes:
@@ -75,7 +78,7 @@ services:
         condition: service_healthy
     networks:
       - team-insight-network
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
     restart: unless-stopped
 
   # Frontend Application (Next.js)
@@ -85,8 +88,8 @@ services:
       dockerfile: ../infrastructure/docker/frontend/Dockerfile.dev
     container_name: team-insight-frontend
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+      NEXT_PUBLIC_API_URL: http://localhost/api
+      NEXT_PUBLIC_API_BASE_URL: http://localhost/api
       NODE_ENV: development
       NEXT_TELEMETRY_DISABLED: 1
       PORT: 3000

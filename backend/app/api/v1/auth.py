@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from typing import Optional
 import logging
+from zoneinfo import ZoneInfo
 
 from app.db.session import get_db
 from app.services.backlog_oauth import backlog_oauth_service
@@ -19,7 +20,7 @@ from app.schemas.auth import (
     AuthorizationResponse,
     TokenResponse,
     CallbackRequest,
-    UserInfoResponse
+    UserInfoResponse,
 )
 from app.core.security import get_current_user, get_current_active_user
 from app.models.user import User
@@ -30,7 +31,7 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
 @router.get("/backlog/authorize", response_model=AuthorizationResponse)
 async def get_authorization_url(
     db: Session = Depends(get_db),
-    current_user: Optional[User] = Depends(get_current_user)
+    current_user: Optional[User] = Depends(get_current_user),
 ):
     """
     Backlog OAuth2.0認証URLを生成します
@@ -46,27 +47,24 @@ async def get_authorization_url(
         auth_url, state = backlog_oauth_service.get_authorization_url()
 
         # stateをデータベースに保存（10分間有効）
+        expires_at = datetime.now(ZoneInfo("Asia/Tokyo")) + timedelta(minutes=10)
         oauth_state = OAuthState(
             state=state,
             user_id=current_user.id if current_user else None,
-            expires_at=datetime.utcnow() + timedelta(minutes=10)
+            expires_at=expires_at,
         )
         db.add(oauth_state)
         db.commit()
 
-        return AuthorizationResponse(
-            authorization_url=auth_url,
-            state=state
-        )
+        return AuthorizationResponse(authorization_url=auth_url, state=state)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"認証URLの生成に失敗しました: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"認証URLの生成に失敗しました: {str(e)}"
+        )
 
 
 @router.post("/backlog/callback", response_model=TokenResponse)
-async def handle_callback(
-    request: CallbackRequest,
-    db: Session = Depends(get_db)
-):
+async def handle_callback(request: CallbackRequest, db: Session = Depends(get_db)):
     """
     Backlog OAuth2.0認証のコールバックを処理します
 
@@ -84,12 +82,12 @@ async def handle_callback(
     """
     logger = logging.getLogger(__name__)
 
-    logger.info(f"認証コールバック開始 - code: {request.code[:10]}..., state: {request.state}")
+    logger.info(
+        f"認証コールバック開始 - code: {request.code[:10]}..., state: {request.state}"
+    )
 
     # stateの検証
-    oauth_state = db.query(OAuthState).filter(
-        OAuthState.state == request.state
-    ).first()
+    oauth_state = db.query(OAuthState).filter(OAuthState.state == request.state).first()
 
     if not oauth_state:
         logger.error(f"無効なstateパラメータ - state: {request.state}")
@@ -102,7 +100,9 @@ async def handle_callback(
         logger.error(f"stateパラメータの有効期限切れ - state: {request.state}")
         db.delete(oauth_state)
         db.commit()
-        raise HTTPException(status_code=400, detail="stateパラメータの有効期限が切れています")
+        raise HTTPException(
+            status_code=400, detail="stateパラメータの有効期限が切れています"
+        )
 
     try:
         # 認証コードをアクセストークンに交換
@@ -111,7 +111,9 @@ async def handle_callback(
 
         # ユーザー情報を取得
         logger.info("ユーザー情報を取得中...")
-        user_info = await backlog_oauth_service.get_user_info(token_data["access_token"])
+        user_info = await backlog_oauth_service.get_user_info(
+            token_data["access_token"]
+        )
 
         # ユーザーの作成または更新
         user = db.query(User).filter(User.backlog_id == user_info["id"]).first()
@@ -122,7 +124,7 @@ async def handle_callback(
                 backlog_id=user_info["id"],
                 email=user_info.get("mailAddress"),
                 name=user_info["name"],
-                user_id=user_info["userId"]
+                user_id=user_info["userId"],
             )
             db.add(user)
             db.commit()
@@ -139,6 +141,7 @@ async def handle_callback(
 
         # JWTトークンを生成（アプリケーション内での認証用）
         from app.core.security import create_access_token
+
         access_token = create_access_token(data={"sub": str(user.id)})
 
         logger.info(f"認証コールバック成功 - user_id: {user.id}")
@@ -152,8 +155,8 @@ async def handle_callback(
                 backlog_id=user.backlog_id,
                 email=user.email,
                 name=user.name,
-                user_id=user.user_id
-            )
+                user_id=user.user_id,
+            ),
         )
 
         # Set-Cookieヘッダーを設定
@@ -161,7 +164,7 @@ async def handle_callback(
             content=response.model_dump(),
             headers={
                 "Set-Cookie": f"auth_token={access_token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800"
-            }
+            },
         )
 
     except Exception as e:
@@ -174,8 +177,7 @@ async def handle_callback(
 
 @router.post("/backlog/refresh", response_model=TokenResponse)
 async def refresh_token(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     Backlogのアクセストークンをリフレッシュします
@@ -191,10 +193,12 @@ async def refresh_token(
     """
     # ユーザーのBacklogトークンを取得
     from app.models.auth import OAuthToken
-    oauth_token = db.query(OAuthToken).filter(
-        OAuthToken.user_id == current_user.id,
-        OAuthToken.provider == "backlog"
-    ).first()
+
+    oauth_token = (
+        db.query(OAuthToken)
+        .filter(OAuthToken.user_id == current_user.id, OAuthToken.provider == "backlog")
+        .first()
+    )
 
     if not oauth_token:
         raise HTTPException(status_code=404, detail="Backlogトークンが見つかりません")
@@ -210,6 +214,7 @@ async def refresh_token(
 
         # アプリケーション用のJWTトークンも新しく生成
         from app.core.security import create_access_token
+
         access_token = create_access_token(data={"sub": str(current_user.id)})
 
         # レスポンスを作成
@@ -221,8 +226,8 @@ async def refresh_token(
                 backlog_id=current_user.backlog_id,
                 email=current_user.email,
                 name=current_user.name,
-                user_id=current_user.user_id
-            )
+                user_id=current_user.user_id,
+            ),
         )
 
         # Set-Cookieヘッダーを設定
@@ -230,17 +235,17 @@ async def refresh_token(
             content=response.model_dump(),
             headers={
                 "Set-Cookie": f"auth_token={access_token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800"
-            }
+            },
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"トークンのリフレッシュに失敗しました: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"トークンのリフレッシュに失敗しました: {str(e)}"
+        )
 
 
 @router.get("/me", response_model=UserInfoResponse)
-async def get_current_user_info(
-    current_user: User = Depends(get_current_active_user)
-):
+async def get_current_user_info(current_user: User = Depends(get_current_active_user)):
     """
     現在ログイン中のユーザー情報を取得します
 
@@ -252,5 +257,5 @@ async def get_current_user_info(
         backlog_id=current_user.backlog_id,
         email=current_user.email,
         name=current_user.name,
-        user_id=current_user.user_id
+        user_id=current_user.user_id,
     )
