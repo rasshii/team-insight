@@ -7,14 +7,6 @@ const nextConfig = {
   generateBuildId: async () => {
     return "build-" + Date.now();
   },
-  async rewrites() {
-    return [
-      {
-        source: "/api/:path*",
-        destination: "http://localhost:8000/api/:path*",
-      },
-    ];
-  },
   experimental: {
     serverComponentsExternalPackages: ["react-redux"],
   },
@@ -39,6 +31,16 @@ const nextConfig = {
     ];
   },
   staticPageGenerationTimeout: 0,
+  // 開発環境でのWebSocket設定
+  webpack: (config, { dev, isServer }) => {
+    if (dev && !isServer) {
+      config.watchOptions = {
+        poll: 1000,
+        aggregateTimeout: 300,
+      };
+    }
+    return config;
+  },
 };
 
 module.exports = nextConfig;

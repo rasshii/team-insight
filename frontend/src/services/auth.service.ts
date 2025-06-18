@@ -8,7 +8,8 @@
 import axios from "axios";
 
 // APIのベースURL
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// 開発環境ではNginxを経由するため、ポート番号なしでアクセス
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost";
 
 // 認証関連の型定義
 export interface AuthorizationResponse {

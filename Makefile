@@ -172,3 +172,15 @@ test:
 	@echo "🧪 テストを実行..."
 	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) pytest
 	@echo "✅ テストが完了しました"
+
+# Redisの全キーを表示
+.PHONY: redis-keys
+redis-keys:
+	@echo "🔑 Redisの全キーを表示します..."
+	@$(DOCKER_COMPOSE) exec redis redis-cli -a team_insight_redis_password KEYS '*'
+
+# Nginxのアクセスログを表示
+.PHONY: nginx-access-log
+nginx-access-log:
+	@echo "📝 Nginxのアクセスログ（標準出力）を表示します..."
+	@$(DOCKER_COMPOSE) logs nginx

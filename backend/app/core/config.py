@@ -17,6 +17,7 @@ class Settings(BaseSettings):
 
     # Redis設定
     REDIS_URL: str = "redis://redis:6379"
+    REDISCLI_AUTH: str = "team_insight_redis_password"
 
     # CORS設定
     BACKEND_CORS_ORIGINS: Union[str, List[AnyHttpUrl]] = "http://localhost:3000"

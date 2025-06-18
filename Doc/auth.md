@@ -1,104 +1,133 @@
-# 認証システムの実装詳細（ステップバイステップ解説）
+# 認証フロー
 
 ## 概要
 
-このドキュメントでは、Team Insight アプリケーションの認証システムについて、図表とともにステップバイステップで解説します。
+Team Insight は、Backlog の OAuth2.0 認証を使用してユーザー認証を行います。これにより、ユーザーは既存の Backlog アカウントで Team Insight にログインできます。
 
----
+## 認証フロー
 
-## 認証フロー全体像
+1. **ログインページ表示**
 
-以下は、Backlog OAuth2.0 を利用した認証フローの全体像です。
+   - ユーザーが`/auth/login`にアクセス
+   - ログインページが表示され、Backlog でログインボタンが表示される
 
-```mermaid
-sequenceDiagram
-    participant User as ユーザー
-    participant FE as フロントエンド（Next.js）
-    participant BE as バックエンド（FastAPI）
-    participant Backlog as Backlog
+2. **認証 URL 生成**
 
-    User->>FE: /auth/login にアクセス
-    FE->>BE: /api/v1/auth/backlog/authorize をリクエスト
-    BE->>Backlog: 認証URL生成・state発行
-    BE-->>FE: 認証URLを返却
-    FE-->>User: Backlog認証ページへリダイレクト
-    User->>Backlog: ログイン・認可
-    Backlog-->>User: /auth/callback へリダイレクト
-    User->>FE: /auth/callback にアクセス
-    FE->>BE: /api/v1/auth/backlog/callback をリクエスト
-    BE->>Backlog: 認証コードでアクセストークン取得
-    BE->>Backlog: ユーザー情報取得
-    BE-->>FE: JWTトークン・auth_tokenクッキー返却
-    FE-->>User: ダッシュボード等へ遷移
+   - ユーザーが「Backlog でログイン」ボタンをクリック
+   - フロントエンドから`/api/auth/backlog/authorize`にリクエスト
+   - バックエンドで認証 URL と state を生成
+   - 生成された認証 URL にリダイレクト
+
+3. **Backlog 認証**
+
+   - ユーザーが Backlog の認証ページで認証を承認
+   - Backlog が`/auth/callback`にリダイレクト（認証コードと state を含む）
+
+4. **コールバック処理**
+
+   - バックエンドで認証コードをアクセストークンに交換
+   - ユーザー情報を取得
+   - ユーザーをデータベースに保存または更新
+   - JWT トークンを生成
+   - フロントエンドにトークンとユーザー情報を返却
+
+5. **ダッシュボード表示**
+   - フロントエンドでトークンを保存
+   - ユーザーをダッシュボードにリダイレクト
+
+## エンドポイント
+
+### フロントエンド
+
+- `/auth/login` - ログインページ
+- `/auth/callback` - 認証コールバックページ
+
+### バックエンド
+
+- `GET /api/auth/backlog/authorize` - 認証 URL 生成
+- `POST /api/auth/backlog/callback` - コールバック処理
+- `POST /api/auth/backlog/refresh` - トークンリフレッシュ
+- `GET /api/auth/me` - 現在のユーザー情報取得
+
+## セキュリティ対策
+
+1. **CSRF 対策**
+
+   - 認証リクエスト時に state パラメータを生成
+   - コールバック時に state パラメータを検証
+   - state パラメータは 10 分間有効
+
+2. **トークン管理**
+
+   - アクセストークンは JWT 形式で発行
+   - トークンは HttpOnly Cookie に保存
+   - リフレッシュトークンはデータベースに保存
+
+3. **エラーハンドリング**
+   - 認証エラー時は適切なエラーメッセージを表示
+   - トークン期限切れ時は自動的にリフレッシュ
+
+## データベース
+
+### OAuthState
+
+認証リクエストの state を管理するテーブル
+
+```sql
+CREATE TABLE oauth_states (
+    id SERIAL PRIMARY KEY,
+    state VARCHAR(255) NOT NULL,
+    user_id INTEGER REFERENCES users(id),
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 ```
 
----
+### OAuthToken
 
-## ステップバイステップ解説
+Backlog のアクセストークンを管理するテーブル
 
-### 1. ログイン開始
-
-- ユーザーが`/auth/login`にアクセス
-- フロントエンドがバックエンドの`/api/v1/auth/backlog/authorize`を呼び出す
-- バックエンドは Backlog 認証 URL と CSRF 対策用の state を生成し、フロントエンドに返す
-- フロントエンドはユーザーを Backlog の認証ページにリダイレクト
-
-### 2. Backlog 認証・コールバック
-
-- ユーザーが Backlog で認証・許可
-- Backlog が`/auth/callback`にリダイレクト
-- フロントエンドが`/api/v1/auth/backlog/callback`をバックエンドにリクエスト
-- バックエンドは state を検証し、認証コードでアクセストークンを取得
-- ユーザー情報を Backlog API から取得
-
-### 3. JWT トークン発行・クッキーセット
-
-- バックエンドが JWT トークンを生成
-- レスポンスで`auth_token`クッキー（HttpOnly, SameSite=Lax）をセット
-- フロントエンドは localStorage にも JWT を保存（必要に応じて）
-
-### 4. サーバーサイド認証ガード
-
-- Next.js の`middleware.ts`がリクエストごとに`auth_token`クッキーを検証
-- 有効なトークンがなければ`/auth/login`にリダイレクト
-- 有効な場合のみダッシュボード等の保護ページを表示
-
----
-
-## 主要なポイント
-
-- **CSRF 対策**: state パラメータを用いてリプレイ攻撃を防止
-- **セキュリティ**: JWT は HttpOnly クッキーで管理し、XSS リスクを低減
-- **サーバーサイドガード**: middleware でクッキーを検証し、未認証アクセスを遮断
-
----
-
-## エラーパターン例
-
-| シナリオ                     | 原因例                    | 対応策                     |
-| ---------------------------- | ------------------------- | -------------------------- |
-| ログイン後リダイレクトループ | クッキー未セット/期限切れ | クッキー設定・有効期限確認 |
-| 401 Unauthorized             | JWT 不正/期限切れ         | 再ログイン・トークン再発行 |
-| 400 Bad Request              | state 不一致              | 認証フロー最初からやり直し |
-
----
-
-## 参考：カラーパレット例（Backlog グリーン）
-
-```css
-:root {
-  --primary: 92 49% 54%; /* #7AC143 */
-  --primary-foreground: 0 0% 100%;
-  --secondary: 92 30% 90%;
-  --secondary-foreground: 92 49% 54%;
-  --accent: 92 49% 54%;
-  --accent-foreground: 0 0% 100%;
-}
+```sql
+CREATE TABLE oauth_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) NOT NULL,
+    provider VARCHAR(50) NOT NULL,
+    access_token TEXT NOT NULL,
+    refresh_token TEXT,
+    expires_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 ```
 
----
+## フロントエンド実装
 
-## 補足
+### 認証フック
 
-- 環境変数やセキュリティ設定の詳細は`README.md`や`.env.example`を参照してください。
-- 実装例や詳細な API 仕様はリポジトリ内の該当ファイルを参照してください。
+`useAuth`フックを使用して認証状態を管理
+
+```typescript
+const { isAuthenticated, isInitialized, user } = useAuth();
+```
+
+### 認証状態に応じた表示
+
+- 未認証: ランディングページ（LP）を表示
+- 認証済み: ダッシュボードにリダイレクト
+
+### 保護されたルート
+
+`PrivateRoute`コンポーネントを使用して認証が必要なページを保護
+
+```typescript
+<PrivateRoute>
+  <Layout>{/* 保護されたコンテンツ */}</Layout>
+</PrivateRoute>
+```
+
+## エラーメッセージ
+
+- 認証エラー: "認証に失敗しました"
+- トークン期限切れ: "セッションの有効期限が切れました"
+- リフレッシュエラー: "トークンの更新に失敗しました"
+- サーバーエラー: "サーバーエラーが発生しました"
