@@ -9,41 +9,46 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Activity, FolderOpen, TrendingUp, Users } from "lucide-react";
-import Link from "next/link";
+import { Activity, AlertCircle, CheckCircle, Clock } from "lucide-react";
 import { useEffect, useState } from "react";
 
-interface DashboardData {
+interface PersonalDashboardData {
   stats: {
-    totalProjects: number;
-    totalTeams: number;
-    totalIssues: number;
-    activeIssues: number;
+    completedTasks: number;
+    inProgressTasks: number;
+    pendingReviews: number;
+    averageCycleTime: number;
   };
+  recentActivity: Array<{
+    id: number;
+    type: string;
+    title: string;
+    timestamp: string;
+  }>;
 }
 
-export default function DashboardPage() {
-  const [data, setData] = useState<DashboardData | null>(null);
+export default function PersonalDashboardPage() {
+  const [data, setData] = useState<PersonalDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const fetchPersonalDashboardData = async () => {
       try {
-        const response = await fetch("/api/dashboard");
+        const response = await fetch("/api/dashboard/personal");
         if (!response.ok) {
-          throw new Error("ダッシュボードデータの取得に失敗しました");
+          throw new Error("個人ダッシュボードデータの取得に失敗しました");
         }
         const dashboardData = await response.json();
         setData(dashboardData);
       } catch (err) {
-        console.error("Error fetching dashboard data:", err);
+        console.error("Error fetching personal dashboard data:", err);
         setError("データの読み込みに失敗しました");
       } finally {
         setLoading(false);
       }
     };
-    fetchDashboardData();
+    fetchPersonalDashboardData();
   }, []);
 
   if (loading) {
@@ -89,40 +94,8 @@ export default function DashboardPage() {
         <div className="container mx-auto p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold tracking-tight">
-              ダッシュボード
+              個人ダッシュボード
             </h1>
-          </div>
-
-          {/* クイックアクセス */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <Link href="/dashboard/personal">
-              <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
-                <CardHeader>
-                  <CardTitle>個人ダッシュボード</CardTitle>
-                  <CardDescription>
-                    あなたの活動状況とパフォーマンスを確認
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            </Link>
-            <Link href="/projects">
-              <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
-                <CardHeader>
-                  <CardTitle>プロジェクト一覧</CardTitle>
-                  <CardDescription>
-                    参加しているプロジェクトの一覧を表示
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            </Link>
-            <Link href="/dashboard/organization">
-              <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
-                <CardHeader>
-                  <CardTitle>組織ダッシュボード</CardTitle>
-                  <CardDescription>組織全体の状況と分析を確認</CardDescription>
-                </CardHeader>
-              </Card>
-            </Link>
           </div>
 
           {/* 統計カード */}
@@ -130,60 +103,96 @@ export default function DashboardPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  プロジェクト数
+                  完了タスク
                 </CardTitle>
-                <FolderOpen className="h-4 w-4 text-muted-foreground" />
+                <CheckCircle className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {data.stats.totalProjects}
+                  {data.stats.completedTasks}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  アクティブなプロジェクト
+                  今月の完了タスク数
                 </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">チーム数</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {data.stats.totalTeams}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  登録されているチーム
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">総課題数</CardTitle>
-                <Activity className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {data.stats.totalIssues}
-                </div>
-                <p className="text-xs text-muted-foreground">すべての課題</p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  アクティブな課題
+                  進行中タスク
                 </CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                <Activity className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {data.stats.activeIssues}
+                  {data.stats.inProgressTasks}
                 </div>
-                <p className="text-xs text-muted-foreground">対応中の課題</p>
+                <p className="text-xs text-muted-foreground">
+                  現在の進行中タスク
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  レビュー待ち
+                </CardTitle>
+                <AlertCircle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {data.stats.pendingReviews}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  レビュー待ちのタスク
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  平均サイクルタイム
+                </CardTitle>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {data.stats.averageCycleTime}日
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  タスク完了までの平均日数
+                </p>
               </CardContent>
             </Card>
           </div>
+
+          {/* 最近のアクティビティ */}
+          <Card>
+            <CardHeader>
+              <CardTitle>最近のアクティビティ</CardTitle>
+              <CardDescription>あなたの最近の活動履歴です</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {data.recentActivity.map((activity) => (
+                  <div
+                    key={activity.id}
+                    className="flex items-center justify-between border-b pb-4 last:border-0"
+                  >
+                    <div>
+                      <p className="font-medium">{activity.title}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {activity.type}
+                      </p>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(activity.timestamp).toLocaleDateString()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </Layout>
     </PrivateRoute>

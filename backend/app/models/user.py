@@ -4,6 +4,7 @@ from app.db.base_class import BaseModel
 
 class User(BaseModel):
     __tablename__ = "users"
+    __table_args__ = {'schema': 'team_insight'}
 
     email = Column(String, unique=True, index=True, nullable=True)
     hashed_password = Column(String, nullable=True)

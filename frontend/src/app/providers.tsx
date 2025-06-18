@@ -18,13 +18,11 @@ const AuthInitializer = ({ children }: { children: React.ReactNode }) => {
   );
   const [isClient, setIsClient] = useState(false);
   const initRef = useRef({ client: false, auth: false });
-  const renderCountRef = useRef(0);
 
   // クライアントサイドの初期化
   useEffect(() => {
     if (!initRef.current.client) {
       initRef.current.client = true;
-      console.log("クライアントサイドの初期化を開始");
       setIsClient(true);
     }
   }, []);
@@ -33,39 +31,21 @@ const AuthInitializer = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (isClient && !initRef.current.auth) {
       initRef.current.auth = true;
-      console.log("認証の初期化を開始");
       dispatch(initializeAuth());
     }
   }, [isClient, dispatch]);
 
   // 認証状態に応じたリダイレクト
   useEffect(() => {
-    if (!isInitialized) return; // 初期化が終わるまで何もしない
+    if (!isInitialized) return;
     const isAuthPage = pathname === "/auth/login";
     const isRootPage = pathname === "/";
     if (!isAuthenticated && !isAuthPage) {
-      console.log("未認証状態: ログインページにリダイレクト");
-      router.replace("/auth/login");
+      router.replace("/");
     } else if (isAuthenticated && (isAuthPage || isRootPage)) {
-      console.log("認証済み状態: ダッシュボードにリダイレクト");
       router.replace("/dashboard");
-      console.log("リダイレクト実行");
     }
   }, [isInitialized, isAuthenticated, pathname, router]);
-
-  // デバッグ用のログ
-  useEffect(() => {
-    renderCountRef.current += 1;
-    if (renderCountRef.current <= 3) {
-      console.log("AuthInitializer - 状態:", {
-        isClient,
-        isInitialized,
-        isAuthenticated,
-        pathname,
-        renderCount: renderCountRef.current,
-      });
-    }
-  }, [isClient, isInitialized, isAuthenticated, pathname]);
 
   // ローディング表示のメモ化
   const loadingSpinner = useMemo(
@@ -77,20 +57,10 @@ const AuthInitializer = ({ children }: { children: React.ReactNode }) => {
     []
   );
 
-  // クライアントサイドの初期化待ち
-  if (!isClient) {
+  if (!isClient || !isInitialized) {
     return loadingSpinner;
   }
 
-  // 認証の初期化待ち
-  if (!isInitialized) {
-    return loadingSpinner;
-  }
-
-  // 認証の初期化完了
-  if (renderCountRef.current <= 3) {
-    console.log("認証の初期化完了 - 子コンポーネントをレンダリング");
-  }
   return <>{children}</>;
 };
 
