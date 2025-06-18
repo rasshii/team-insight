@@ -88,8 +88,8 @@ services:
       dockerfile: ../infrastructure/docker/frontend/Dockerfile.dev
     container_name: team-insight-frontend
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost/api
-      NEXT_PUBLIC_API_BASE_URL: http://localhost/api
+      NEXT_PUBLIC_API_URL: http://localhost
+      NEXT_PUBLIC_API_BASE_URL: http://localhost
       NODE_ENV: development
       NEXT_TELEMETRY_DISABLED: 1
       PORT: 3000
