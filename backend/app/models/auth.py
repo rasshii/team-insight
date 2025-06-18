@@ -21,9 +21,10 @@ class OAuthToken(Base):
     プロバイダー（Backlogなど）ごとに保存します。
     """
     __tablename__ = "oauth_tokens"
+    __table_args__ = {'schema': 'team_insight'}
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("team_insight.users.id"), nullable=False)
     provider = Column(String(50), nullable=False)  # "backlog"など
     access_token = Column(Text, nullable=False)  # アクセストークン
     refresh_token = Column(Text, nullable=True)  # リフレッシュトークン
@@ -57,10 +58,11 @@ class OAuthState(Base):
     一時的に保存し、コールバック時に検証します。
     """
     __tablename__ = "oauth_states"
+    __table_args__ = {'schema': 'team_insight'}
 
     id = Column(Integer, primary_key=True, index=True)
     state = Column(String(255), unique=True, nullable=False, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # ログイン済みユーザーの場合
+    user_id = Column(Integer, ForeignKey("team_insight.users.id"), nullable=True)  # ログイン済みユーザーの場合
     created_at = Column(DateTime, default=datetime.utcnow)
     expires_at = Column(DateTime, nullable=False)  # 有効期限（通常10分程度）
 

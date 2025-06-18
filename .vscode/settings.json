@@ -4,7 +4,7 @@
    * エディタ表示設定 (Editor Appearance)
    * ===================================== */
   "editor.fontFamily": "JetBrains Mono, Menlo, Monaco, 'Courier New', monospace", // プログラミング用フォント
-  "editor.fontSize": 14, // フォントサイズ
+  "editor.fontSize": 12, // フォントサイズ
   "editor.lineHeight": 1.5, // 行の高さ
   "editor.wordWrap": "on", // 行の折り返しを有効化
   "editor.minimap.enabled": false, // ミニマップの表示

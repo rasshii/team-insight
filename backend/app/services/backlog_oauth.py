@@ -54,7 +54,7 @@ class BacklogOAuthService:
             "response_type": "code",
             "client_id": self.client_id,
             "redirect_uri": self.redirect_uri,
-            "state": state
+            "state": state,
         }
 
         auth_url = f"{self.base_url}/OAuth2AccessRequest.action?{urlencode(params)}"
@@ -80,14 +80,14 @@ class BacklogOAuthService:
             "code": code,
             "redirect_uri": self.redirect_uri,
             "client_id": self.client_id,
-            "client_secret": self.client_secret
+            "client_secret": self.client_secret,
         }
 
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 token_url,
                 data=data,
-                headers={"Content-Type": "application/x-www-form-urlencoded"}
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
 
             if response.status_code != 200:
@@ -103,7 +103,7 @@ class BacklogOAuthService:
                 "refresh_token": token_data["refresh_token"],
                 "token_type": token_data["token_type"],
                 "expires_in": token_data["expires_in"],
-                "expires_at": expires_at
+                "expires_at": expires_at,
             }
 
     async def refresh_access_token(self, refresh_token: str) -> Dict[str, any]:
@@ -125,14 +125,14 @@ class BacklogOAuthService:
             "grant_type": "refresh_token",
             "refresh_token": refresh_token,
             "client_id": self.client_id,
-            "client_secret": self.client_secret
+            "client_secret": self.client_secret,
         }
 
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 token_url,
                 data=data,
-                headers={"Content-Type": "application/x-www-form-urlencoded"}
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
 
             if response.status_code != 200:
@@ -148,7 +148,7 @@ class BacklogOAuthService:
                 "refresh_token": token_data["refresh_token"],
                 "token_type": token_data["token_type"],
                 "expires_in": token_data["expires_in"],
-                "expires_at": expires_at
+                "expires_at": expires_at,
             }
 
     async def get_user_info(self, access_token: str) -> Dict[str, any]:
@@ -168,8 +168,7 @@ class BacklogOAuthService:
 
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                user_url,
-                headers={"Authorization": f"Bearer {access_token}"}
+                user_url, headers={"Authorization": f"Bearer {access_token}"}
             )
 
             if response.status_code != 200:
@@ -177,7 +176,9 @@ class BacklogOAuthService:
 
             return response.json()
 
-    def save_token(self, db: Session, user_id: int, token_data: Dict[str, any]) -> OAuthToken:
+    def save_token(
+        self, db: Session, user_id: int, token_data: Dict[str, any]
+    ) -> OAuthToken:
         """
         トークンをデータベースに保存します
 
@@ -190,10 +191,11 @@ class BacklogOAuthService:
             保存されたOAuthTokenオブジェクト
         """
         # 既存のトークンを確認
-        existing_token = db.query(OAuthToken).filter(
-            OAuthToken.user_id == user_id,
-            OAuthToken.provider == "backlog"
-        ).first()
+        existing_token = (
+            db.query(OAuthToken)
+            .filter(OAuthToken.user_id == user_id, OAuthToken.provider == "backlog")
+            .first()
+        )
 
         if existing_token:
             # 既存のトークンを更新
@@ -210,7 +212,7 @@ class BacklogOAuthService:
                 provider="backlog",
                 access_token=token_data["access_token"],
                 refresh_token=token_data["refresh_token"],
-                expires_at=token_data["expires_at"]
+                expires_at=token_data["expires_at"],
             )
             db.add(new_token)
             db.commit()
