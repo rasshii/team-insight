@@ -9,6 +9,7 @@ DOCKER_COMPOSE := docker-compose
 FRONTEND_CONTAINER := frontend
 BACKEND_CONTAINER := backend
 DB_CONTAINER := postgres
+REDIS_CONTAINER := redis
 
 # ヘルプ
 .PHONY: help
@@ -29,14 +30,22 @@ help:
 	@echo "  make frontend-logs  - フロントエンドのログを表示"
 	@echo "  make backend-logs   - バックエンドのログを表示"
 	@echo "  make db-logs        - データベースのログを表示"
+	@echo "  make redis-logs     - Redisのログを表示"
 	@echo "  make frontend-shell - フロントエンドコンテナに接続"
 	@echo "  make backend-shell  - バックエンドコンテナに接続"
 	@echo "  make db-shell       - データベースコンテナに接続"
+	@echo "  make redis-shell    - Redisコンテナに接続"
 	@echo ""
 	@echo "データベース操作:"
 	@echo "  make migrate        - DBマイグレーションを実行"
 	@echo "  make migrate-down   - マイグレーションを1つ戻す"
 	@echo "  make migrate-history - マイグレーション履歴を表示"
+	@echo ""
+	@echo "キャッシュ操作:"
+	@echo "  make cache-test     - キャッシュ機能をテスト"
+	@echo "  make cache-stats    - キャッシュ統計を表示"
+	@echo "  make cache-clear    - 全キャッシュをクリア"
+	@echo "  make cache-keys     - Redisの全キーを表示"
 
 # 初回セットアップ
 .PHONY: setup
@@ -55,6 +64,16 @@ setup:
 		fi; \
 		echo -n "."; \
 		sleep 2; \
+	done
+	@echo ""
+	@echo "⏳ Redisの起動を待機中..."
+	@for i in $$(seq 1 15); do \
+		if $(DOCKER_COMPOSE) exec -T $(REDIS_CONTAINER) redis-cli -a team_insight_redis_password ping > /dev/null 2>&1; then \
+			echo "✅ Redisが起動しました"; \
+			break; \
+		fi; \
+		echo -n "."; \
+		sleep 1; \
 	done
 	@echo ""
 	@echo "🗃️  データベースマイグレーションを実行..."
@@ -131,6 +150,11 @@ backend-logs:
 db-logs:
 	@$(DOCKER_COMPOSE) logs -f $(DB_CONTAINER)
 
+# Redisログ
+.PHONY: redis-logs
+redis-logs:
+	@$(DOCKER_COMPOSE) logs -f $(REDIS_CONTAINER)
+
 # フロントエンドシェル
 .PHONY: frontend-shell
 frontend-shell:
@@ -145,6 +169,11 @@ backend-shell:
 .PHONY: db-shell
 db-shell:
 	@$(DOCKER_COMPOSE) exec $(DB_CONTAINER) psql -U team_insight_user -d team_insight
+
+# Redisシェル
+.PHONY: redis-shell
+redis-shell:
+	@$(DOCKER_COMPOSE) exec $(REDIS_CONTAINER) redis-cli -a team_insight_redis_password
 
 # データベースマイグレーション
 .PHONY: migrate
@@ -173,11 +202,31 @@ test:
 	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) pytest
 	@echo "✅ テストが完了しました"
 
+# キャッシュ機能テスト
+.PHONY: cache-test
+cache-test:
+	@echo "🧪 キャッシュ機能をテストしています..."
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) python test_cache.py
+	@echo "✅ キャッシュテストが完了しました"
+
+# キャッシュ統計表示
+.PHONY: cache-stats
+cache-stats:
+	@echo "📊 キャッシュ統計を表示します..."
+	@$(DOCKER_COMPOSE) exec $(REDIS_CONTAINER) redis-cli -a team_insight_redis_password info stats
+
+# キャッシュクリア
+.PHONY: cache-clear
+cache-clear:
+	@echo "🗑️  全キャッシュをクリアしています..."
+	@$(DOCKER_COMPOSE) exec $(REDIS_CONTAINER) redis-cli -a team_insight_redis_password FLUSHDB
+	@echo "✅ キャッシュクリアが完了しました"
+
 # Redisの全キーを表示
-.PHONY: redis-keys
-redis-keys:
+.PHONY: cache-keys
+cache-keys:
 	@echo "🔑 Redisの全キーを表示します..."
-	@$(DOCKER_COMPOSE) exec redis redis-cli -a team_insight_redis_password KEYS '*'
+	@$(DOCKER_COMPOSE) exec $(REDIS_CONTAINER) redis-cli -a team_insight_redis_password KEYS '*'
 
 # Nginxのアクセスログを表示
 .PHONY: nginx-access-log
