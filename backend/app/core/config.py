@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://redis:6379"
     REDISCLI_AUTH: str = "team_insight_redis_password"
 
+    # キャッシュ設定
+    CACHE_DEFAULT_EXPIRE: int = 300  # デフォルト5分
+    CACHE_MAX_CONNECTIONS: int = 20
+    CACHE_HEALTH_CHECK_INTERVAL: int = 30
+
     # CORS設定
     BACKEND_CORS_ORIGINS: Union[str, List[AnyHttpUrl]] = "http://localhost:3000"
 
