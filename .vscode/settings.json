@@ -133,8 +133,32 @@
     },
     "temperature": 0.2, // 応答の多様性（0.0: 決定的, 1.0: 創造的）
     "autoEnable": false, // 自動でAI機能を無効化
-    "autoComplete": "enabled", // AIによる自動補完を有効化
-    "autoCompleteDelay": 300 // 自動補完が表示されるまでの遅延 (ms)
+    "autoComplete": {
+      "enabled": true, // AIによる自動補完を有効化
+      "delay": 300, // 自動補完が表示されるまでの遅延 (ms)
+      "maxItems": 10 // 自動補完の最大項目数
+    },
+    "timeout": 1200000, // AI処理のタイムアウト (20分)
+    "maxFileSize": 52428800, // 最大ファイルサイズ (50MB)
+    "maxTokens": 128000, // 最大トークン数 (128K)
+    "responseSizeLimit": 8388608, // レスポンスサイズ制限 (8MB)
+    "chat": {
+      "maxHistory": 100, // チャット履歴の最大数
+      "maxTokens": 16000 // チャットの最大トークン数
+    },
+    "fileAnalysis": {
+      "enabled": true, // ファイル分析を有効化
+      "maxFileSize": 26214400 // ファイル分析の最大サイズ (25MB)
+    },
+    "context": {
+      "maxFiles": 200, // コンテキストに含める最大ファイル数
+      "maxTokens": 32000 // コンテキストの最大トークン数
+    },
+    "edit": {
+      "maxFileSize": 52428800, // 編集可能な最大ファイルサイズ (50MB)
+      "maxTokens": 128000, // 編集時の最大トークン数
+      "chunkSize": 32000 // チャンクサイズ
+    }
   },
 
   /* =====================================
@@ -163,5 +187,21 @@
   "git.pruneOnFetch": true, // フェッチ時に不要なブランチを削除
   "git.allowNoVerifyCommit": false, // 検証なしのコミットを禁止
   "git.suggestSmartCommit": true, // スマートコミットを提案
-  "git.supportCancellation": true // 操作のキャンセルをサポート
+  "git.supportCancellation": true, // 操作のキャンセルをサポート
+
+  /* =====================================
+   * 追加のAI設定 (Additional AI Settings)
+   * ===================================== */
+  "cursor.ai.autoComplete.enabled": true, // AI自動補完を有効化
+  "cursor.ai.autoComplete.delay": 300, // 自動補完の遅延時間
+  "cursor.ai.autoComplete.maxItems": 10, // 自動補完の最大項目数
+  "cursor.ai.chat.maxHistory": 100, // チャット履歴の最大数
+  "cursor.ai.chat.maxTokens": 16000, // チャットの最大トークン数
+  "cursor.ai.fileAnalysis.enabled": true, // ファイル分析を有効化
+  "cursor.ai.fileAnalysis.maxFileSize": 26214400, // ファイル分析の最大サイズ (25MB)
+  "cursor.ai.context.maxFiles": 200, // コンテキストに含める最大ファイル数
+  "cursor.ai.context.maxTokens": 32000, // コンテキストの最大トークン数
+  "cursor.ai.edit.maxFileSize": 52428800, // 編集可能な最大ファイルサイズ (50MB)
+  "cursor.ai.edit.maxTokens": 128000, // 編集時の最大トークン数
+  "cursor.ai.edit.chunkSize": 32000 // 編集時のチャンクサイズ
 }
