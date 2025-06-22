@@ -52,3 +52,11 @@ build/
 *.tmp
 *.bak
 .cache/
+
+# Claude Code
+CLAUDE.md
+.claude/
+claude-code-session/
+
+# Documentation (personal)
+doc/implementation-guide-junior.md
