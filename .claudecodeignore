@@ -1,0 +1,31 @@
+# ビルド成果物
+dist/
+build/
+*.min.js
+*.min.css
+
+# 依存関係
+node_modules/
+vendor/
+.venv/
+__pycache__/
+
+# 環境設定・秘密情報
+.env
+.env.*
+*.key
+*.pem
+secrets/
+
+# ログ・一時ファイル
+*.log
+*.tmp
+.cache/
+coverage/
+
+# 大きなバイナリファイル
+*.mp4
+*.zip
+*.tar.gz
+images/
+videos/
