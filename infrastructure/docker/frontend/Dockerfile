@@ -7,11 +7,15 @@ WORKDIR /app
 # 必要なパッケージのインストール
 RUN apk add --no-cache python3 make g++
 
-# パッケージマネージャーの設定
-COPY package.json yarn.lock ./
+# Corepackを有効化（Yarn v4用）
+RUN corepack enable
 
-# 依存関係のインストール
-RUN yarn install --frozen-lockfile --network-timeout 100000
+# パッケージマネージャーの設定
+COPY package.json yarn.lock .yarnrc.yml ./
+COPY .yarn ./.yarn
+
+# 依存関係のインストール（Yarn v4）
+RUN yarn install --immutable
 
 # アプリケーションのコピー
 COPY . .
@@ -30,6 +34,9 @@ WORKDIR /app
 # 必要なパッケージのインストール
 RUN apk add --no-cache python3 make g++
 
+# Corepackを有効化（Yarn v4用）
+RUN corepack enable
+
 # グループとユーザーの作成
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nextjs -u 1001
@@ -37,13 +44,15 @@ RUN adduser -S nextjs -u 1001
 # 必要なファイルのコピー
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/yarn.lock ./
+COPY --from=builder /app/.yarnrc.yml ./
+COPY --from=builder /app/.yarn ./.yarn
 COPY --from=builder /app/next.config.js ./
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
-# 依存関係のインストール（本番用）
-RUN yarn install --production --frozen-lockfile --network-timeout 100000
+# 依存関係のインストール（本番用、Yarn v4）
+RUN yarn workspaces focus --production
 
 # ユーザーの切り替え
 USER nextjs

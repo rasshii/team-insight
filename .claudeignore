@@ -1,0 +1,72 @@
+# .claudeignore - セキュリティ用アクセス制限ファイル
+# =================================================
+# このファイルは機密情報を含むファイルへのアクセスを完全にブロックします。
+# Claude Codeが絶対に読み取ってはいけないファイルを指定してください。
+#
+# 用途:
+# - 環境変数ファイル（.env, .env.production など）
+# - 秘密鍵・証明書（*.key, *.pem など）
+# - 個人情報を含むログファイル
+# - 本番環境の設定ファイル
+# - データベースダンプ・バックアップ
+#
+# .claudecodeignoreとの違い:
+# - .claudeignore: セキュリティ重視（機密ファイルを完全ブロック）
+# - .claudecodeignore: パフォーマンス重視（大きい/不要なファイルを除外）
+
+# 環境変数ファイル（機密情報を含む）
+.env
+.env.local
+.env.production
+.env.staging
+**/.env
+**/.env.local
+**/.env.production
+**/.env.staging
+
+# バックアップファイル
+*.backup
+*.bak
+*.dump
+*.sql
+
+# 秘密鍵・証明書
+*.pem
+*.key
+*.p12
+*.pfx
+*.cert
+*.crt
+
+# パスワードファイル
+**/passwords.*
+**/secrets.*
+**/.htpasswd
+
+# ログファイル（個人情報を含む可能性）
+*.log
+**/logs/
+
+# データベースファイル
+*.db
+*.sqlite
+*.sqlite3
+
+# アップロードされたファイル
+**/uploads/
+**/user_data/
+**/private/
+
+# IDEの設定（個人設定を含む可能性）
+.vscode/settings.json
+.idea/
+
+# その他の機密ファイル
+**/credentials/
+**/config/production.*
+docker-compose.override.yml
+
+# 注: .env.exampleなどのサンプルファイルは除外しません
+# !.env.example
+# !.env.sample
+# !.env.template
