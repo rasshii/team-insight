@@ -6,16 +6,19 @@ CORS設定、ルーターの登録、データベースの初期化などを含�
 """
 
 import logging
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from datetime import datetime
+from fastapi import FastAPI, Depends
+from sqlalchemy.orm import Session
 from contextlib import asynccontextmanager
-from app.core.config import settings
+from app.core.config import settings, validate_settings
 from app.api.v1.auth import router as auth_router
 from app.api.v1.cache import router as cache_router
 from app.api.v1.projects import router as projects_router
 from app.api.v1.test import router as test_router
 from app.core.cache import CacheMiddleware
 from app.core.redis_client import redis_client
+from app.db.session import get_db
+from app.schemas.health import HealthResponse, ServiceStatus
 
 # ログ設定
 logging.basicConfig(
@@ -33,7 +36,12 @@ async def lifespan(app: FastAPI):
     """
     # 起動時の処理
     logger.info("アプリケーションを起動しています...")
-
+    
+    # 設定の検証
+    logger.info("設定を検証しています...")
+    if not validate_settings():
+        logger.warning("設定に問題がありますが、アプリケーションを続行します")
+    
     # Redis接続の初期化
     try:
         await redis_client.get_connection()
@@ -60,15 +68,6 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORSミドルウェアの設定
-if settings.BACKEND_CORS_ORIGINS:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[str(origin).rstrip("/") for origin in settings.BACKEND_CORS_ORIGINS],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
 
 # キャッシュミドルウェアの設定
 # 認証関連のパスは除外し、APIエンドポイントのみキャッシュ対象とする
@@ -100,27 +99,43 @@ app.include_router(test_router, prefix=settings.API_V1_STR)
 async def root():
     return {"message": "Welcome to Team Insight API"}
 
-@app.get("/health")
-async def health_check():
+@app.get("/health", response_model=HealthResponse)
+async def health_check(db: Session = Depends(get_db)) -> HealthResponse:
     """
     アプリケーションの健全性チェック
 
     このエンドポイントは、アプリケーション全体の健全性を確認します。
     """
+    health_status = {
+        "api": "healthy",
+        "database": "unhealthy",
+        "redis": "unhealthy"
+    }
+    
+    # データベース接続チェック
     try:
-        # Redis接続チェック
+        # シンプルなクエリを実行してDBの応答を確認
+        db.execute("SELECT 1")
+        health_status["database"] = "healthy"
+    except Exception as e:
+        logger.error(f"データベース健全性チェックエラー: {e}")
+    
+    # Redis接続チェック
+    try:
         redis_conn = await redis_client.get_connection()
         await redis_conn.ping()
-        redis_status = "healthy"
+        health_status["redis"] = "healthy"
     except Exception as e:
         logger.error(f"Redis健全性チェックエラー: {e}")
-        redis_status = "unhealthy"
-
-    return {
-        "status": "healthy",
-        "services": {
-            "api": "healthy",
-            "redis": redis_status
-        },
-        "message": "Team Insight API is running"
-    }
+    
+    # 全体のステータスを判定
+    overall_status = "healthy" if all(
+        status == "healthy" for status in health_status.values()
+    ) else "unhealthy"
+    
+    return HealthResponse(
+        status=overall_status,
+        services=ServiceStatus(**health_status),
+        message="Team Insight API is running",
+        timestamp=datetime.utcnow()
+    )

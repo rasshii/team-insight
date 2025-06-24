@@ -7,11 +7,15 @@ WORKDIR /app
 # 必要なパッケージのインストール
 RUN apk add --no-cache python3 make g++
 
-# パッケージマネージャーの設定
-COPY package.json yarn.lock ./
+# Corepackを有効化（Yarn v4用）
+RUN corepack enable
 
-# 依存関係のインストール
-RUN yarn install --network-timeout 100000
+# パッケージマネージャーの設定
+COPY package.json yarn.lock .yarnrc.yml ./
+COPY .yarn ./.yarn
+
+# 依存関係のインストール（Yarn v4）
+RUN yarn install
 
 # ポートの公開
 EXPOSE 3000

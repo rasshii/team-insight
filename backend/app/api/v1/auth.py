@@ -244,6 +244,30 @@ async def refresh_token(
         )
 
 
+@router.get("/verify", response_model=UserInfoResponse)
+async def verify_token(current_user: User = Depends(get_current_user)):
+    """
+    JWTトークンの有効性を確認し、ユーザー情報を返す
+    
+    このエンドポイントは、フロントエンドのミドルウェアから呼び出され、
+    トークンが有効かどうかを確認するために使用されます。
+    """
+    if not current_user:
+        raise HTTPException(
+            status_code=401,
+            detail="認証が必要です",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    return UserInfoResponse(
+        id=current_user.id,
+        backlog_id=current_user.backlog_id,
+        email=current_user.email,
+        name=current_user.name,
+        user_id=current_user.user_id,
+    )
+
+
 @router.get("/me", response_model=UserInfoResponse)
 async def get_current_user_info(current_user: User = Depends(get_current_active_user)):
     """
