@@ -35,7 +35,8 @@
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "generate:types": "openapi-typescript http://localhost/api/v1/openapi.json -o ./src/types/api.d.ts"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.1.5",
@@ -52,11 +53,13 @@
     "identity-obj-proxy": "^3.0.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
+    "openapi-typescript": "^7.8.0",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
     "ts-jest": "^29.1.1"
   },
   "engines": {
     "node": ">=20.0.0"
-  }
+  },
+  "packageManager": "yarn@4.5.3"
 }

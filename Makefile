@@ -41,11 +41,26 @@ help:
 	@echo "  make migrate-down   - マイグレーションを1つ戻す"
 	@echo "  make migrate-history - マイグレーション履歴を表示"
 	@echo ""
+	@echo "テスト操作:"
+	@echo "  make test           - バックエンドテストを実行"
+	@echo "  make test-frontend  - フロントエンドテストを実行"
+	@echo "  make test-all       - 全てのテストを実行"
+	@echo "  make test-v         - 詳細モードでバックエンドテスト実行"
+	@echo "  make test-cov       - カバレッジ付きバックエンドテスト実行"
+	@echo "  make test-cov-html  - カバレッジHTMLレポート生成"
+	@echo "  make test-failed    - 前回失敗したテストのみ実行"
+	@echo "  make test-file FILE=path/to/test.py - 特定ファイルのテスト"
+	@echo ""
 	@echo "キャッシュ操作:"
 	@echo "  make cache-test     - キャッシュ機能をテスト"
 	@echo "  make cache-stats    - キャッシュ統計を表示"
 	@echo "  make cache-clear    - 全キャッシュをクリア"
 	@echo "  make cache-keys     - Redisの全キーを表示"
+	@echo ""
+	@echo "開発ツール:"
+	@echo "  make generate-types - OpenAPIからTypeScript型を生成"
+	@echo "  make update-types   - バックエンド起動確認後に型を生成"
+	@echo "  make dev-sync       - マイグレーション実行と型生成を一括実行"
 
 # 初回セットアップ
 .PHONY: setup
@@ -195,12 +210,89 @@ migrate-history:
 	@echo "📜 マイグレーション履歴:"
 	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) alembic history
 
-# テスト実行
+# バックエンドテスト実行
 .PHONY: test
 test:
-	@echo "🧪 テストを実行..."
+	@echo "🧪 バックエンドテストを実行..."
 	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) pytest
+	@echo "✅ バックエンドテストが完了しました"
+
+# フロントエンドテスト実行
+.PHONY: test-frontend
+test-frontend:
+	@echo "🧪 フロントエンドテストを実行..."
+	@$(DOCKER_COMPOSE) exec $(FRONTEND_CONTAINER) yarn test
+	@echo "✅ フロントエンドテストが完了しました"
+
+# 全テスト実行
+.PHONY: test-all
+test-all: test test-frontend
+	@echo "✅ 全てのテストが完了しました"
+
+# ==================================================
+# 開発ツール
+# ==================================================
+
+# TypeScript型の自動生成
+.PHONY: generate-types
+generate-types:
+	@echo "🔄 OpenAPIからTypeScript型を生成..."
+	@cd frontend && yarn generate:types
+	@echo "✅ 型生成が完了しました"
+
+# APIが変更された後の型更新（バックエンド起動確認付き）
+.PHONY: update-types
+update-types:
+	@echo "🔍 バックエンドの起動を確認..."
+	@curl -s http://localhost/api/v1/openapi.json > /dev/null || (echo "❌ バックエンドが起動していません。'make start'を実行してください" && exit 1)
+	@$(MAKE) generate-types
+
+# 開発ワークフロー: APIスキーマ変更後の一連の処理
+.PHONY: dev-sync
+dev-sync: migrate update-types
+	@echo "🎉 開発環境の同期が完了しました"
+	@echo "  - データベースマイグレーション: ✅"
+	@echo "  - TypeScript型生成: ✅"
+
+# 詳細なテスト実行
+.PHONY: test-v
+test-v:
+	@echo "🧪 テストを詳細モードで実行..."
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) pytest -v
 	@echo "✅ テストが完了しました"
+
+# 特定のファイルのテスト実行
+.PHONY: test-file
+test-file:
+	@echo "🧪 ファイル指定テストを実行..."
+	@echo "使用方法: make test-file FILE=tests/test_config.py"
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) pytest $(FILE) -v
+
+# カバレッジ付きテスト実行
+.PHONY: test-cov
+test-cov:
+	@echo "🧪 カバレッジ付きでテストを実行..."
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) pytest --cov=app --cov-report=term-missing
+	@echo "✅ テストが完了しました"
+
+# カバレッジHTMLレポート生成
+.PHONY: test-cov-html
+test-cov-html:
+	@echo "🧪 カバレッジHTMLレポートを生成..."
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) pytest --cov=app --cov-report=html
+	@echo "✅ HTMLレポートが生成されました: backend/htmlcov/index.html"
+
+# 前回失敗したテストのみ実行
+.PHONY: test-failed
+test-failed:
+	@echo "🧪 前回失敗したテストのみ実行..."
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) pytest --lf -v
+
+# テスト実行（警告なし）
+.PHONY: test-no-warnings
+test-no-warnings:
+	@echo "🧪 テストを実行（警告非表示）..."
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) pytest --disable-warnings -v
 
 # キャッシュ機能テスト
 .PHONY: cache-test

@@ -1,8 +1,18 @@
+"""
+pytest設定と共通フィクスチャ
+
+このファイルはpytestによって自動的に読み込まれ、
+全てのテストで使用できるフィクスチャを定義します。
+"""
 import pytest
-from app.db.session import SessionLocal
+from typing import Generator
+from unittest.mock import Mock, patch
+from datetime import datetime, timedelta
+
+from app.db.session import SessionLocal, get_db
 from app.models.user import User
 from app.models.auth import OAuthToken, OAuthState
-from datetime import datetime, timedelta
+from app.core.security import get_password_hash, create_access_token
 
 @pytest.fixture(scope="function")
 def test_user():
@@ -68,3 +78,109 @@ def test_oauth_state(test_user):
     db.delete(state)
     db.commit()
     db.close()
+
+
+# ========== 追加の便利なフィクスチャ ==========
+
+@pytest.fixture
+def auth_headers(test_user) -> dict:
+    """認証ヘッダー（一般ユーザー用）"""
+    access_token = create_access_token(data={"sub": str(test_user.id)})
+    return {"Authorization": f"Bearer {access_token}"}
+
+
+@pytest.fixture
+def test_superuser():
+    """テスト用管理者ユーザー"""
+    db = SessionLocal()
+    user = User(
+        email="admin@example.com",
+        hashed_password=get_password_hash("adminpassword123"),
+        full_name="管理者",
+        is_active=True,
+        is_superuser=True,
+        backlog_id=99999,
+        user_id="admin_user_id",
+        name="管理者"
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    yield user
+    db.delete(user)
+    db.commit()
+    db.close()
+
+
+@pytest.fixture
+def admin_headers(test_superuser) -> dict:
+    """認証ヘッダー（管理者用）"""
+    access_token = create_access_token(data={"sub": str(test_superuser.id)})
+    return {"Authorization": f"Bearer {access_token}"}
+
+
+@pytest.fixture
+def db_session() -> Generator:
+    """データベースセッション"""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.rollback()
+        db.close()
+
+
+# ========== 外部サービスのモック ==========
+
+@pytest.fixture
+def mock_backlog_client():
+    """Backlog APIクライアントのモック"""
+    with patch("app.services.backlog.BacklogClient") as mock:
+        # デフォルトのレスポンスを設定
+        mock.return_value.get_project.return_value = {
+            "id": 1,
+            "projectKey": "TEST",
+            "name": "Test Project",
+        }
+        mock.return_value.get_issues.return_value = [
+            {"id": 1, "summary": "Test Issue 1"},
+            {"id": 2, "summary": "Test Issue 2"},
+        ]
+        yield mock
+
+
+@pytest.fixture
+def mock_redis():
+    """Redisクライアントのモック"""
+    with patch("app.core.redis_client.redis_client") as mock:
+        mock.get = Mock(return_value=None)
+        mock.set = Mock(return_value=True)
+        mock.delete = Mock(return_value=True)
+        mock.exists = Mock(return_value=False)
+        yield mock
+
+
+# ========== サンプルデータ ==========
+
+@pytest.fixture
+def sample_project_data():
+    """サンプルプロジェクトデータ"""
+    return {
+        "name": "Test Project",
+        "description": "This is a test project",
+        "backlog_project_id": "TEST-001",
+        "is_active": True,
+    }
+
+
+@pytest.fixture
+def sample_task_data():
+    """サンプルタスクデータ"""
+    return {
+        "title": "Test Task",
+        "description": "This is a test task",
+        "assignee_id": 1,
+        "due_date": datetime.utcnow() + timedelta(days=7),
+        "priority": "medium",
+        "status": "todo",
+    }

@@ -6,10 +6,10 @@
  */
 
 import axios from "axios";
+import { env } from "@/config/env";
 
 // APIのベースURL
-// 開発環境ではNginxを経由するため、ポート番号なしでアクセス
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost";
+const API_BASE_URL = env.get("NEXT_PUBLIC_API_URL");
 
 // 認証関連の型定義
 export interface AuthorizationResponse {

@@ -1,49 +1,99 @@
-from typing import List, Union
 from pydantic_settings import BaseSettings
-from pydantic import AnyHttpUrl, field_validator
-import json
+from pydantic import Field
+
 
 class Settings(BaseSettings):
+    # アプリケーション設定
     APP_NAME: str = "Team Insight"
-    DEBUG: bool = True
+    DEBUG: bool = Field(default=False, env="DEBUG")
     API_V1_STR: str = "/api/v1"
 
+
     # セキュリティ設定
-    SECRET_KEY: str = "your-secret-key-here"  # 本番環境では必ず変更してください
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    SECRET_KEY: str = Field(default="your-secret-key-here", env="SECRET_KEY")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
+        default=30, env="ACCESS_TOKEN_EXPIRE_MINUTES"
+    )
 
     # データベース設定
-    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/team_insight"
+    DATABASE_URL: str = Field(
+        default="postgresql://postgres:postgres@localhost:5432/team_insight",
+        env="DATABASE_URL",
+    )
 
     # Redis設定
-    REDIS_URL: str = "redis://redis:6379"
-    REDISCLI_AUTH: str = "team_insight_redis_password"
+    REDIS_URL: str = Field(default="redis://redis:6379", env="REDIS_URL")
+    REDISCLI_AUTH: str = Field(default="redis_password", env="REDISCLI_AUTH")
+    CACHE_DEFAULT_EXPIRE: int = Field(
+        default=300, env="CACHE_DEFAULT_EXPIRE"
+    )  # デフォルト5分
+    CACHE_MAX_CONNECTIONS: int = Field(default=20, env="CACHE_MAX_CONNECTIONS")
+    CACHE_HEALTH_CHECK_INTERVAL: int = Field(
+        default=30, env="CACHE_HEALTH_CHECK_INTERVAL"
+    )
 
-    # キャッシュ設定
-    CACHE_DEFAULT_EXPIRE: int = 300  # デフォルト5分
-    CACHE_MAX_CONNECTIONS: int = 20
-    CACHE_HEALTH_CHECK_INTERVAL: int = 30
-
-    # CORS設定
-    BACKEND_CORS_ORIGINS: Union[str, List[AnyHttpUrl]] = "http://localhost:3000"
-
-    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
-    @classmethod
-    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
-        if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",")]
-        elif isinstance(v, (list, str)):
-            return v
-        raise ValueError(v)
+    # パスワードポリシー
+    PASSWORD_MIN_LENGTH: int = Field(default=8, ge=6)
+    PASSWORD_REQUIRE_UPPERCASE: bool = True
+    PASSWORD_REQUIRE_LOWERCASE: bool = True
+    PASSWORD_REQUIRE_NUMBERS: bool = True
+    PASSWORD_REQUIRE_SPECIAL: bool = True
 
     # Backlog OAuth2.0設定
-    BACKLOG_CLIENT_ID: str = ""  # 環境変数から読み込まれます
-    BACKLOG_CLIENT_SECRET: str = ""  # 環境変数から読み込まれます
-    BACKLOG_REDIRECT_URI: str = "http://localhost:3000/auth/callback"
-    BACKLOG_SPACE_KEY: str = ""  # BacklogのスペースキーまたはドメインのプレフィックスをOAuth認証時に使用
+    BACKLOG_CLIENT_ID: str = Field(default="", env="BACKLOG_CLIENT_ID")
+    BACKLOG_CLIENT_SECRET: str = Field(default="", env="BACKLOG_CLIENT_SECRET")
+    BACKLOG_REDIRECT_URI: str = Field(
+        default="http://localhost:3000/auth/callback", env="BACKLOG_REDIRECT_URI"
+    )
+    BACKLOG_SPACE_KEY: str = Field(default="", env="BACKLOG_SPACE_KEY")
 
     class Config:
         case_sensitive = True
         env_file = ".env"
 
+
+# シングルトンインスタンス
 settings = Settings()
+
+# 設定の検証とログ出力
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def validate_settings():
+    """起動時の設定検証"""
+    issues = []
+
+    # SECRET_KEYの検証
+    if settings.SECRET_KEY == "your-secret-key-here":
+        if settings.DEBUG:
+            logger.warning("デバッグモードでデフォルトのSECRET_KEYを使用しています - 本番環境では必ず変更してください")
+        else:
+            issues.append("本番環境でデフォルトのSECRET_KEYを使用しています")
+
+    # Backlog認証の検証
+    if not settings.BACKLOG_CLIENT_ID or not settings.BACKLOG_CLIENT_SECRET:
+        issues.append("Backlog OAuth認証が設定されていません (BACKLOG_CLIENT_IDまたはBACKLOG_CLIENT_SECRETが未設定)")
+
+    # Backlogスペースキーの検証
+    if not settings.BACKLOG_SPACE_KEY:
+        issues.append("Backlogスペースキーが設定されていません (BACKLOG_SPACE_KEYが未設定)")
+
+    # データベースURLの検証
+    if "localhost" in settings.DATABASE_URL and not settings.DEBUG:
+        issues.append("本番環境でlocalhostのデータベースURLを使用しています")
+
+    # Redis認証の検証
+    if settings.REDISCLI_AUTH == "redis_password":
+        if settings.DEBUG:
+            logger.warning("デバッグモードでデフォルトのRedisパスワードを使用しています - 本番環境では必ず変更してください")
+        else:
+            issues.append("本番環境でデフォルトのRedisパスワードを使用しています")
+
+    if issues:
+        logger.error(f"設定に問題が検出されました: {'; '.join(issues)}")
+    else:
+        logger.info("設定の検証が正常に完了しました")
+
+    return not bool(issues)
