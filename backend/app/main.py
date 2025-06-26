@@ -6,16 +6,13 @@ CORS設定、ルーターの登録、データベースの初期化などを含�
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from contextlib import asynccontextmanager
 from app.core.config import settings, validate_settings
-from app.api.v1.auth import router as auth_router
-from app.api.v1.cache import router as cache_router
-from app.api.v1.projects import router as projects_router
-from app.api.v1.test import router as test_router
-from app.core.cache import CacheMiddleware
+from app.api.v1 import api_router
+# from app.core.cache import CacheMiddleware  # 一時的に無効化
 from app.core.redis_client import redis_client
 from app.db.session import get_db
 from app.schemas.health import HealthResponse, ServiceStatus
@@ -71,29 +68,26 @@ app = FastAPI(
 
 # キャッシュミドルウェアの設定
 # 認証関連のパスは除外し、APIエンドポイントのみキャッシュ対象とする
-app.add_middleware(
-    CacheMiddleware,
-    default_expire=300,  # 5分
-    cacheable_paths=[
-        "/api/v1/projects",
-        "/api/v1/teams",
-        "/api/v1/dashboard",
-        "/api/v1/users",
-        "/api/v1/test"
-    ],
-    exclude_paths=[
-        "/api/v1/auth",
-        "/api/v1/cache",
-        "/docs",
-        "/openapi.json"
-    ]
-    )
+# app.add_middleware(
+#     CacheMiddleware,
+#     default_expire=300,  # 5分
+#     cacheable_paths=[
+#         "/api/v1/projects",
+#         "/api/v1/teams",
+#         "/api/v1/dashboard",
+#         "/api/v1/users",
+#         "/api/v1/test"
+#     ],
+#     exclude_paths=[
+#         "/api/v1/auth",
+#         "/api/v1/cache",
+#         "/docs",
+#         "/openapi.json"
+#     ]
+#     )
 
 # APIルーターの登録
-app.include_router(auth_router, prefix=settings.API_V1_STR)
-app.include_router(cache_router, prefix=settings.API_V1_STR)
-app.include_router(projects_router, prefix=settings.API_V1_STR)
-app.include_router(test_router, prefix=settings.API_V1_STR)
+app.include_router(api_router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 async def root():
@@ -137,5 +131,5 @@ async def health_check(db: Session = Depends(get_db)) -> HealthResponse:
         status=overall_status,
         services=ServiceStatus(**health_status),
         message="Team Insight API is running",
-        timestamp=datetime.utcnow()
+        timestamp=datetime.now(timezone.utc)
     )

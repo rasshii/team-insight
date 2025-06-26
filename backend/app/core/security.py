@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Union
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -101,6 +101,7 @@ def decode_token(token: str) -> dict:
 
 
 async def get_current_user(
+    request: Request,
     token: Optional[str] = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ) -> Optional[User]:
@@ -108,12 +109,17 @@ async def get_current_user(
     現在のユーザーを取得します（オプショナル）
 
     Args:
-        token: JWTトークン
+        request: FastAPIリクエストオブジェクト
+        token: JWTトークン（Authorizationヘッダーから）
         db: データベースセッション
 
     Returns:
         ユーザーオブジェクト（認証されていない場合はNone）
     """
+    # まずCookieからトークンを取得を試みる
+    if not token:
+        token = request.cookies.get("auth_token")
+    
     if not token:
         return None
 

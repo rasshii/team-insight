@@ -15,7 +15,7 @@ from app.core.cache import cache_response, cache_invalidate
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/test", tags=["test"])
+router = APIRouter()
 
 @router.get("/cache/simple")
 @cache_response("test_simple", expire=60)  # 1分間キャッシュ

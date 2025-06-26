@@ -12,7 +12,31 @@ from datetime import datetime, timedelta
 from app.db.session import SessionLocal, get_db
 from app.models.user import User
 from app.models.auth import OAuthToken, OAuthState
+from app.models.project import Project
 from app.core.security import get_password_hash, create_access_token
+from sqlalchemy import delete, text
+
+@pytest.fixture(autouse=True)
+def clean_database():
+    """各テストの前後でデータベースをクリーンアップ"""
+    db = SessionLocal()
+    # テスト前にクリーンアップ
+    # project_members から先に削除（外部キー制約のため）
+    db.execute(text("DELETE FROM team_insight.project_members"))
+    db.execute(delete(OAuthToken))
+    db.execute(delete(OAuthState))
+    db.execute(delete(Project))
+    db.execute(delete(User).where(User.email.in_(["test@example.com", "admin@example.com"])))
+    db.commit()
+    yield
+    # テスト後にもクリーンアップ
+    db.execute(text("DELETE FROM team_insight.project_members"))
+    db.execute(delete(OAuthToken))
+    db.execute(delete(OAuthState))
+    db.execute(delete(Project))
+    db.execute(delete(User).where(User.email.in_(["test@example.com", "admin@example.com"])))
+    db.commit()
+    db.close()
 
 @pytest.fixture(scope="function")
 def test_user():
@@ -85,7 +109,11 @@ def test_oauth_state(test_user):
 @pytest.fixture
 def auth_headers(test_user) -> dict:
     """認証ヘッダー（一般ユーザー用）"""
-    access_token = create_access_token(data={"sub": str(test_user.id)})
+    # test_userを明示的にリフレッシュして最新のIDを取得
+    db = SessionLocal()
+    user = db.query(User).filter(User.email == test_user.email).first()
+    access_token = create_access_token(data={"sub": str(user.id)})
+    db.close()
     return {"Authorization": f"Bearer {access_token}"}
 
 
@@ -158,6 +186,33 @@ def mock_redis():
         mock.delete = Mock(return_value=True)
         mock.exists = Mock(return_value=False)
         yield mock
+
+
+@pytest.fixture
+def test_project(test_user):
+    """テスト用プロジェクト"""
+    db = SessionLocal()
+    # test_userを現在のセッションにマージ
+    test_user = db.merge(test_user)
+    
+    project = Project(
+        backlog_id=1234,
+        name="Test Project",
+        description="Test project description",
+        project_key="TEST"
+    )
+    db.add(project)
+    db.commit()
+    
+    # ユーザーをプロジェクトに追加
+    project.members.append(test_user)
+    db.commit()
+    db.refresh(project)
+    
+    yield project
+    db.delete(project)
+    db.commit()
+    db.close()
 
 
 # ========== サンプルデータ ==========

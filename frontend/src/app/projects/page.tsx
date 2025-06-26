@@ -18,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { projectService } from "@/services/project.service";
 import { useEffect, useState } from "react";
 
 interface Project {
@@ -36,15 +37,16 @@ export default function ProjectsPage() {
   useEffect(() => {
     const fetchProjects = async () => {
       try {
-        const response = await fetch("/api/projects");
-        if (!response.ok) {
-          throw new Error("プロジェクトデータの取得に失敗しました");
-        }
-        const data = await response.json();
+        const data = await projectService.getProjects();
         setProjects(data);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error fetching projects:", err);
-        setError("データの読み込みに失敗しました");
+        if (err.message === "認証が必要です") {
+          setError("ログインが必要です");
+          // 必要に応じてログインページへリダイレクト
+        } else {
+          setError(err.message || "データの読み込みに失敗しました");
+        }
       } finally {
         setLoading(false);
       }

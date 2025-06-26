@@ -25,7 +25,7 @@ from app.schemas.auth import (
 from app.core.security import get_current_user, get_current_active_user
 from app.models.user import User
 
-router = APIRouter(prefix="/auth", tags=["authentication"])
+router = APIRouter()
 
 
 @router.get("/backlog/authorize", response_model=AuthorizationResponse)

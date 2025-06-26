@@ -65,9 +65,10 @@ class AuthService {
   async getAuthorizationUrl(): Promise<AuthorizationResponse> {
     try {
       console.log("認証URL取得開始");
-      const response = await axios.get<AuthorizationResponse>(
-        `${API_BASE_URL}/api/v1/auth/backlog/authorize`
-      );
+      console.log("API_BASE_URL:", API_BASE_URL);
+      const authUrl = `${API_BASE_URL}/api/v1/auth/backlog/authorize`;
+      console.log("認証URL:", authUrl);
+      const response = await axios.get<AuthorizationResponse>(authUrl);
       console.log("認証URL取得レスポンス:", response.data);
 
       // stateをローカルストレージに保存（CSRF対策）

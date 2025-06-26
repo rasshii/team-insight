@@ -20,35 +20,35 @@ class EnvironmentConfig {
   private config: EnvConfig;
 
   constructor() {
-    this.config = this.validateConfig();
+    this.config = this.getConfig();
   }
 
-  private validateConfig(): EnvConfig {
-    const errors: string[] = [];
-
-    // 必須の環境変数チェック
-    const requiredVars = ["NEXT_PUBLIC_API_URL", "NEXT_PUBLIC_APP_URL"];
-
-    for (const varName of requiredVars) {
-      if (!process.env[varName]) {
-        errors.push(`Missing required environment variable: ${varName}`);
-      }
+  private getConfig(): EnvConfig {
+    // サーバーサイドとクライアントサイドで異なる処理
+    if (typeof window === "undefined") {
+      // サーバーサイド: process.envから直接読み込み
+      return {
+        NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "http://localhost",
+        NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+        NEXT_PUBLIC_ENABLE_ANALYTICS:
+          process.env.NEXT_PUBLIC_ENABLE_ANALYTICS === "true",
+        NEXT_PUBLIC_ENABLE_DEBUG_PANEL:
+          process.env.NEXT_PUBLIC_ENABLE_DEBUG_PANEL === "true",
+        NODE_ENV:
+          (process.env.NODE_ENV as EnvConfig["NODE_ENV"]) || "development",
+      };
+    } else {
+      // クライアントサイド: ビルド時に置換された値を使用
+      return {
+        NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "http://localhost",
+        NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+        NEXT_PUBLIC_ENABLE_ANALYTICS:
+          process.env.NEXT_PUBLIC_ENABLE_ANALYTICS === "true",
+        NEXT_PUBLIC_ENABLE_DEBUG_PANEL:
+          process.env.NEXT_PUBLIC_ENABLE_DEBUG_PANEL === "true",
+        NODE_ENV: "development", // クライアントサイドでは常にdevelopment
+      };
     }
-
-    if (errors.length > 0) {
-      throw new Error(`Environment validation failed:\n${errors.join("\n")}`);
-    }
-
-    return {
-      NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL!,
-      NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL!,
-      NEXT_PUBLIC_ENABLE_ANALYTICS:
-        process.env.NEXT_PUBLIC_ENABLE_ANALYTICS === "true",
-      NEXT_PUBLIC_ENABLE_DEBUG_PANEL:
-        process.env.NEXT_PUBLIC_ENABLE_DEBUG_PANEL === "true",
-      NODE_ENV:
-        (process.env.NODE_ENV as EnvConfig["NODE_ENV"]) || "development",
-    };
   }
 
   get<K extends keyof EnvConfig>(key: K): EnvConfig[K] {

@@ -19,39 +19,60 @@
 
 ## 概要
 
-Team Insight は、Backlog API と連携してチームの開発プロセスを分析・可視化する Web アプリケーションです。
+Team Insight は、Backlog API と連携してチームの開発プロセスを分析・可視化する生産性向上プラットフォームです。個人、プロジェクト、組織レベルでの包括的なダッシュボードを提供し、データに基づいた意思決定を支援します。
 
 ### 主な機能
 
-- **Backlog OAuth 認証**: セキュアな OAuth2.0 認証
-- **ダッシュボード**: プロジェクトとチームの統計情報を一覧表示
-- **プロジェクト分析**: 課題の進捗状況やボトルネックを可視化
-- **チーム分析**: メンバーの生産性やワークロードを分析
+#### 実装済み ✅
+- **Backlog OAuth 認証**: セキュアな OAuth2.0 認証と JWT セッション管理
+- **RBAC（ロールベースアクセス制御）**: プロジェクト単位での柔軟な権限管理
+- **プロジェクト管理**: プロジェクト情報の取得と管理
+- **データ可視化**: D3.js によるボトルネック分析とスループット表示
+- **ヘルスチェック**: システム稼働状況の監視
+
+#### 開発中 🚧
+- **個人ダッシュボード**: 個人の生産性指標の可視化
+- **Backlog API 統合**: 実データの取得と同期
+- **キャッシュシステム**: Redis を活用したパフォーマンス最適化
+
+#### 計画中 📋
+- **組織ダッシュボード**: 組織全体の生産性分析
+- **通知システム**: ボトルネックアラートと改善提案
+- **予測分析**: AI を活用した将来予測
+- **WebSocket 統合**: リアルタイム更新
 
 ## 技術スタック
 
 ### バックエンド
 
-- **FastAPI** (Python 3.11): 高速で型安全な Web API フレームワーク
-- **SQLAlchemy 2.0**: ORM とデータベース管理
-- **PostgreSQL 15**: メインデータベース
-- **Redis 7**: キャッシュとセッション管理
+- **FastAPI** (0.109.2): 高速で型安全な Web API フレームワーク
+- **Python** (3.11): モダンな Python ランタイム
+- **SQLAlchemy** (2.0): 最新の ORM とデータベース管理
+- **PostgreSQL** (15): メインデータベース（team_insight スキーマ使用）
+- **Redis** (7): キャッシュとセッション管理（パスワード認証付き）
 - **Alembic**: データベースマイグレーション
+- **httpx**: 非同期 HTTP クライアント（Backlog API 連携用）
+- **python-jose[cryptography]**: JWT トークン処理
+- **passlib[bcrypt]**: パスワードハッシュ化
 
 ### フロントエンド
 
-- **React 18**: UI フレームワーク
-- **TypeScript 5**: 型安全な開発
-- **Redux Toolkit**: 状態管理
-- **shadcn/ui**: UI コンポーネントライブラリ
-- **Tailwind CSS v3**: ユーティリティファースト CSS
-- **Yarn v4 (Berry)**: パッケージ管理（Corepack使用）
+- **Next.js** (14): App Router を使用した React フレームワーク
+- **React** (18): UI ライブラリ
+- **TypeScript** (5): 型安全な開発
+- **Redux Toolkit**: グローバル状態管理
+- **shadcn/ui**: Radix UI ベースのコンポーネントライブラリ
+- **Tailwind CSS** (v3): ユーティリティファースト CSS
+- **D3.js**: データ可視化ライブラリ
+- **Yarn v4 (Berry)**: パッケージ管理（Corepack 使用）
+- **react-hook-form + zod**: フォーム処理とバリデーション
 
 ### インフラ
 
 - **Docker & Docker Compose**: コンテナ化と開発環境
-- **Nginx**: リバースプロキシ
+- **Nginx**: リバースプロキシ（API ルーティング）
 - **Node.js v22 LTS**: フロントエンドランタイム
+- **Make**: 開発タスクの自動化
 
 ## セットアップ
 
@@ -83,7 +104,8 @@ REDIS_URL=redis://redis:6379/0
 
 # セキュリティ
 SECRET_KEY=your-secret-key-here
-ACCESS_TOKEN_EXPIRE_MINUTES=30
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
+JWT_REFRESH_TOKEN_EXPIRE_MINUTES=10080  # 7日間
 
 # Backlog OAuth設定
 BACKLOG_CLIENT_ID=your-client-id
@@ -158,6 +180,20 @@ make generate-types # 型生成のみ（バックエンド起動確認なし）
 make dev-sync       # マイグレーション + 型生成を一括実行
 ```
 
+#### Redis操作
+
+```bash
+make redis-keys     # 全Redisキー一覧を表示
+make redis-cli      # Redis CLIに接続
+```
+
+#### Nginx操作
+
+```bash
+make nginx-access-log # Nginxアクセスログを表示
+make nginx-reload     # Nginx設定をリロード
+```
+
 #### コンテナ操作
 
 ```bash
@@ -214,12 +250,14 @@ class YourFeatureResponse(BaseModel):
 from sqlalchemy import Column, Integer, String
 from app.db.base_class import Base
 
-class YourFeature(Base):
+class YourFeature(BaseModel):
     """データベースモデル"""
     __tablename__ = "your_features"
+    __table_args__ = {"schema": "team_insight"}
 
-    id = Column(Integer, primary_key=True, index=True)
+    # idは BaseModel で定義済み
     name = Column(String(255), nullable=False)
+    # created_at, updated_at も BaseModel で定義済み
 ```
 
 3. **サービスの実装** (`app/services/your_feature_service.py`):
@@ -618,6 +656,8 @@ yarn test src/services/__tests__/health.service.test.ts
 ```
 
 > 注意: プロジェクトではYarn v4 (Berry)を使用してテストを実行します。
+
+**詳細なテストガイド**: フロントエンドテストの詳細（setupTests.ts、モックの使用方法、ベストプラクティス）については、[frontend/docs/testing.md](frontend/docs/testing.md)を参照してください。
 
 ## アーキテクチャ
 
