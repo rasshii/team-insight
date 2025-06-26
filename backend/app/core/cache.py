@@ -150,9 +150,17 @@ class CacheMiddleware(BaseHTTPMiddleware):
 
         if cached_response is not None:
             logger.info(f"キャッシュヒット: {path}")
+            # CORSヘッダーを含む基本的なヘッダーを設定
+            headers = {
+                "X-Cache": "HIT",
+                "Access-Control-Allow-Origin": request.headers.get("Origin", "*"),
+                "Access-Control-Allow-Credentials": "true",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                "Access-Control-Allow-Headers": "*"
+            }
             return JSONResponse(
                 content=cached_response,
-                headers={"X-Cache": "HIT"}
+                headers=headers
             )
 
         # キャッシュミス - レスポンスを取得
@@ -173,10 +181,14 @@ class CacheMiddleware(BaseHTTPMiddleware):
                 # キャッシュに保存
                 await redis_client.set(cache_key, content, self.default_expire)
 
+                # 元のレスポンスのヘッダーを保持
+                response_headers = dict(response.headers)
+                response_headers["X-Cache"] = "MISS"
+                
                 # レスポンスを再構築
                 return JSONResponse(
                     content=content,
-                    headers={"X-Cache": "MISS"}
+                    headers=response_headers
                 )
 
             except Exception as e:

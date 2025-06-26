@@ -8,12 +8,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FolderOpen, Home, LogOut, Menu, Settings, Users } from "lucide-react";
+import { FolderOpen, Home, LogOut, Menu, Settings, Users, UserCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { PrivateRoute } from "./PrivateRoute";
+import { EmailVerificationBanner } from "@/components/auth/EmailVerificationBanner";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -104,9 +105,17 @@ export function Layout({ children }: LayoutProps) {
                         </div>
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem>
-                        <Settings className="mr-2 h-4 w-4" />
-                        <span>設定</span>
+                      <DropdownMenuItem asChild>
+                        <Link href="/settings/profile">
+                          <UserCircle className="mr-2 h-4 w-4" />
+                          <span>プロフィール</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/settings">
+                          <Settings className="mr-2 h-4 w-4" />
+                          <span>設定</span>
+                        </Link>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleLogout}>
@@ -153,6 +162,11 @@ export function Layout({ children }: LayoutProps) {
             </div>
           )}
         </nav>
+
+        {/* Email Verification Banner */}
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-4">
+          <EmailVerificationBanner />
+        </div>
 
         <main className="flex-1">{children}</main>
       </div>

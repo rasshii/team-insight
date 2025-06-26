@@ -76,6 +76,7 @@ class UserInfoResponse(BaseModel):
     email: Optional[str] = Field(None, description="メールアドレス")
     name: str = Field(..., description="ユーザー名")
     user_id: str = Field(..., description="BacklogのユーザーID（文字列）")
+    is_email_verified: bool = Field(..., description="メールアドレス検証済みかどうか")
     user_roles: List[UserRoleResponse] = Field(default_factory=list, description="ユーザーのロール一覧")
 
     class Config:
@@ -86,6 +87,7 @@ class UserInfoResponse(BaseModel):
                 "email": "user@example.com",
                 "name": "山田太郎",
                 "user_id": "yamada",
+                "is_email_verified": False,
                 "user_roles": [
                     {
                         "id": 1,
@@ -144,5 +146,49 @@ class BacklogTokenInfo(BaseModel):
                 "token_type": "Bearer",
                 "expires_in": 3600,
                 "expires_at": "2024-01-01T00:00:00"
+            }
+        }
+
+
+class EmailVerificationRequest(BaseModel):
+    """
+    メール検証リクエストスキーマ
+    """
+    email: str = Field(..., description="検証用メールを送信するメールアドレス")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "email": "user@example.com"
+            }
+        }
+
+
+class EmailVerificationConfirmRequest(BaseModel):
+    """
+    メール検証確認リクエストスキーマ
+    """
+    token: str = Field(..., description="メール検証トークン")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "token": "verification_token_string"
+            }
+        }
+
+
+class EmailVerificationResponse(BaseModel):
+    """
+    メール検証レスポンススキーマ
+    """
+    message: str = Field(..., description="処理結果メッセージ")
+    email: Optional[str] = Field(None, description="検証されたメールアドレス")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "message": "検証メールを送信しました",
+                "email": "user@example.com"
             }
         }

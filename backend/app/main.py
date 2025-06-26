@@ -8,6 +8,7 @@ CORS設定、ルーターの登録、データベースの初期化などを含�
 import logging
 from datetime import datetime, timezone
 from fastapi import FastAPI, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from contextlib import asynccontextmanager
 from app.core.config import settings, validate_settings
@@ -65,6 +66,26 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# CORS設定
+# 重要: CORSミドルウェアは他のミドルウェアより先に設定する必要があります
+# 開発環境では異なるポート間でクッキーを共有するため、複数のオリジンを許可
+allowed_origins = [settings.FRONTEND_URL]
+if settings.DEBUG:
+    # 開発環境では、localhost:3000とlocalhostの両方を許可
+    allowed_origins.extend([
+        "http://localhost",
+        "http://localhost:80",
+        "http://127.0.0.1",
+        "http://127.0.0.1:80",
+    ])
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,  # フロントエンドのURLを許可
+    allow_credentials=True,  # Cookie認証のため必須
+    allow_methods=["*"],  # すべてのHTTPメソッドを許可
+    allow_headers=["*"],  # すべてのヘッダーを許可
+)
 
 # キャッシュミドルウェアの設定
 # 認証関連のパスは除外し、APIエンドポイントのみキャッシュ対象とする

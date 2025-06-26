@@ -2,22 +2,18 @@
  * 認証スライス
  *
  * Redux Toolkitを使用して認証状態を管理します。
- * 非同期処理にはcreateAsyncThunkを使用します。
+ * React Queryと併用し、グローバルな認証状態のみを管理します。
  */
 
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { authService, UserInfo } from "../../services/auth.service";
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import type { UserInfoResponse } from "../../services/auth.service";
 
 /**
  * 認証状態の型定義
  */
 interface AuthState {
   /** 現在のユーザー情報 */
-  user: UserInfo | null;
-  /** ローディング状態 */
-  loading: boolean;
-  /** エラー情報 */
-  error: string | null;
+  user: UserInfoResponse | null;
   /** 認証済みかどうか */
   isAuthenticated: boolean;
   /** 初期化完了フラグ */
@@ -29,221 +25,48 @@ interface AuthState {
  */
 const initialState: AuthState = {
   user: null,
-  loading: false,
-  error: null,
   isAuthenticated: false,
   isInitialized: false,
 };
 
 /**
- * 認証URLを取得する非同期アクション
- */
-export const getAuthorizationUrl = createAsyncThunk(
-  "auth/getAuthorizationUrl",
-  async () => {
-    console.log("getAuthorizationUrl - 開始");
-    const response = await authService.getAuthorizationUrl();
-    console.log("getAuthorizationUrl - 成功:", response);
-    return response;
-  }
-);
-
-/**
- * 認証コールバックを処理する非同期アクション
- */
-export const handleAuthCallback = createAsyncThunk(
-  "auth/handleCallback",
-  async ({ code, state }: { code: string; state: string }) => {
-    console.log("handleAuthCallback - 開始");
-    console.log("code:", code);
-    console.log("state:", state);
-    const response = await authService.handleCallback(code, state);
-    console.log("handleAuthCallback - 成功:", response);
-    return response;
-  }
-);
-
-/**
- * 現在のユーザー情報を取得する非同期アクション
- */
-export const fetchCurrentUser = createAsyncThunk(
-  "auth/fetchCurrentUser",
-  async () => {
-    console.log("fetchCurrentUser - 開始");
-    const user = await authService.getCurrentUser();
-    console.log("fetchCurrentUser - 成功:", user);
-    return user;
-  }
-);
-
-/**
- * トークンをリフレッシュする非同期アクション
- */
-export const refreshAuthToken = createAsyncThunk(
-  "auth/refreshToken",
-  async () => {
-    console.log("refreshAuthToken - 開始");
-    const response = await authService.refreshToken();
-    console.log("refreshAuthToken - 成功:", response);
-    return response;
-  }
-);
-
-/**
- * 認証を初期化する非同期アクション
- */
-export const initializeAuth = createAsyncThunk("auth/initialize", async () => {
-  console.log("initializeAuth - 開始");
-  try {
-    // 認証サービスを初期化
-    await authService.initialize();
-
-    // 保存されたユーザー情報を取得
-    const savedUser = authService.getUser();
-    const token = authService.getToken();
-    console.log("保存されたユーザー情報:", savedUser);
-    console.log("保存されたトークン:", token ? "あり" : "なし");
-
-    if (token && savedUser) {
-      // トークンが存在する場合は、保存されたユーザー情報を使用
-      console.log("保存された情報を使用");
-      return { user: savedUser, isAuthenticated: true };
-    }
-
-    console.log("保存された情報なし");
-    return { user: null, isAuthenticated: false };
-  } catch (error) {
-    console.error("認証の初期化中にエラーが発生:", error);
-    return { user: null, isAuthenticated: false };
-  }
-});
-
-/**
  * 認証スライス
+ * 
+ * React Queryと併用するため、データフェッチングは行わず、
+ * 認証状態の管理のみを担当します。
  */
 const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
     /**
+     * ユーザー情報を設定
+     */
+    setUser: (state, action: PayloadAction<UserInfoResponse>) => {
+      state.user = action.payload;
+      state.isAuthenticated = true;
+      state.isInitialized = true;
+    },
+    
+    /**
+     * 認証を初期化（ユーザー情報なし）
+     */
+    initializeAuth: (state) => {
+      state.isInitialized = true;
+    },
+    
+    /**
      * ログアウト
      */
     logout: (state) => {
-      authService.logout();
       state.user = null;
       state.isAuthenticated = false;
-      state.error = null;
     },
-    /**
-     * エラーをクリア
-     */
-    clearError: (state) => {
-      state.error = null;
-    },
-  },
-  extraReducers: (builder) => {
-    // 認証URL取得
-    builder
-      .addCase(getAuthorizationUrl.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(getAuthorizationUrl.fulfilled, (state, action) => {
-        state.loading = false;
-        // 認証URLへのリダイレクトは呼び出し側で行う
-      })
-      .addCase(getAuthorizationUrl.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || "認証URLの取得に失敗しました";
-      });
-
-    // 認証コールバック処理
-    builder
-      .addCase(handleAuthCallback.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(handleAuthCallback.fulfilled, (state, action) => {
-        state.loading = false;
-        state.user = action.payload.user;
-        state.isAuthenticated = true;
-      })
-      .addCase(handleAuthCallback.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || "認証に失敗しました";
-      });
-
-    // ユーザー情報取得
-    builder
-      .addCase(fetchCurrentUser.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchCurrentUser.fulfilled, (state, action) => {
-        state.loading = false;
-        state.user = action.payload;
-        state.isAuthenticated = true;
-      })
-      .addCase(fetchCurrentUser.rejected, (state, action) => {
-        state.loading = false;
-        state.error =
-          action.error.message || "ユーザー情報の取得に失敗しました";
-      });
-
-    // トークンリフレッシュ
-    builder
-      .addCase(refreshAuthToken.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(refreshAuthToken.fulfilled, (state, action) => {
-        state.loading = false;
-        state.user = action.payload.user;
-      })
-      .addCase(refreshAuthToken.rejected, (state, action) => {
-        state.loading = false;
-        state.error =
-          action.error.message || "トークンのリフレッシュに失敗しました";
-        // リフレッシュに失敗した場合はログアウト
-        authService.logout();
-        state.user = null;
-        state.isAuthenticated = false;
-      });
-
-    // 認証初期化
-    builder
-      .addCase(initializeAuth.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(initializeAuth.fulfilled, (state, action) => {
-        state.loading = false;
-        state.isInitialized = true;
-        state.user = action.payload.user;
-        state.isAuthenticated = action.payload.isAuthenticated;
-        console.log("認証状態を更新:", {
-          isAuthenticated: action.payload.isAuthenticated,
-          user: action.payload.user ? "あり" : "なし",
-        });
-      })
-      .addCase(initializeAuth.rejected, (state, action) => {
-        state.loading = false;
-        state.isInitialized = true;
-        state.error = action.error.message || "認証の初期化に失敗しました";
-        state.user = null;
-        state.isAuthenticated = false;
-        console.log("認証状態を更新: isAuthenticated = false (エラー)");
-      });
   },
 });
 
 // アクションのエクスポート
-export const { logout, clearError } = authSlice.actions;
-
-// セレクターのエクスポート
-export const selectCurrentUser = (state: { auth: AuthState }) => state.auth.user;
-export const selectIsAuthenticated = (state: { auth: AuthState }) => state.auth.isAuthenticated;
-export const selectAuthLoading = (state: { auth: AuthState }) => state.auth.loading;
+export const { setUser, initializeAuth, logout } = authSlice.actions;
 
 // リデューサーのエクスポート
 export default authSlice.reducer;

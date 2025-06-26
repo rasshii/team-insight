@@ -219,4 +219,85 @@ class BacklogClient:
             return response.json()
 
 
+    async def get_project_users(
+        self,
+        project_id: int,
+        access_token: str
+    ) -> List[Dict[str, Any]]:
+        """プロジェクトメンバー一覧を取得"""
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            response = await client.get(
+                f"{self.base_url}/projects/{project_id}/users",
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            response.raise_for_status()
+            return response.json()
+    
+    async def get_project_categories(
+        self,
+        project_id: int,
+        access_token: str
+    ) -> List[Dict[str, Any]]:
+        """プロジェクトのカテゴリ一覧を取得"""
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            response = await client.get(
+                f"{self.base_url}/projects/{project_id}/categories",
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            response.raise_for_status()
+            return response.json()
+    
+    async def get_project_milestones(
+        self,
+        project_id: int,
+        access_token: str
+    ) -> List[Dict[str, Any]]:
+        """プロジェクトのマイルストーン一覧を取得"""
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            response = await client.get(
+                f"{self.base_url}/projects/{project_id}/versions",
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            response.raise_for_status()
+            return response.json()
+    
+    async def get_project_statistics(
+        self,
+        project_id: int,
+        access_token: str
+    ) -> Dict[str, Any]:
+        """プロジェクトの統計情報を取得"""
+        # 課題の統計情報を取得
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            # オープンな課題数
+            open_issues_response = await client.get(
+                f"{self.base_url}/issues/count",
+                params={
+                    "projectId[]": project_id,
+                    "statusId[]": [1, 2, 3]  # 未対応、処理中、処理済み
+                },
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            open_issues_response.raise_for_status()
+            open_count = open_issues_response.json()["count"]
+            
+            # クローズした課題数
+            closed_issues_response = await client.get(
+                f"{self.base_url}/issues/count",
+                params={
+                    "projectId[]": project_id,
+                    "statusId[]": [4]  # 完了
+                },
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            closed_issues_response.raise_for_status()
+            closed_count = closed_issues_response.json()["count"]
+            
+            return {
+                "open_issues": open_count,
+                "closed_issues": closed_count,
+                "total_issues": open_count + closed_count
+            }
+
+
 backlog_client = BacklogClient()

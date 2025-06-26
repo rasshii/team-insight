@@ -8,3 +8,4 @@ from app.db.base_class import Base  # noqa
 # Import all models here
 from app.models.user import User  # noqa
 from app.models.auth import OAuthState, OAuthToken  # noqa
+from app.models.sync_history import SyncHistory  # noqa

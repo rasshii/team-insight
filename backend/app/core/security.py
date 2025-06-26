@@ -65,6 +65,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     Returns:
         JWTトークン
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -72,7 +75,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
         expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
     to_encode.update({"exp": expire})
+    logger.debug(f"Creating token with payload: {to_encode}, expire: {expire}")
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
+    logger.debug(f"Created token: {encoded_jwt[:20]}...")
     return encoded_jwt
 
 
@@ -89,10 +94,16 @@ def decode_token(token: str) -> dict:
     Raises:
         HTTPException: トークンが無効な場合
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     try:
+        logger.debug(f"Decoding token: {token[:20]}...")
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
+        logger.debug(f"Decoded payload: {payload}")
         return payload
-    except JWTError:
+    except JWTError as e:
+        logger.debug(f"JWT decode error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="無効な認証情報です",
@@ -116,22 +127,35 @@ async def get_current_user(
     Returns:
         ユーザーオブジェクト（認証されていない場合はNone）
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # デバッグ情報
+    logger.debug(f"Authorization header token: {token}")
+    logger.debug(f"Cookies: {request.cookies}")
+    
     # まずCookieからトークンを取得を試みる
     if not token:
         token = request.cookies.get("auth_token")
+        logger.debug(f"Token from cookie: {token}")
     
     if not token:
+        logger.debug("No token found in header or cookie")
         return None
 
     try:
         payload = decode_token(token)
+        logger.debug(f"Decoded payload: {payload}")
         user_id: str = payload.get("sub")
         if user_id is None:
+            logger.debug("No 'sub' in payload")
             return None
-    except HTTPException:
+    except HTTPException as e:
+        logger.debug(f"Token decode error: {e.detail}")
         return None
 
     user = db.query(User).filter(User.id == int(user_id)).first()
+    logger.debug(f"User found: {user.id if user else None}")
     return user
 
 

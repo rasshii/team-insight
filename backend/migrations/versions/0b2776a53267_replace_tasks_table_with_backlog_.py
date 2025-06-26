@@ -19,10 +19,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Drop the old tasks table
-    op.drop_table('tasks', schema='team_insight')
-    
     # Create the new tasks table with Backlog integration
+    # Note: tasks table doesn't exist yet in fresh setup
     op.create_table('tasks',
     sa.Column('backlog_id', sa.Integer(), nullable=False),
     sa.Column('backlog_key', sa.String(length=255), nullable=False),
