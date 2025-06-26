@@ -146,6 +146,28 @@ async def handle_callback(request: CallbackRequest, db: Session = Depends(get_db
 
         logger.info(f"認証コールバック成功 - user_id: {user.id}")
 
+        # ユーザーのロール情報を取得
+        from sqlalchemy.orm import joinedload
+        from app.models.rbac import UserRole
+        user = db.query(User).options(
+            joinedload(User.user_roles).joinedload(UserRole.role)
+        ).filter(User.id == user.id).first()
+        
+        # UserRoleResponseのリストを作成
+        from app.schemas.auth import UserRoleResponse, RoleResponse
+        user_roles = []
+        for ur in user.user_roles:
+            user_roles.append(UserRoleResponse(
+                id=ur.id,
+                role_id=ur.role_id,
+                project_id=ur.project_id,
+                role=RoleResponse(
+                    id=ur.role.id,
+                    name=ur.role.name,
+                    description=ur.role.description
+                )
+            ))
+        
         # レスポンスを作成
         response = TokenResponse(
             access_token=access_token,
@@ -156,6 +178,7 @@ async def handle_callback(request: CallbackRequest, db: Session = Depends(get_db
                 email=user.email,
                 name=user.name,
                 user_id=user.user_id,
+                user_roles=user_roles
             ),
         )
 
@@ -169,9 +192,14 @@ async def handle_callback(request: CallbackRequest, db: Session = Depends(get_db
 
     except Exception as e:
         logger.error(f"認証処理エラー: {str(e)}", exc_info=True)
-        # エラー時はstateを削除
-        db.delete(oauth_state)
-        db.commit()
+        # エラー時はロールバックしてからstateを削除
+        db.rollback()
+        try:
+            db.delete(oauth_state)
+            db.commit()
+        except Exception:
+            # state削除に失敗しても無視
+            db.rollback()
         raise HTTPException(status_code=500, detail=f"認証処理に失敗しました: {str(e)}")
 
 
@@ -217,6 +245,28 @@ async def refresh_token(
 
         access_token = create_access_token(data={"sub": str(current_user.id)})
 
+        # ユーザーのロール情報を取得
+        from sqlalchemy.orm import joinedload
+        from app.models.rbac import UserRole
+        user_with_roles = db.query(User).options(
+            joinedload(User.user_roles).joinedload(UserRole.role)
+        ).filter(User.id == current_user.id).first()
+        
+        # UserRoleResponseのリストを作成
+        from app.schemas.auth import UserRoleResponse, RoleResponse
+        user_roles = []
+        for ur in user_with_roles.user_roles:
+            user_roles.append(UserRoleResponse(
+                id=ur.id,
+                role_id=ur.role_id,
+                project_id=ur.project_id,
+                role=RoleResponse(
+                    id=ur.role.id,
+                    name=ur.role.name,
+                    description=ur.role.description
+                )
+            ))
+        
         # レスポンスを作成
         response = TokenResponse(
             access_token=access_token,
@@ -227,6 +277,7 @@ async def refresh_token(
                 email=current_user.email,
                 name=current_user.name,
                 user_id=current_user.user_id,
+                user_roles=user_roles
             ),
         )
 
@@ -245,7 +296,10 @@ async def refresh_token(
 
 
 @router.get("/verify", response_model=UserInfoResponse)
-async def verify_token(current_user: User = Depends(get_current_user)):
+async def verify_token(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
     JWTトークンの有効性を確認し、ユーザー情報を返す
     
@@ -259,27 +313,80 @@ async def verify_token(current_user: User = Depends(get_current_user)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+    # ユーザーのロール情報を取得
+    from sqlalchemy.orm import joinedload
+    from app.models.rbac import UserRole
+    user = db.query(User).options(
+        joinedload(User.user_roles).joinedload(UserRole.role)
+    ).filter(User.id == current_user.id).first()
+    
+    # UserRoleResponseのリストを作成
+    from app.schemas.auth import UserRoleResponse, RoleResponse
+    user_roles = []
+    for ur in user.user_roles:
+        user_roles.append(UserRoleResponse(
+            id=ur.id,
+            role_id=ur.role_id,
+            project_id=ur.project_id,
+            role=RoleResponse(
+                id=ur.role.id,
+                name=ur.role.name,
+                description=ur.role.description
+            )
+        ))
+    
     return UserInfoResponse(
         id=current_user.id,
         backlog_id=current_user.backlog_id,
         email=current_user.email,
         name=current_user.name,
         user_id=current_user.user_id,
+        user_roles=user_roles
     )
 
 
 @router.get("/me", response_model=UserInfoResponse)
-async def get_current_user_info(current_user: User = Depends(get_current_active_user)):
+async def get_current_user_info(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
     """
     現在ログイン中のユーザー情報を取得します
 
     Returns:
-        ユーザー情報
+        ユーザー情報（ロール情報を含む）
     """
+    from sqlalchemy.orm import joinedload
+    from app.models.rbac import UserRole
+    
+    # ユーザー情報をロール情報と共に再取得（eager loading）
+    user = db.query(User).options(
+        joinedload(User.user_roles).joinedload(UserRole.role)
+    ).filter(User.id == current_user.id).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
+    
+    # UserRoleResponseのリストを作成
+    from app.schemas.auth import UserRoleResponse, RoleResponse
+    user_roles = []
+    for ur in user.user_roles:
+        user_roles.append(UserRoleResponse(
+            id=ur.id,
+            role_id=ur.role_id,
+            project_id=ur.project_id,
+            role=RoleResponse(
+                id=ur.role.id,
+                name=ur.role.name,
+                description=ur.role.description
+            )
+        ))
+    
     return UserInfoResponse(
-        id=current_user.id,
-        backlog_id=current_user.backlog_id,
-        email=current_user.email,
-        name=current_user.name,
-        user_id=current_user.user_id,
+        id=user.id,
+        backlog_id=user.backlog_id,
+        email=user.email,
+        name=user.name,
+        user_id=user.user_id,
+        user_roles=user_roles
     )

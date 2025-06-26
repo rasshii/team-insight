@@ -19,14 +19,17 @@ export const usePermissions = (): PermissionCheck => {
        * 指定されたロールを持っているかチェック
        */
       hasRole: (role: RoleType, projectId?: number) => {
-        if (!currentUser) return false;
+        if (!currentUser || !currentUser.user_roles) return false;
 
+        // 管理者ロールを持っているかチェック
+        const hasAdminRole = currentUser.user_roles.some(
+          userRole => userRole.role.name === RoleType.ADMIN && userRole.project_id === null
+        );
+        
         // 管理者は全ての権限を持つ
-        if (currentUser.is_superuser || currentUser.is_admin) {
+        if (hasAdminRole) {
           return true;
         }
-
-        if (!currentUser.user_roles) return false;
 
         // プロジェクト指定がある場合
         if (projectId !== undefined) {
@@ -49,14 +52,17 @@ export const usePermissions = (): PermissionCheck => {
        * 指定されたパーミッションを持っているかチェック
        */
       hasPermission: (permission: string, projectId?: number) => {
-        if (!currentUser) return false;
+        if (!currentUser || !currentUser.user_roles) return false;
 
+        // 管理者ロールを持っているかチェック
+        const hasAdminRole = currentUser.user_roles.some(
+          userRole => userRole.role.name === RoleType.ADMIN && userRole.project_id === null
+        );
+        
         // 管理者は全ての権限を持つ
-        if (currentUser.is_superuser || currentUser.is_admin) {
+        if (hasAdminRole) {
           return true;
         }
-
-        if (!currentUser.user_roles) return false;
 
         // ユーザーのロールを取得
         const userRoles = projectId !== undefined
@@ -74,29 +80,37 @@ export const usePermissions = (): PermissionCheck => {
        * プロジェクトへのアクセス権限があるかチェック
        */
       canAccessProject: (projectId: number) => {
-        if (!currentUser) return false;
+        if (!currentUser || !currentUser.user_roles) return false;
 
+        // 管理者ロールを持っているかチェック
+        const hasAdminRole = currentUser.user_roles.some(
+          userRole => userRole.role.name === RoleType.ADMIN && userRole.project_id === null
+        );
+        
         // 管理者は全プロジェクトにアクセス可能
-        if (currentUser.is_superuser || currentUser.is_admin) {
+        if (hasAdminRole) {
           return true;
         }
 
-        // プロジェクトメンバーかチェック
-        if (currentUser.projects) {
-          return currentUser.projects.some(project => project.id === projectId);
-        }
-
-        return false;
+        // プロジェクトメンバーかチェック（プロジェクトに関連するロールを持っているか）
+        return currentUser.user_roles.some(
+          userRole => userRole.project_id === projectId
+        );
       },
 
       /**
        * プロジェクトの管理権限があるかチェック
        */
       canManageProject: (projectId: number) => {
-        if (!currentUser) return false;
+        if (!currentUser || !currentUser.user_roles) return false;
 
+        // 管理者ロールを持っているかチェック
+        const hasAdminRole = currentUser.user_roles.some(
+          userRole => userRole.role.name === RoleType.ADMIN && userRole.project_id === null
+        );
+        
         // 管理者は全プロジェクトを管理可能
-        if (currentUser.is_superuser || currentUser.is_admin) {
+        if (hasAdminRole) {
           return true;
         }
 
@@ -108,8 +122,10 @@ export const usePermissions = (): PermissionCheck => {
        * 管理者かどうかチェック
        */
       isAdmin: () => {
-        if (!currentUser) return false;
-        return currentUser.is_superuser || currentUser.is_admin || false;
+        if (!currentUser || !currentUser.user_roles) return false;
+        return currentUser.user_roles.some(
+          userRole => userRole.role.name === RoleType.ADMIN && userRole.project_id === null
+        );
       }
     };
 

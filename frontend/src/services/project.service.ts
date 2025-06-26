@@ -10,7 +10,7 @@ interface Project {
 
 class ProjectService {
   async getProjects(): Promise<Project[]> {
-    const response = await fetch(`/api/v1/projects`, {
+    const response = await fetch(`http://localhost/api/v1/projects`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -29,7 +29,7 @@ class ProjectService {
   }
 
   async getProject(projectId: string): Promise<Project> {
-    const response = await fetch(`/api/v1/projects/${projectId}`, {
+    const response = await fetch(`http://localhost/api/v1/projects/${projectId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

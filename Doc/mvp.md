@@ -1,4 +1,4 @@
-# Team Insight MVP 説明資料
+# Team Insight MVP 説明資料 v2.0
 
 ## 1. エグゼクティブサマリー
 
@@ -30,29 +30,34 @@ graph TB
 | **開発メンバー**         | 自身の生産性が不明確<br>改善点が分からない           | 個人ダッシュボードで作業効率を可視化<br>ボトルネックを特定し改善を促進 |
 | **プロジェクトリーダー** | チーム状況の把握が困難<br>問題の早期発見ができない   | リアルタイムでチーム健康度を監視<br>データに基づく適切な介入が可能     |
 | **管理者・CTO**          | 組織全体の効率が不透明<br>リソース配分の最適化が困難 | 全プロジェクトを横断的に分析<br>データドリブンな経営判断を支援         |
+| **新規参加者**           | Backlog アカウントがない<br>チームへの参加が困難     | 簡単なサインアップ<br>管理者への自動申請機能                           |
 
 ### 1.3 現在の実装状況（2024 年 12 月時点）
 
 ```mermaid
 graph LR
     subgraph "実装済み ✅"
-        A1[Backlog OAuth 2.0認証]
-        A2[JWT セッション管理]
-        A3[基本画面構成]
-        A4[個人ダッシュボード基盤]
-        A5[D3.js チャートコンポーネント]
+        A1[メール/パスワード認証]
+        A2[Backlog OAuth 2.0認証]
+        A3[JWT セッション管理]
+        A4[基本画面構成]
+        A5[個人ダッシュボード基盤]
+        A6[D3.js チャートコンポーネント]
     end
 
     subgraph "実装中 🚧"
         B1[Backlog API連携]
         B2[権限管理システム]
         B3[プロジェクト分析機能]
+        B4[メール確認機能]
+        B5[Backlog連携設定画面]
     end
 
     subgraph "今後実装 📋"
         C1[組織ダッシュボード]
         C2[通知システム]
         C3[高度な分析機能]
+        C4[Backlogアカウント申請管理]
     end
 
     style A1 fill:#c5e1a5
@@ -60,12 +65,16 @@ graph LR
     style A3 fill:#c5e1a5
     style A4 fill:#c5e1a5
     style A5 fill:#c5e1a5
+    style A6 fill:#c5e1a5
     style B1 fill:#fff9c4
     style B2 fill:#fff9c4
     style B3 fill:#fff9c4
+    style B4 fill:#fff9c4
+    style B5 fill:#fff9c4
     style C1 fill:#ffccbc
     style C2 fill:#ffccbc
     style C3 fill:#ffccbc
+    style C4 fill:#ffccbc
 ```
 
 ---
@@ -85,34 +94,73 @@ graph LR
         C[データ同期エンジン]
         D[分析エンジン]
         E[権限管理システム]
+        F[認証システム]
     end
 
     subgraph "ユーザーインターフェース"
-        F[個人ダッシュボード]
-        G[プロジェクトダッシュボード]
-        H[組織ダッシュボード]
+        G[個人ダッシュボード]
+        H[プロジェクトダッシュボード]
+        I[組織ダッシュボード]
+        J[認証・連携画面]
     end
 
     A --> C
     B -.-> C
     C --> D
-    D --> F
     D --> G
     D --> H
-    E --> F
+    D --> I
     E --> G
     E --> H
+    E --> I
+    F --> J
+    F --> E
 
     style A fill:#f9f,stroke:#333,stroke-width:2px
     style B fill:#ddd,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5
     style F fill:#bbf,stroke:#333,stroke-width:2px
     style G fill:#bbf,stroke:#333,stroke-width:2px
     style H fill:#bbf,stroke:#333,stroke-width:2px
+    style I fill:#bbf,stroke:#333,stroke-width:2px
+    style J fill:#bbf,stroke:#333,stroke-width:2px
 ```
 
-### 2.2 権限管理モデル
+### 2.2 認証フローモデル
 
-Team Insight は、階層的な権限管理により、適切な情報アクセスを実現します。
+Team Insight は、柔軟な認証方式により、様々なユーザーのニーズに対応します。
+
+```mermaid
+graph TD
+    subgraph "認証方式"
+        A[新規ユーザー]
+        B[既存ユーザー]
+    end
+
+    A -->|選択| C{認証方式}
+    C -->|メール/パスワード| D[アカウント作成]
+    C -->|Backlog OAuth| E[Backlog認証]
+
+    D --> F[メール確認]
+    F --> G{Backlogアカウント}
+    G -->|所有| H[Backlog連携設定]
+    G -->|未所有| I[管理者への申請]
+
+    H --> J[Team Insight利用開始]
+    I --> K[制限付きアクセス]
+    E --> J
+
+    B -->|ログイン| L{認証方式}
+    L -->|メール/パスワード| M[パスワード認証]
+    L -->|Backlog OAuth| E
+    M --> J
+
+    style A fill:#f96,stroke:#333,stroke-width:2px
+    style D fill:#fc9,stroke:#333,stroke-width:2px
+    style E fill:#cfc,stroke:#333,stroke-width:2px
+    style I fill:#fcc,stroke:#333,stroke-width:2px
+```
+
+### 2.3 権限管理モデル
 
 ```mermaid
 graph TD
@@ -120,31 +168,39 @@ graph TD
         A[管理者<br>Administrator]
         B[プロジェクトリーダー<br>Project Leader]
         C[メンバー<br>Member]
+        D[制限付きメンバー<br>Limited Member]
     end
 
-    A -->|全機能アクセス| D[組織ダッシュボード]
-    A -->|全機能アクセス| E[プロジェクトダッシュボード]
-    A -->|全機能アクセス| F[個人ダッシュボード]
-    A -->|管理機能| G[ユーザー管理]
-    A -->|管理機能| H[システム設定]
+    A -->|全機能アクセス| E[組織ダッシュボード]
+    A -->|全機能アクセス| F[プロジェクトダッシュボード]
+    A -->|全機能アクセス| G[個人ダッシュボード]
+    A -->|管理機能| H[ユーザー管理]
+    A -->|管理機能| I[システム設定]
+    A -->|管理機能| J[Backlog申請管理]
 
-    B -->|担当プロジェクトのみ| E
-    B -->|自分のデータ| F
+    B -->|担当プロジェクトのみ| F
+    B -->|自分のデータ| G
 
-    C -->|自分のデータのみ| F
+    C -->|自分のデータのみ| G
+
+    D -->|基本機能のみ| K[個人ダッシュボード<br>（制限版）]
 
     style A fill:#f96,stroke:#333,stroke-width:2px
     style B fill:#fc9,stroke:#333,stroke-width:2px
     style C fill:#cfc,stroke:#333,stroke-width:2px
+    style D fill:#ccf,stroke:#333,stroke-width:2px
 ```
 
-### 2.3 コア機能一覧
+### 2.4 コア機能一覧
 
-#### 🔐 認証・セキュリティ機能（実装済み）
+#### 🔐 認証・セキュリティ機能（拡張）
 
-- **Backlog OAuth 2.0 統合**: 既存の Backlog アカウントでシームレスにログイン ✅
+- **多様な認証方式**: メール/パスワード認証と Backlog OAuth 2.0 の選択可能 ✅
+- **メール確認機能**: セキュアなアカウント作成プロセス 🚧
+- **Backlog 連携設定**: API キーまたは OAuth による柔軟な連携 🚧
 - **JWT 認証**: セキュアなセッション管理と API 通信 ✅
 - **階層的権限管理**: ロールベースのアクセス制御（RBAC）🚧
+- **Backlog アカウント申請**: 未所持者向けの申請・承認フロー 📋
 - **監査ログ**: すべての重要な操作を記録 📋
 
 #### 📊 ダッシュボード機能
@@ -155,6 +211,7 @@ graph TD
 - **作業フロー分析**: 各ステータスでの滞留時間を可視化 🚧
 - **生産性トレンド**: 時系列での個人パフォーマンス推移 📋
 - **スキルマトリックス**: タスクタイプ別の処理効率 📋
+- **制限モード**: Backlog 未連携時の基本機能提供 🚧
 
 ##### プロジェクトダッシュボード（実装予定）
 
@@ -170,6 +227,7 @@ graph TD
 - **プロジェクト横断分析**: 全プロジェクトの比較と評価 📋
 - **リソース配分最適化**: 人員配置の効率性分析 📋
 - **トレンド予測**: 過去データに基づく将来予測 📋
+- **申請管理**: Backlog アカウント申請の承認・却下 📋
 
 #### 🔄 データ同期・更新機能
 
@@ -177,190 +235,280 @@ graph TD
 - **リアルタイム更新**: WebSocket による即時反映 📋
 - **手動同期オプション**: 必要時の即時データ更新 🚧
 - **同期ステータス表示**: データの鮮度を常に確認可能 📋
+- **連携状態管理**: Backlog 接続状態の監視と自動復旧 🚧
 
 ---
 
 ## 3. ユーザー体験フロー
 
-### 3.1 初回利用フロー
+### 3.1 初回利用フロー（拡張版）
 
 ```mermaid
 graph TD
     A[Team Insightにアクセス] --> B[ランディングページ]
-    B --> C{既存ユーザー?}
-    C -->|No| D[Backlogでログイン]
-    C -->|Yes| E[ダッシュボードへ]
-    D --> F[OAuth認証]
-    F --> G[初期データ同期]
-    G --> H[権限設定]
-    H --> E
-    E --> I{ユーザーロール}
-    I -->|メンバー| J[個人ダッシュボード]
-    I -->|リーダー| K[プロジェクト選択]
-    I -->|管理者| L[組織ダッシュボード]
-    K --> M[プロジェクトダッシュボード]
+    B --> C{アカウント所有?}
+    C -->|No| D[サインアップ選択]
+    C -->|Yes| E[ログイン]
+
+    D --> F{認証方式選択}
+    F -->|メール/パスワード| G[アカウント情報入力]
+    F -->|Backlog OAuth| H[Backlog認証]
+
+    G --> I[メール確認]
+    I --> J[初期プロファイル設定]
+    J --> K{Backlogアカウント}
+
+    K -->|所有| L[Backlog連携設定]
+    K -->|未所有| M[管理者申請画面]
+
+    L --> N[連携テスト]
+    N --> O[ダッシュボード]
+
+    M --> P[申請フォーム送信]
+    P --> Q[制限付きダッシュボード]
+
+    H --> R[認証完了]
+    R --> O
+
+    E --> S{認証方式}
+    S -->|メール/パスワード| T[ログインフォーム]
+    S -->|Backlog OAuth| H
+    T --> U{Backlog連携済み?}
+    U -->|Yes| O
+    U -->|No| L
 ```
 
-### 3.2 日常利用シナリオ
+### 3.2 日常利用シナリオ（拡張版）
 
-#### シナリオ 1: 開発メンバーの朝のルーティン
+#### シナリオ 1: 新規参加者のオンボーディング
 
-1. **ログイン**: Backlog アカウントで Team Insight にアクセス
+1. **アカウント作成**: メールアドレスとパスワードで Team Insight に登録
+2. **メール確認**: 確認メールのリンクをクリックしてアカウントを有効化
+3. **Backlog 連携**: 既存の Backlog アカウント情報を入力して連携
+4. **ダッシュボード利用**: 即座に個人の生産性データを確認開始
+
+#### シナリオ 2: Backlog アカウント未所持者の参加
+
+1. **アカウント作成**: Team Insight アカウントを作成
+2. **申請フォーム**: 所属部署と利用目的を記入して申請
+3. **管理者承認待ち**: 制限付きダッシュボードで基本機能を利用
+4. **承認通知**: 管理者承認後、Backlog アカウント情報を受領
+5. **フル機能解放**: Backlog 連携完了後、全機能が利用可能に
+
+#### シナリオ 3: 開発メンバーの朝のルーティン
+
+1. **ログイン**: 保存された認証情報で素早くアクセス
 2. **個人ダッシュボード確認**: 昨日の完了タスクと今日の予定を確認
 3. **ボトルネック確認**: レビュー待ちが多い場合はレビュアーに連絡
 4. **作業開始**: 優先度の高いタスクから着手
 
-#### シナリオ 2: プロジェクトリーダーの週次レビュー
+#### シナリオ 4: プロジェクトリーダーの週次レビュー
 
 1. **プロジェクトダッシュボード**: チーム全体の進捗を確認
 2. **ボトルネック分析**: 「コードレビュー」で滞留時間が長いことを発見
 3. **メンバー別分析**: 特定メンバーに負荷が集中していることを確認
 4. **アクション**: レビュー体制の見直しとタスク再配分を実施
 
-#### シナリオ 3: CTO の月次経営会議
+#### シナリオ 5: CTO の月次経営会議
 
 1. **組織ダッシュボード**: 全プロジェクトの KPI を一覧
-2. **比較分析**: プロジェクト A の生産性が他より 20%低いことを発見
-3. **詳細分析**: プロジェクト A のダッシュボードでボトルネックを特定
-4. **意思決定**: リソースの再配分と開発プロセスの改善を決定
+2. **申請管理**: 新規メンバーの Backlog アカウント申請を確認・承認
+3. **比較分析**: プロジェクト A の生産性が他より 20%低いことを発見
+4. **詳細分析**: プロジェクト A のダッシュボードでボトルネックを特定
+5. **意思決定**: リソースの再配分と開発プロセスの改善を決定
 
 ---
 
 ## 4. URL 構成とナビゲーション
 
-### 4.1 システム URL 体系
-
-Team Insight は、直感的で一貫性のある URL 構成を採用しています。URL を見るだけで、現在どの機能を使用しているか、どのレベルの情報にアクセスしているかが明確に分かる設計となっています。
+### 4.1 システム URL 体系（拡張版）
 
 ```mermaid
 graph TD
     subgraph "公開エリア"
         A["/ ランディングページ ✅"]
-        B["/auth/login ログインページ ✅"]
-        B2["/auth/callback 認証コールバック ✅"]
+        B["/auth/signup サインアップ ✅"]
+        C["/auth/login ログインページ ✅"]
+        D["/auth/callback 認証コールバック ✅"]
+        E["/auth/verify-email メール確認 🚧"]
     end
 
     subgraph "認証エリア"
-        C["/dashboard ダッシュボードホーム ✅"]
-        D["/dashboard/personal 個人ダッシュボード 🚧"]
-        E["/projects プロジェクト一覧 ✅"]
-        F["/dashboard/project/:id プロジェクトダッシュボード 📋"]
-        G["/dashboard/organization 組織ダッシュボード 📋"]
+        F["/dashboard ダッシュボードホーム ✅"]
+        G["/dashboard/personal 個人ダッシュボード 🚧"]
+        H["/projects プロジェクト一覧 ✅"]
+        I["/dashboard/project/:id プロジェクトダッシュボード 📋"]
+        J["/dashboard/organization 組織ダッシュボード 📋"]
+        K["/settings/backlog Backlog連携設定 🚧"]
+        L["/backlog/request-access アクセス申請 📋"]
     end
 
     subgraph "管理エリア"
-        H["/admin/users ユーザー管理 📋"]
-        I["/admin/settings システム設定 📋"]
+        M["/admin/users ユーザー管理 📋"]
+        N["/admin/settings システム設定 📋"]
+        O["/admin/backlog-requests 申請管理 📋"]
     end
 
     A --> B
-    B --> B2
-    B2 --> C
+    A --> C
+    B --> E
     C --> D
-    C --> E
+    D --> F
     E --> F
-    C --> G
-    C --> H
-    C --> I
+    F --> G
+    F --> H
+    F --> K
+    H --> I
+    F --> J
+    F --> M
+    F --> N
+    F --> O
+    G --> L
 
     style A fill:#c5e1a5,stroke:#01579b,stroke-width:2px
     style B fill:#c5e1a5,stroke:#01579b,stroke-width:2px
-    style B2 fill:#c5e1a5,stroke:#01579b,stroke-width:2px
-    style C fill:#c5e1a5,stroke:#1b5e20,stroke-width:2px
-    style D fill:#fff9c4,stroke:#1b5e20,stroke-width:2px
-    style E fill:#c5e1a5,stroke:#1b5e20,stroke-width:2px
-    style F fill:#ffccbc,stroke:#f57f17,stroke-width:2px
-    style G fill:#ffccbc,stroke:#bf360c,stroke-width:2px
-    style H fill:#ffccbc,stroke:#b71c1c,stroke-width:2px
-    style I fill:#ffccbc,stroke:#b71c1c,stroke-width:2px
+    style C fill:#c5e1a5,stroke:#01579b,stroke-width:2px
+    style D fill:#c5e1a5,stroke:#01579b,stroke-width:2px
+    style E fill:#fff9c4,stroke:#01579b,stroke-width:2px
+    style F fill:#c5e1a5,stroke:#1b5e20,stroke-width:2px
+    style G fill:#fff9c4,stroke:#1b5e20,stroke-width:2px
+    style H fill:#c5e1a5,stroke:#1b5e20,stroke-width:2px
+    style K fill:#fff9c4,stroke:#1b5e20,stroke-width:2px
+    style L fill:#ffccbc,stroke:#f57f17,stroke-width:2px
+    style I fill:#ffccbc,stroke:#f57f17,stroke-width:2px
+    style J fill:#ffccbc,stroke:#bf360c,stroke-width:2px
+    style M fill:#ffccbc,stroke:#b71c1c,stroke-width:2px
+    style N fill:#ffccbc,stroke:#b71c1c,stroke-width:2px
+    style O fill:#ffccbc,stroke:#b71c1c,stroke-width:2px
 ```
 
-### 4.2 URL 詳細仕様
+### 4.2 URL 詳細仕様（拡張版）
 
 | URL                                  | 画面名                     | 説明                                                                                                    | アクセス権限               | 実装状況 |
 | :----------------------------------- | :------------------------- | :------------------------------------------------------------------------------------------------------ | :------------------------- | :------- |
 | **`/`**                              | ランディングページ         | Team Insight の価値提案、主要機能の紹介、導入事例を表示。ログインへの明確な CTA（Call to Action）を配置 | 公開（誰でもアクセス可能） | ✅       |
-| **`/auth/login`**                    | ログインページ             | Backlog アカウントでのシングルサインオン（SSO）を提供。セキュアな認証フローの開始点                     | 未認証ユーザー             | ✅       |
+| **`/auth/signup`**                   | サインアップページ         | メール/パスワードまたは Backlog OAuth での新規登録。選択可能な認証方式を提供                            | 未認証ユーザー             | ✅       |
+| **`/auth/login`**                    | ログインページ             | 既存ユーザーのログイン。メール/パスワードまたは Backlog OAuth 認証を選択                                | 未認証ユーザー             | ✅       |
 | **`/auth/callback`**                 | OAuth 認証コールバック     | Backlog OAuth 2.0 認証完了後の処理。ユーザーには表示されない内部処理用 URL                              | システム内部処理           | ✅       |
+| **`/auth/verify-email`**             | メール確認ページ           | メールアドレス確認用。トークンを検証してアカウントを有効化                                              | メール確認待ちユーザー     | 🚧       |
 | **`/dashboard`**                     | ダッシュボードホーム       | ログイン後の起点。ユーザーのロールに応じて、最も関連性の高い情報へのクイックアクセスを提供              | 要ログイン（全ロール）     | ✅       |
-| **`/dashboard/personal`**            | 個人ダッシュボード         | 個人の生産性指標、タスク状況、パフォーマンストレンドを表示。すべてのユーザーが自身のデータを確認可能    | 要ログイン（全ロール）     | 🚧       |
+| **`/dashboard/personal`**            | 個人ダッシュボード         | 個人の生産性指標、タスク状況、パフォーマンストレンドを表示。Backlog 未連携時は制限モード                | 要ログイン（全ロール）     | 🚧       |
 | **`/projects`**                      | プロジェクト一覧           | アクセス可能なプロジェクトをカード形式で表示。各プロジェクトの概要情報とクイックアクセスリンクを提供    | 要ログイン（全ロール）     | ✅       |
 | **`/dashboard/project/{projectId}`** | プロジェクトダッシュボード | 特定プロジェクトの詳細分析。チーム健康度、ボトルネック分析、メンバー別パフォーマンスを包括的に表示      | プロジェクトリーダー以上   | 📋       |
 | **`/dashboard/organization`**        | 組織ダッシュボード         | 組織全体の KPI、プロジェクト横断分析、リソース最適化情報を提供。経営判断に必要な情報を集約              | 管理者のみ                 | 📋       |
+| **`/settings/backlog`**              | Backlog 連携設定           | Backlog の API キー設定または OAuth 再認証。接続テスト機能を含む                                        | 要ログイン（全ロール）     | 🚧       |
+| **`/backlog/request-access`**        | Backlog アクセス申請       | Backlog アカウント未所持者向けの申請フォーム。管理者への自動通知機能付き                                | Backlog 未連携ユーザー     | 📋       |
 | **`/admin/users`**                   | ユーザー管理               | ユーザーの一覧表示、ロール設定、アクセス権限の管理。監査ログへのアクセスも提供                          | 管理者のみ                 | 📋       |
 | **`/admin/settings`**                | システム設定               | データ同期間隔、通知設定、組織全体のシステム設定を管理                                                  | 管理者のみ                 | 📋       |
+| **`/admin/backlog-requests`**        | Backlog 申請管理           | Backlog アカウント申請の一覧表示、承認・却下処理、申請者への通知                                        | 管理者のみ                 | 📋       |
 | **`/403`**                           | アクセス拒否               | 権限不足時に表示されるエラーページ。適切な権限取得方法を案内                                            | 全ユーザー（エラー時）     | 📋       |
 
-### 4.3 API エンドポイント構成
-
-フロントエンドとバックエンドの通信に使用される REST API エンドポイントは、以下の体系に従います：
+### 4.3 API エンドポイント構成（拡張版）
 
 ```
 /api/v1/
 ├── auth/
-│   ├── backlog/authorize    # OAuth認証開始 ✅
-│   ├── backlog/callback     # OAuth認証完了 ✅
-│   ├── logout               # ログアウト 🚧
-│   └── me                   # 現在のユーザー情報 🚧
+│   ├── signup                  # メール/パスワード登録 ✅
+│   ├── login                   # メール/パスワードログイン ✅
+│   ├── verify-email            # メールアドレス確認 🚧
+│   ├── resend-verification     # 確認メール再送信 🚧
+│   ├── backlog/authorize       # OAuth認証開始 ✅
+│   ├── backlog/callback        # OAuth認証完了 ✅
+│   ├── logout                  # ログアウト 🚧
+│   └── me                      # 現在のユーザー情報 🚧
+├── backlog/
+│   ├── connection              # Backlog連携設定 🚧
+│   ├── test                    # 連携テスト 🚧
+│   ├── disconnect              # 連携解除 📋
+│   └── request-access          # アクセス申請 📋
 ├── projects/
-│   ├── list                 # プロジェクト一覧 🚧
+│   ├── list                    # プロジェクト一覧 🚧
 │   └── {id}/
-│       ├── dashboard        # プロジェクトダッシュボードデータ 📋
-│       ├── members          # プロジェクトメンバー 📋
-│       └── analytics        # 詳細分析データ 📋
+│       ├── dashboard           # プロジェクトダッシュボードデータ 📋
+│       ├── members             # プロジェクトメンバー 📋
+│       └── analytics           # 詳細分析データ 📋
 ├── personal/
-│   ├── dashboard            # 個人ダッシュボードデータ 🚧
-│   ├── tasks                # 個人のタスク一覧 📋
-│   └── performance          # パフォーマンス指標 📋
+│   ├── dashboard               # 個人ダッシュボードデータ 🚧
+│   ├── tasks                   # 個人のタスク一覧 📋
+│   └── performance             # パフォーマンス指標 📋
 ├── organization/
-│   ├── dashboard            # 組織ダッシュボードデータ 📋
-│   ├── projects             # 全プロジェクト統計 📋
-│   └── resources            # リソース分析 📋
+│   ├── dashboard               # 組織ダッシュボードデータ 📋
+│   ├── projects                # 全プロジェクト統計 📋
+│   └── resources               # リソース分析 📋
 └── admin/
-    ├── users                # ユーザー管理 📋
-    ├── roles                # ロール管理 📋
-    └── settings             # システム設定 📋
+    ├── users                   # ユーザー管理 📋
+    ├── roles                   # ロール管理 📋
+    ├── backlog-requests/       # Backlog申請管理 📋
+    │   ├── list                # 申請一覧 📋
+    │   ├── approve             # 申請承認 📋
+    │   └── reject              # 申請却下 📋
+    └── settings                # システム設定 📋
 ```
-
-### 4.4 ナビゲーション設計
-
-Team Insight のナビゲーションは、ユーザーの権限レベルに応じて動的に調整されます。これにより、各ユーザーは自身がアクセス可能な機能のみを確認でき、シンプルで使いやすいインターフェースを実現しています。
-
-```mermaid
-graph LR
-    subgraph "メンバー用ナビゲーション"
-        A1[ホーム] --> B1[個人ダッシュボード]
-        A1 --> C1[プロジェクト一覧]
-    end
-
-    subgraph "プロジェクトリーダー用ナビゲーション"
-        A2[ホーム] --> B2[個人ダッシュボード]
-        A2 --> C2[プロジェクト一覧]
-        C2 --> D2[プロジェクトダッシュボード]
-    end
-
-    subgraph "管理者用ナビゲーション"
-        A3[ホーム] --> B3[個人ダッシュボード]
-        A3 --> C3[プロジェクト一覧]
-        C3 --> D3[プロジェクトダッシュボード]
-        A3 --> E3[組織ダッシュボード]
-        A3 --> F3[ユーザー管理]
-        A3 --> G3[システム設定]
-    end
-```
-
-この URL 構成により、Team Insight は以下を実現します：
-
-1. **直感的な階層構造**: URL パスが機能の階層を反映し、ユーザーが現在地を把握しやすい
-2. **権限ベースのアクセス制御**: 各 URL に適切な権限チェックを実装し、セキュアなアクセスを保証
-3. **RESTful な設計**: 標準的な Web 規約に従い、開発者にとっても理解しやすい構造
-4. **拡張性**: 将来的な機能追加に対応できる柔軟な命名規則
 
 ---
 
 ## 5. 主要画面と機能詳細
 
-### 5.1 個人ダッシュボード（実装中）
+### 5.1 認証関連画面（新規追加）
+
+#### サインアップ画面
+
+```mermaid
+graph TD
+    subgraph "サインアップフロー"
+        A[認証方式選択]
+        B[メール/パスワード入力]
+        C[Backlog OAuth認証]
+        D[メール確認画面]
+        E[プロファイル設定]
+        F[Backlog連携画面]
+    end
+
+    A -->|メール選択| B
+    A -->|Backlog選択| C
+    B --> D
+    D --> E
+    E --> F
+    C --> F
+```
+
+**主な機能:**
+
+- **デュアル認証**: メール/パスワードと Backlog OAuth の選択
+- **強固なバリデーション**: パスワード強度チェック、メール形式検証
+- **スムーズなオンボーディング**: ステップバイステップのガイド
+
+#### Backlog 連携設定画面
+
+**連携方式の選択:**
+
+1. **API キー方式**
+
+   - Backlog スペース名の入力
+   - API キーの設定
+   - 接続テスト機能
+
+2. **OAuth 方式**
+   - ワンクリックで Backlog 認証
+   - 自動的なトークン管理
+   - 定期的な自動更新
+
+#### Backlog アクセス申請画面
+
+**申請フォーム要素:**
+
+- 所属部署
+- 利用目的（必須・最低 10 文字）
+- 参加予定プロジェクト（任意）
+- 緊急度の選択
+
+**申請後の流れ:**
+
+- 管理者への自動通知
+- 申請状況のトラッキング
+- 承認/却下の通知受信
+
+### 5.2 個人ダッシュボード（拡張版）
 
 ```mermaid
 graph TD
@@ -371,76 +519,45 @@ graph TD
         D[進行中タスク一覧]
         E[レビュー待ちタスク]
         F[スキルマトリックス]
+        G[Backlog連携ステータス]
     end
 
-    A --> G[今週: 12タスク完了<br>平均: 2.5日/タスク]
-    B --> H[D3.jsインタラクティブチャート]
-    C --> I[過去30日間の推移]
-    D --> J[優先度順で表示]
-    E --> K[アクション促進]
-    F --> L[タスクタイプ別効率]
+    A --> H[今週: 12タスク完了<br>平均: 2.5日/タスク]
+    B --> I[D3.jsインタラクティブチャート]
+    C --> J[過去30日間の推移]
+    D --> K[優先度順で表示]
+    E --> L[アクション促進]
+    F --> M[タスクタイプ別効率]
+    G --> N[連携状態・最終同期時刻]
 ```
 
-**主な機能特徴:**
+**Backlog 未連携時の制限モード:**
 
-- **パーソナライズされた指標**: 個人の役割に応じた関連指標を優先表示
-- **アクション可能な洞察**: 「レビュー待ちが 3 日以上」など具体的な改善提案
-- **目標設定と追跡**: 個人目標に対する進捗を視覚化
+- 基本的な KPI 表示（サンプルデータ）
+- Backlog 連携促進バナー
+- 連携設定へのショートカット
 
-**実装済みコンポーネント:**
+### 5.3 管理者向け申請管理画面（新規追加）
 
-- ✅ KpiSummary コンポーネント
-- ✅ BottleneckChart コンポーネント（D3.js）
-- ✅ ThroughputChart コンポーネント
-- ✅ FilterBar コンポーネント
+**申請一覧ビュー:**
 
-### 5.2 プロジェクトダッシュボード（未実装）
+- 申請者情報（名前、メール、部署）
+- 申請日時と経過時間
+- 申請理由のプレビュー
+- ワンクリック承認/却下
 
-```mermaid
-graph LR
-    subgraph "ボトルネック分析ビュー"
-        A[要件定義] -->|平均2日| B[設計]
-        B -->|平均1日| C[実装]
-        C -->|平均3日| D[コードレビュー]
-        D -->|平均0.5日| E[テスト]
-        E -->|平均1日| F[完了]
+**申請詳細ビュー:**
 
-        style D fill:#f96,stroke:#333,stroke-width:4px
-    end
-```
-
-**ボトルネック分析の特徴:**
-
-- **視覚的な問題特定**: 滞留時間が長いステータスを色とサイズで強調
-- **ドリルダウン機能**: クリックで該当タスクの詳細リストを表示
-- **改善提案**: AI による改善アクションの自動提案（将来機能）
-
-### 5.3 組織ダッシュボード（未実装）
-
-**ダッシュボード構成要素:**
-
-1. **エグゼクティブサマリー**
-
-   - 組織全体のベロシティ（前月比）
-   - アクティブプロジェクト数と進捗状況
-   - リソース利用率と効率性指標
-
-2. **プロジェクト比較マトリックス**
-
-   - 各プロジェクトの健康度スコア
-   - ベロシティ、品質、期限遵守率の比較
-   - 異常値の自動ハイライト
-
-3. **リソース最適化ビュー**
-   - メンバー別の稼働率と生産性
-   - スキルと需要のマッチング分析
-   - 最適な人員配置の提案
+- 申請者の完全な情報
+- Team Insight 上のアクティビティ
+- 承認/却下時のコメント入力
+- Backlog アカウント作成支援ツール
 
 ---
 
 ## 6. 技術アーキテクチャ
 
-### 6.1 システムアーキテクチャ
+### 6.1 システムアーキテクチャ（拡張版）
 
 ```mermaid
 graph TB
@@ -450,127 +567,191 @@ graph TB
         C[D3.js ✅]
         D[Redux Toolkit ✅]
         E[React Query 📋]
+        F[React Hook Form 🚧]
     end
 
     subgraph "Backend Layer"
-        F[FastAPI ✅]
-        G[PostgreSQL ✅]
-        H[Redis Cache 📋]
-        I[Celery 📋]
-        J[WebSocket 📋]
+        G[FastAPI ✅]
+        H[PostgreSQL ✅]
+        I[Redis Cache 📋]
+        J[Celery 📋]
+        K[WebSocket 📋]
+        L[Email Service 🚧]
     end
 
     subgraph "External Services"
-        K[Backlog API 🚧]
-        L[Sentry 📋]
-        M[AWS Services 📋]
+        M[Backlog API 🚧]
+        N[SMTP Server 🚧]
+        O[Sentry 📋]
+        P[AWS Services 📋]
     end
 
-    A --> F
-    F --> G
-    F --> H
-    F --> I
-    A --> J
-    I --> K
-    A --> L
-    F --> L
-    F --> M
+    A --> G
+    G --> H
+    G --> I
+    G --> J
+    A --> K
+    J --> M
+    L --> N
+    A --> O
+    G --> O
+    G --> P
 
     style A fill:#c5e1a5
     style B fill:#c5e1a5
     style C fill:#c5e1a5
     style D fill:#c5e1a5
-    style F fill:#c5e1a5
+    style F fill:#fff9c4
     style G fill:#c5e1a5
-    style K fill:#fff9c4
+    style H fill:#c5e1a5
+    style L fill:#fff9c4
+    style M fill:#fff9c4
+    style N fill:#fff9c4
 ```
 
-### 6.2 データフロー設計
+### 6.2 データモデル設計（DDD 準拠）
 
 ```mermaid
-sequenceDiagram
-    participant User
-    participant Frontend
-    participant API
-    participant Cache
-    participant DB
-    participant BacklogAPI
+erDiagram
+    User ||--o{ BacklogConnection : has
+    User ||--o{ BacklogAccessRequest : creates
+    User ||--o{ Session : has
+    User {
+        string id PK
+        string email UK
+        string hashedPassword
+        string displayName
+        enum authProvider
+        enum status
+        datetime createdAt
+        datetime updatedAt
+    }
 
-    User->>Frontend: ダッシュボードアクセス
-    Frontend->>API: データリクエスト
-    API->>Cache: キャッシュ確認
+    BacklogConnection {
+        string id PK
+        string userId FK
+        string backlogSpace
+        string apiKey
+        string oauthToken
+        enum status
+        datetime lastSync
+        datetime createdAt
+    }
 
-    alt キャッシュヒット
-        Cache-->>API: キャッシュデータ
-        API-->>Frontend: レスポンス（高速）
-    else キャッシュミス
-        API->>DB: データ取得
-        DB-->>API: 生データ
-        API->>API: 分析処理
-        API->>Cache: キャッシュ更新
-        API-->>Frontend: レスポンス
-    end
+    BacklogAccessRequest {
+        string id PK
+        string userId FK
+        string department
+        text reason
+        string projectInfo
+        enum status
+        string processedBy
+        text adminNotes
+        datetime createdAt
+        datetime processedAt
+    }
 
-    Frontend-->>User: ダッシュボード表示
-
-    Note over BacklogAPI,DB: 定期同期（1時間ごと）
-    BacklogAPI->>API: Webhook/Polling
-    API->>DB: データ更新
+    Session {
+        string id PK
+        string userId FK
+        string token
+        datetime expiresAt
+        datetime createdAt
+    }
 ```
 
-### 6.3 セキュリティアーキテクチャ
+### 6.3 セキュリティアーキテクチャ（強化版）
 
 **実装されるセキュリティ機能:**
 
 1. **認証・認可**
 
-   - OAuth 2.0 による Backlog 統合 ✅
+   - 多要素認証対応（メール + Backlog OAuth）✅
    - JWT（HttpOnly Cookie）によるセッション管理 ✅
+   - リフレッシュトークンによる自動更新 🚧
    - ロールベースアクセス制御（RBAC）🚧
 
 2. **データ保護**
 
    - 全通信の HTTPS 暗号化 ✅
+   - パスワードの bcrypt ハッシュ化 ✅
+   - API キーの暗号化保存 🚧
    - データベース暗号化（at rest）📋
    - 個人情報の適切なマスキング 📋
 
-3. **監査・コンプライアンス**
+3. **アカウント保護**
+
+   - メールアドレス確認必須 🚧
+   - パスワードポリシーの強制 🚧
+   - ログイン試行回数制限 📋
+   - 不審なアクセスの検知 📋
+
+4. **監査・コンプライアンス**
    - 全 API アクセスのロギング 🚧
+   - 認証イベントの記録 🚧
    - 権限変更の監査証跡 📋
    - GDPR 準拠のデータ管理 📋
 
-### 6.4 技術スタック詳細
+---
 
-#### フロントエンド
+## 7. MVP で追加考慮すべき事項
 
-- **フレームワーク**: Next.js 14 (App Router)
-- **言語**: TypeScript 5.x
-- **状態管理**: Redux Toolkit
-- **UI ライブラリ**: shadcn/ui (Radix UI + Tailwind CSS)
-- **データ可視化**: D3.js v7
-- **テスト**: Jest + React Testing Library
+### 7.1 スケーラビリティ
 
-#### バックエンド
+1. **マルチテナント対応**
 
-- **フレームワーク**: FastAPI 0.104+
-- **言語**: Python 3.11+
-- **ORM**: SQLAlchemy 2.0
-- **データベース**: PostgreSQL 14+
-- **認証**: JWT (python-jose)
-- **テスト**: pytest
+   - 組織 ID ベースのデータ分離
+   - 組織ごとの設定カスタマイズ
+   - 独自ドメイン対応の準備
 
-#### インフラストラクチャ
+2. **パフォーマンス最適化**
+   - Backlog API 呼び出しのレート制限対策
+   - キャッシュ戦略の最適化
+   - バックグラウンドジョブの効率化
 
-- **コンテナ**: Docker + Docker Compose
-- **CI/CD**: GitHub Actions（計画中）
-- **モニタリング**: Sentry（計画中）
-- **ホスティング**: AWS（計画中）
+### 7.2 運用性
+
+1. **モニタリング強化**
+
+   - Backlog 連携エラーの自動検知
+   - ユーザー行動分析
+   - システムヘルスチェック
+
+2. **サポート機能**
+   - アプリ内ヘルプシステム
+   - Backlog 連携トラブルシューティング
+   - FAQ の自動生成
+
+### 7.3 ビジネス拡張性
+
+1. **料金プラン対応準備**
+
+   - フリープラン（制限付き）
+   - スタンダードプラン
+   - エンタープライズプラン
+
+2. **分析機能の拡張準備**
+   - カスタムメトリクス API
+   - レポートテンプレート機能
+   - データエクスポート機能
+
+### 7.4 国際化対応
+
+1. **多言語サポート準備**
+
+   - i18n フレームワークの導入
+   - 日本語・英語の切り替え
+   - タイムゾーン対応
+
+2. **地域別最適化**
+   - Backlog.com と Backlog.jp の両対応
+   - 地域別のパフォーマンス最適化
 
 ---
 
-## 7. 期待される成果と ROI
+## 8. 期待される成果と ROI（更新版）
 
-### 7.1 定量的な成果
+### 8.1 定量的な成果
 
 | 指標                     | 現状（推定） | MVP 導入後（目標）   | 改善率    |
 | :----------------------- | :----------- | :------------------- | :-------- |
@@ -578,8 +759,10 @@ sequenceDiagram
 | **レポート作成時間**     | 週 4 時間    | 週 30 分             | 87.5%削減 |
 | **プロジェクト遅延率**   | 30%          | 15%                  | 50%改善   |
 | **チーム生産性**         | ベースライン | +20%                 | 20%向上   |
+| **新規メンバー参加時間** | 3-5 日       | 1 日                 | 80%短縮   |
+| **Backlog 採用率**       | 60%          | 90%                  | 50%向上   |
 
-### 7.2 定性的な成果
+### 8.2 定性的な成果
 
 ```mermaid
 mindmap
@@ -588,43 +771,50 @@ mindmap
       データドリブンな意思決定
       透明性の向上
       継続的改善の習慣化
+      包括的なチーム参加
     チーム運営
       早期問題発見
       効率的なリソース配分
       チーム間の知識共有
+      スムーズなオンボーディング
     個人成長
       客観的な自己評価
       スキル向上の可視化
       モチベーション向上
+      キャリアパスの明確化
     ビジネス成果
       納期遵守率向上
       品質向上
       顧客満足度向上
+      採用競争力の強化
 ```
 
 ---
 
-## 8. 導入プロセス
+## 9. 導入プロセス（更新版）
 
-### 8.1 導入ステップ
+### 9.1 導入ステップ
 
 ```mermaid
 graph LR
     A[導入決定] --> B[環境準備<br>1日]
     B --> C[初期設定<br>2-3日]
-    C --> D[データ同期<br>1日]
-    D --> E[権限設定<br>1日]
-    E --> F[トレーニング<br>2-3日]
-    F --> G[本格運用]
+    C --> D[認証設定<br>1日]
+    D --> E[データ同期<br>1日]
+    E --> F[権限設定<br>1日]
+    F --> G[トレーニング<br>2-3日]
+    G --> H[段階的展開<br>1週間]
+    H --> I[本格運用]
 
     style A fill:#f9f,stroke:#333,stroke-width:2px
-    style G fill:#9f9,stroke:#333,stroke-width:2px
+    style I fill:#9f9,stroke:#333,stroke-width:2px
 ```
 
-### 8.2 成功のための推奨事項
+### 9.2 成功のための推奨事項
 
 1. **段階的導入**
 
+   - 認証システムの先行テスト
    - パイロットチームでの試験運用
    - フィードバックに基づく調整
    - 全社展開
@@ -632,23 +822,34 @@ graph LR
 2. **変更管理**
 
    - 経営層からの明確なメッセージ
+   - 既存/新規メンバー両方への配慮
    - データ活用文化の醸成
    - 成功事例の共有
 
-3. **継続的改善**
+3. **サポート体制**
+
+   - 専任のサポートチーム設置
+   - Backlog 連携サポートの充実
+   - 定期的なトレーニング実施
+   - コミュニティの形成
+
+4. **継続的改善**
    - 定期的な利用状況レビュー
    - ユーザーフィードバックの収集
    - 機能の段階的拡張
+   - KPI に基づく効果測定
 
 ---
 
-## 9. 今後のロードマップ
+## 10. 今後のロードマップ
 
 ### Phase 1: MVP 完成（2024 年 12 月〜2025 年 1 月）
 
-- ✅ 認証システムの実装
-- 🚧 Backlog API 連携の実装
+- ✅ 基本認証システムの実装
+- 🚧 メール/パスワード認証の完成
+- 🚧 Backlog 連携機能の実装
 - 🚧 個人ダッシュボードの完成
+- 📋 申請管理システムの実装
 - 📋 プロジェクトダッシュボードの基本実装
 
 ### Phase 2: 高度な分析機能（2025 年 2 月〜3 月）
@@ -656,10 +857,12 @@ graph LR
 - 📋 予測分析: 機械学習によるプロジェクト完了予測
 - 📋 品質メトリクス: バグ密度、技術的負債の可視化
 - 📋 Four Keys: デプロイ頻度、変更リードタイム等の DevOps 指標
+- 📋 チーム健康診断: 定期的なチーム状態の評価
 
 ### Phase 3: エコシステム拡張（2025 年 4 月〜5 月）
 
 - 📋 他ツール連携: JIRA、GitHub、GitLab 対応
+- 📋 Slack/Teams 統合: 通知とレポートの自動配信
 - 📋 カスタムダッシュボード: ユーザー定義の分析画面
 - 📋 API プラットフォーム: 外部システムとの連携
 
@@ -668,25 +871,34 @@ graph LR
 - 📋 自動改善提案: AI によるプロセス最適化提案
 - 📋 異常検知: 通常と異なるパターンの自動検出
 - 📋 予防的アラート: 問題発生前の警告システム
+- 📋 スキルマッチング: 最適なタスク割り当て提案
 
 ---
 
-## 10. まとめ
+## 11. まとめ
 
-Team Insight MVP は、Backlog を利用する開発チームに対して、**即座に価値を提供できる実用的なソリューション**です。階層的な権限管理により、組織の各レベルで必要な情報を適切に提供し、データに基づいた意思決定を支援します。
+Team Insight MVP v2.0 は、Backlog を利用する開発チームに対して、**より包括的で柔軟な価値を提供するソリューション**へと進化しました。新たに追加された認証機能により、以下の価値を実現します：
 
-### 主な差別化要因
+### 主な強化点
+
+1. **アクセシビリティの向上**: Backlog アカウントの有無に関わらず利用開始可能
+2. **セキュリティの強化**: 多様な認証方式によるセキュアなアクセス管理
+3. **オンボーディングの簡素化**: スムーズな導入プロセスによる早期価値実現
+4. **組織全体への展開**: 管理者による一元的なアクセス管理
+
+### 差別化要因
 
 1. **Backlog 完全特化**: Backlog 固有のワークフローに最適化
-2. **即時価値提供**: 導入後すぐに分析結果を確認可能
-3. **包括的な可視化**: 個人から組織まで全レベルをカバー
-4. **高品質な UX**: D3.js による美しく直感的なビジュアライゼーション
+2. **柔軟な認証**: 組織のニーズに合わせた認証方式の選択
+3. **即時価値提供**: 段階的な機能解放による早期 ROI 実現
+4. **包括的な可視化**: 個人から組織まで全レベルをカバー
+5. **エンタープライズ対応**: 大規模組織でも利用可能な設計
 
-Team Insight は単なる分析ツールではなく、**組織のデータドリブン文化を醸成するプラットフォーム**として、継続的な改善と成長を支援します。
+Team Insight は単なる分析ツールではなく、**組織のデータドリブン文化を醸成し、全メンバーの参加を促進するプラットフォーム**として、継続的な改善と成長を支援します。
 
 ---
 
-## 付録 A: 用語集
+## 付録 A: 用語集（拡張版）
 
 | 用語               | 説明                                                       |
 | :----------------- | :--------------------------------------------------------- |
@@ -695,14 +907,28 @@ Team Insight は単なる分析ツールではなく、**組織のデータド�
 | **サイクルタイム** | タスクの開始から完了までの実作業時間                       |
 | **ボトルネック**   | ワークフローの中で最も時間がかかっている工程               |
 | **Four Keys**      | Google DevOPS Research 提唱の 4 つの重要指標               |
+| **OAuth 2.0**      | 安全な認可のための業界標準プロトコル                       |
+| **JWT**            | JSON Web Token - セキュアなセッション管理方式              |
+| **RBAC**           | Role-Based Access Control - ロールベースのアクセス制御     |
+| **マルチテナント** | 単一のシステムで複数の組織をサポートする設計               |
+| **レート制限**     | API 呼び出し回数の制限                                     |
 
-## 付録 B: FAQ
+## 付録 B: FAQ（拡張版）
 
 **Q: 既存の Backlog の運用を変更する必要がありますか？**
 A: いいえ、Team Insight は Backlog の既存データをそのまま活用します。運用変更は不要です。
 
+**Q: Backlog アカウントを持っていなくても使えますか？**
+A: はい、メールアドレスでサインアップ後、制限付きで利用開始できます。管理者に Backlog アカウントを申請することで、全機能が利用可能になります。
+
 **Q: データのセキュリティはどのように確保されていますか？**
-A: すべての通信は暗号化され、データはユーザーの権限に基づいてアクセス制御されます。また、Backlog の認証情報は保存せず、OAuth 2.0 による安全な認証を使用します。
+A: すべての通信は暗号化され、データはユーザーの権限に基づいてアクセス制御されます。パスワードは安全にハッシュ化され、API キーは暗号化して保存されます。
+
+**Q: 既存の Backlog OAuth 認証から移行する必要がありますか？**
+A: いいえ、既存の Backlog OAuth 認証はそのまま利用可能です。新しいメール/パスワード認証は追加オプションとして提供されます。
 
 **Q: どのくらいの規模のチームまで対応できますか？**
 A: MVP では 100 名程度までのチームを想定していますが、アーキテクチャは水平スケーリングが可能な設計となっており、将来的により大規模な組織にも対応可能です。
+
+**Q: Backlog 連携が失敗した場合はどうなりますか？**
+A: 自動リトライ機能により接続を試みます。継続的に失敗する場合は、管理者に通知され、制限モードで基本機能は利用可能です。

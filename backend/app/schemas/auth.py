@@ -6,7 +6,7 @@
 """
 
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 
@@ -42,6 +42,31 @@ class CallbackRequest(BaseModel):
         }
 
 
+class RoleResponse(BaseModel):
+    """
+    ロール情報のレスポンススキーマ
+    """
+    id: int = Field(..., description="ロールID")
+    name: str = Field(..., description="ロール名")
+    description: str = Field(..., description="ロールの説明")
+
+    class Config:
+        from_attributes = True
+
+
+class UserRoleResponse(BaseModel):
+    """
+    ユーザーロール情報のレスポンススキーマ
+    """
+    id: int = Field(..., description="ユーザーロールID")
+    role_id: int = Field(..., description="ロールID")
+    project_id: Optional[int] = Field(None, description="プロジェクトID（NULLの場合はグローバルロール）")
+    role: RoleResponse = Field(..., description="ロール情報")
+
+    class Config:
+        from_attributes = True
+
+
 class UserInfoResponse(BaseModel):
     """
     ユーザー情報のレスポンススキーマ
@@ -51,6 +76,7 @@ class UserInfoResponse(BaseModel):
     email: Optional[str] = Field(None, description="メールアドレス")
     name: str = Field(..., description="ユーザー名")
     user_id: str = Field(..., description="BacklogのユーザーID（文字列）")
+    user_roles: List[UserRoleResponse] = Field(default_factory=list, description="ユーザーのロール一覧")
 
     class Config:
         json_schema_extra = {
@@ -59,7 +85,19 @@ class UserInfoResponse(BaseModel):
                 "backlog_id": 12345,
                 "email": "user@example.com",
                 "name": "山田太郎",
-                "user_id": "yamada"
+                "user_id": "yamada",
+                "user_roles": [
+                    {
+                        "id": 1,
+                        "role_id": 1,
+                        "project_id": None,
+                        "role": {
+                            "id": 1,
+                            "name": "ADMIN",
+                            "description": "システム管理者"
+                        }
+                    }
+                ]
             }
         }
 

@@ -23,12 +23,26 @@ export interface TokenResponse {
   user: UserInfo;
 }
 
+export interface Role {
+  id: number;
+  name: string;
+  description: string;
+}
+
+export interface UserRole {
+  id: number;
+  role_id: number;
+  project_id: number | null;
+  role: Role;
+}
+
 export interface UserInfo {
   id: number;
   backlog_id: number;
   email?: string;
   name: string;
   user_id: string;
+  user_roles: UserRole[];
 }
 
 export interface CallbackRequest {

@@ -240,5 +240,10 @@ const authSlice = createSlice({
 // アクションのエクスポート
 export const { logout, clearError } = authSlice.actions;
 
+// セレクターのエクスポート
+export const selectCurrentUser = (state: { auth: AuthState }) => state.auth.user;
+export const selectIsAuthenticated = (state: { auth: AuthState }) => state.auth.isAuthenticated;
+export const selectAuthLoading = (state: { auth: AuthState }) => state.auth.loading;
+
 // リデューサーのエクスポート
 export default authSlice.reducer;

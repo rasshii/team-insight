@@ -6,15 +6,19 @@ API依存関係の定義
 """
 
 from typing import Generator, Optional
-from fastapi import Depends, HTTPException, status, Path
+from fastapi import Depends, HTTPException, status, Path, Request
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from app.db.session import get_db
-from app.core.security import get_current_user as _get_current_user
+from app.core.security import decode_token
 from sqlalchemy.orm import joinedload
 from app.models.user import User
 from app.models.project import Project
 from app.models.rbac import UserRole
 from app.core.permissions import PermissionChecker, RoleType
+
+# OAuth2スキーム
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token", auto_error=False)
 
 
 def get_db_session() -> Generator[Session, None, None]:
@@ -28,24 +32,40 @@ def get_db_session() -> Generator[Session, None, None]:
 
 
 async def get_current_user(
-    user: Optional[User] = Depends(_get_current_user),
+    request: Request,
+    token: Optional[str] = Depends(oauth2_scheme),
     db: Session = Depends(get_db_session)
 ) -> Optional[User]:
     """
     現在のユーザーを取得（任意）
     
     Args:
-        user: JWTトークンから取得したユーザー情報
+        request: FastAPIリクエストオブジェクト
+        token: JWTトークン（Authorizationヘッダーから）
         db: データベースセッション
         
     Returns:
         Optional[User]: 現在のユーザー（未認証の場合はNone）
     """
-    if user:
-        # ユーザーのロール情報をeager loadingで取得
-        user = db.query(User).options(
-            joinedload(User.user_roles).joinedload(UserRole.role)
-        ).filter(User.id == user.id).first()
+    # まずCookieからトークンを取得を試みる
+    if not token:
+        token = request.cookies.get("auth_token")
+    
+    if not token:
+        return None
+
+    try:
+        payload = decode_token(token)
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            return None
+    except HTTPException:
+        return None
+
+    # ユーザーのロール情報をeager loadingで取得
+    user = db.query(User).options(
+        joinedload(User.user_roles).joinedload(UserRole.role)
+    ).filter(User.id == int(user_id)).first()
     return user
 
 

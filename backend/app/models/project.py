@@ -20,10 +20,11 @@ class Project(BaseModel):
     __tablename__ = "projects"
     __table_args__ = {"schema": "team_insight"}
 
-    backlog_id = Column(Integer, unique=True, nullable=False)
+    backlog_id = Column(Integer, unique=True, nullable=True)
     name = Column(String, nullable=False)
     description = Column(Text)
     project_key = Column(String, unique=True, nullable=False)
+    status = Column(String, default="active")
 
     # リレーション
     members = relationship("User", secondary=project_members, back_populates="projects")

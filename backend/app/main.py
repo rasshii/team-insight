@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from contextlib import asynccontextmanager
 from app.core.config import settings, validate_settings
 from app.api.v1 import api_router
-# from app.core.cache import CacheMiddleware  # 一時的に無効化
+from app.core.cache import CacheMiddleware
 from app.core.redis_client import redis_client
 from app.db.session import get_db
 from app.schemas.health import HealthResponse, ServiceStatus
@@ -68,23 +68,23 @@ app = FastAPI(
 
 # キャッシュミドルウェアの設定
 # 認証関連のパスは除外し、APIエンドポイントのみキャッシュ対象とする
-# app.add_middleware(
-#     CacheMiddleware,
-#     default_expire=300,  # 5分
-#     cacheable_paths=[
-#         "/api/v1/projects",
-#         "/api/v1/teams",
-#         "/api/v1/dashboard",
-#         "/api/v1/users",
-#         "/api/v1/test"
-#     ],
-#     exclude_paths=[
-#         "/api/v1/auth",
-#         "/api/v1/cache",
-#         "/docs",
-#         "/openapi.json"
-#     ]
-#     )
+app.add_middleware(
+    CacheMiddleware,
+    default_expire=300,  # 5分
+    cacheable_paths=[
+        "/api/v1/projects",
+        "/api/v1/teams",
+        "/api/v1/dashboard",
+        "/api/v1/users",
+        "/api/v1/test"
+    ],
+    exclude_paths=[
+        "/api/v1/auth",
+        "/api/v1/cache",
+        "/docs",
+        "/openapi.json"
+    ]
+)
 
 # APIルーターの登録
 app.include_router(api_router, prefix=settings.API_V1_STR)
