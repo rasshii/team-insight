@@ -19,13 +19,11 @@ from app.db.session import get_db
 from app.schemas.health import HealthResponse, ServiceStatus
 from app.core.error_handler import register_error_handlers
 from app.core.request_id_middleware import RequestIDMiddleware
+from app.core.logging_config import setup_logging, get_logger
 
-# ログ設定
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# ログ設定を初期化
+setup_logging()
+logger = get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

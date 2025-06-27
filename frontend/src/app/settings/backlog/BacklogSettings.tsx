@@ -7,20 +7,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle2, AlertCircle, Loader2, ExternalLink } from 'lucide-react'
-import { useBacklogConnection, useConnectBacklogApiKey, useConnectBacklogOAuth, useDisconnectBacklog, useTestBacklogConnection } from '@/hooks/queries/useBacklog'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-
-const apiKeySchema = z.object({
-  space_key: z.string().min(1, 'スペースキーを入力してください'),
-  api_key: z.string().min(1, 'APIキーを入力してください'),
-})
-
-type ApiKeyFormData = z.infer<typeof apiKeySchema>
+import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
+import { useBacklogConnection, useConnectBacklogOAuth, useDisconnectBacklog, useTestBacklogConnection } from '@/hooks/queries/useBacklog'
 
 export default function BacklogSettingsPage() {
   const router = useRouter()
@@ -29,20 +18,9 @@ export default function BacklogSettingsPage() {
 
   // React Query hooks
   const { data: connection, isLoading: isLoadingConnection } = useBacklogConnection()
-  const connectApiKeyMutation = useConnectBacklogApiKey()
   const connectOAuthMutation = useConnectBacklogOAuth()
   const disconnectMutation = useDisconnectBacklog()
   const testConnectionMutation = useTestBacklogConnection()
-
-  // Form setup
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm<ApiKeyFormData>({
-    resolver: zodResolver(apiKeySchema),
-  })
 
   const handleTestConnection = async () => {
     setTestStatus('testing')
@@ -60,24 +38,43 @@ export default function BacklogSettingsPage() {
     })
   }
 
-  const handleApiKeySubmit = async (data: ApiKeyFormData) => {
-    connectApiKeyMutation.mutate(data, {
-      onSuccess: () => {
-        reset()
-        setTestStatus('idle')
-        setTestMessage('')
-      },
-    })
-  }
 
-  const handleOAuthConnect = () => {
-    connectOAuthMutation.mutate(undefined, {
-      onSuccess: (data) => {
-        if (data.auth_url) {
-          window.location.href = data.auth_url
+  // 直接実行用の関数
+  const handleOAuthDirectConnect = async () => {
+    const spaceKeyInput = document.getElementById('oauth_space_key') as HTMLInputElement
+    const spaceKey = spaceKeyInput?.value
+    
+    if (!spaceKey) {
+      alert('スペースキーを入力してください')
+      return
+    }
+    
+    try {
+      const url = `/api/v1/auth/backlog/authorize?space_key=${encodeURIComponent(spaceKey)}`
+      
+      // 直接APIを呼び出す
+      const response = await fetch(url, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
         }
-      },
-    })
+      })
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      
+      if (data.authorization_url) {
+        window.location.href = data.authorization_url
+      } else {
+        alert('認証URLの取得に失敗しました')
+      }
+    } catch (error) {
+      alert('OAuth認証の開始に失敗しました')
+    }
   }
 
   const handleDisconnect = () => {
@@ -127,7 +124,7 @@ export default function BacklogSettingsPage() {
                 <div>
                   <Label>連携方法</Label>
                   <Badge variant="outline" className="mt-1">
-                    {connection.connection_type === 'api_key' ? 'APIキー' : 'OAuth'}
+                    OAuth
                   </Badge>
                 </div>
 
@@ -187,104 +184,39 @@ export default function BacklogSettingsPage() {
               )}
             </div>
           ) : (
-            <Tabs defaultValue="api-key" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="api-key">APIキー</TabsTrigger>
-                <TabsTrigger value="oauth">OAuth</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="api-key" className="space-y-4">
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    BacklogのAPIキーを使用して連携します。APIキーは個人設定から取得できます。
-                  </p>
-                  <a
-                    href="https://support-ja.backlog.com/hc/ja/articles/360035641754"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-primary hover:underline inline-flex items-center gap-1"
-                  >
-                    APIキーの取得方法
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                </div>
-
-                <form onSubmit={handleSubmit(handleApiKeySubmit)} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="space_key">スペースキー</Label>
-                    <Input
-                      id="space_key"
-                      placeholder="your-space"
-                      {...register('space_key')}
-                    />
-                    {errors.space_key && (
-                      <p className="text-sm text-destructive">{errors.space_key.message}</p>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      https://your-space.backlog.jp の "your-space" 部分
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="api_key">APIキー</Label>
-                    <Input
-                      id="api_key"
-                      type="password"
-                      placeholder="APIキーを入力"
-                      {...register('api_key')}
-                    />
-                    {errors.api_key && (
-                      <p className="text-sm text-destructive">{errors.api_key.message}</p>
-                    )}
-                  </div>
-
-                  <Button
-                    type="submit"
-                    disabled={connectApiKeyMutation.isPending}
-                    className="w-full"
-                  >
-                    {connectApiKeyMutation.isPending ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        連携中...
-                      </>
-                    ) : (
-                      '連携する'
-                    )}
-                  </Button>
-                </form>
-
-                {connectApiKeyMutation.isError && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      {(connectApiKeyMutation.error as any)?.response?.data?.detail || '連携に失敗しました'}
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </TabsContent>
-
-              <TabsContent value="oauth" className="space-y-4">
+            <div className="space-y-4">
+                
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">
                     Backlogアカウントでログインして連携します。より安全な連携方法です。
                   </p>
                 </div>
 
-                <Button
-                  onClick={handleOAuthConnect}
-                  disabled={connectOAuthMutation.isPending}
-                  className="w-full"
-                >
-                  {connectOAuthMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      認証ページへ移動中...
-                    </>
-                  ) : (
-                    'Backlogでログイン'
-                  )}
-                </Button>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="oauth_space_key">スペースキー</Label>
+                    <Input
+                      id="oauth_space_key"
+                      placeholder="your-space"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      https://your-space.backlog.jp の "your-space" 部分
+                    </p>
+                  </div>
+
+                  <Button
+                    type="button"
+                    className="w-full pointer-events-auto"
+                    disabled={false}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      handleOAuthDirectConnect()
+                    }}
+                  >
+                    Backlogでログイン
+                  </Button>
+                </div>
 
                 {connectOAuthMutation.isError && (
                   <Alert variant="destructive">
@@ -294,8 +226,7 @@ export default function BacklogSettingsPage() {
                     </AlertDescription>
                   </Alert>
                 )}
-              </TabsContent>
-            </Tabs>
+            </div>
           )}
         </CardContent>
       </Card>

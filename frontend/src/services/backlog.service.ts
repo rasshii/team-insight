@@ -20,6 +20,10 @@ export interface ConnectApiKeyParams {
   api_key: string
 }
 
+export interface ConnectOAuthParams {
+  space_key: string
+}
+
 export interface BacklogConnectionResponse {
   is_connected: boolean
   space_key: string
@@ -70,9 +74,11 @@ export const backlogService = {
   /**
    * OAuthでBacklogと連携
    */
-  async connectWithOAuth(): Promise<{ auth_url: string }> {
-    const response = await apiClient.post('/api/v1/backlog/connect/oauth')
-    return response.data.data
+  async connectWithOAuth(params?: ConnectOAuthParams): Promise<{ authorization_url: string; state: string }> {
+    // バックエンドはGETエンドポイントを使用するため、クエリパラメータとして送信
+    const queryParams = params?.space_key ? `?space_key=${encodeURIComponent(params.space_key)}` : ''
+    const response = await apiClient.get(`/api/v1/auth/backlog/authorize${queryParams}`)
+    return response.data
   },
 
   /**

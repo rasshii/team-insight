@@ -5,6 +5,7 @@ import { authService, type UserInfoResponse } from '@/services/auth.service'
 import { useAppDispatch } from '@/store/hooks'
 import { setUser, logout as logoutAction } from '@/store/slices/authSlice'
 import { useToast } from '@/hooks/use-toast'
+import { getApiErrorMessage } from '@/lib/api-client'
 
 /**
  * 現在のユーザー情報を取得するフック
@@ -51,10 +52,10 @@ export const useLogout = () => {
       // window.location.hrefを使うことで、React Routerを経由せずに完全なリロードを実行
       window.location.href = '/'
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: 'エラー',
-        description: 'ログアウトに失敗しました。',
+        description: getApiErrorMessage(error),
         variant: 'destructive',
       })
     },
@@ -76,10 +77,10 @@ export const useGetAuthorizationUrl = () => {
       // Backlog認証ページへリダイレクト
       window.location.href = data.authorization_url
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: 'エラー',
-        description: '認証URLの取得に失敗しました。',
+        description: getApiErrorMessage(error),
         variant: 'destructive',
       })
     },
@@ -115,13 +116,13 @@ export const useHandleAuthCallback = () => {
         description: `ようこそ、${data.user.name}さん`,
       })
     },
-    onError: (error: any) => {
+    onError: (error) => {
       // OAuth stateをクリア
       authService.clearOAuthState()
       
       toast({
         title: 'エラー',
-        description: error.response?.data?.detail || '認証に失敗しました。',
+        description: getApiErrorMessage(error),
         variant: 'destructive',
       })
       
@@ -145,10 +146,10 @@ export const useRequestEmailVerification = () => {
         description: data.message,
       })
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: 'エラー',
-        description: error.response?.data?.detail || 'メールの送信に失敗しました。',
+        description: getApiErrorMessage(error),
         variant: 'destructive',
       })
     },
@@ -181,10 +182,10 @@ export const useConfirmEmailVerification = () => {
       // ダッシュボードへリダイレクト
       router.push('/dashboard/personal')
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: 'エラー',
-        description: error.response?.data?.detail || 'メールアドレスの確認に失敗しました。',
+        description: getApiErrorMessage(error),
         variant: 'destructive',
       })
     },
@@ -205,10 +206,10 @@ export const useResendVerificationEmail = () => {
         description: data.message,
       })
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: 'エラー',
-        description: error.response?.data?.detail || 'メールの送信に失敗しました。',
+        description: getApiErrorMessage(error),
         variant: 'destructive',
       })
     },
@@ -231,10 +232,10 @@ export const useRefreshToken = () => {
       queryClient.setQueryData(queryKeys.auth.me, data.user)
       dispatch(setUser(data.user))
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: 'エラー',
-        description: 'トークンの更新に失敗しました。再度ログインしてください。',
+        description: getApiErrorMessage(error),
         variant: 'destructive',
       })
     },

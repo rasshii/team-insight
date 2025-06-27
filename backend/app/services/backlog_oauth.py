@@ -36,11 +36,12 @@ class BacklogOAuthService:
         # BacklogのベースURL（スペースキーに基づいて構築）
         self.base_url = f"https://{self.space_key}.backlog.jp"
 
-    def get_authorization_url(self, state: Optional[str] = None) -> str:
+    def get_authorization_url(self, space_key: Optional[str] = None, state: Optional[str] = None) -> str:
         """
         認証URLを生成します
 
         Args:
+            space_key: BacklogのスペースキーOptional）インスタンスのデフォルト値を使用
             state: CSRF攻撃を防ぐためのランダムな文字列（オプション）
 
         Returns:
@@ -50,6 +51,12 @@ class BacklogOAuthService:
             # stateが提供されない場合は、セキュアなランダム文字列を生成
             state = secrets.token_urlsafe(32)
 
+        # space_keyが指定されている場合は、そのspace_keyのURLを使用
+        if space_key:
+            base_url = f"https://{space_key}.backlog.jp"
+        else:
+            base_url = self.base_url
+
         params = {
             "response_type": "code",
             "client_id": self.client_id,
@@ -57,15 +64,16 @@ class BacklogOAuthService:
             "state": state,
         }
 
-        auth_url = f"{self.base_url}/OAuth2AccessRequest.action?{urlencode(params)}"
+        auth_url = f"{base_url}/OAuth2AccessRequest.action?{urlencode(params)}"
         return auth_url, state
 
-    async def exchange_code_for_token(self, code: str) -> Dict[str, any]:
+    async def exchange_code_for_token(self, code: str, space_key: Optional[str] = None) -> Dict[str, any]:
         """
         認証コードをアクセストークンに交換します
 
         Args:
             code: Backlogから受け取った認証コード
+            space_key: BacklogのスペースキーOptional）インスタンスのデフォルト値を使用
 
         Returns:
             アクセストークン、リフレッシュトークン、有効期限などを含む辞書
@@ -73,7 +81,13 @@ class BacklogOAuthService:
         Raises:
             HTTPException: トークンの取得に失敗した場合
         """
-        token_url = f"{self.base_url}/api/v2/oauth2/token"
+        # space_keyが指定されている場合は、そのspace_keyのURLを使用
+        if space_key:
+            base_url = f"https://{space_key}.backlog.jp"
+        else:
+            base_url = self.base_url
+            
+        token_url = f"{base_url}/api/v2/oauth2/token"
 
         data = {
             "grant_type": "authorization_code",
@@ -106,12 +120,13 @@ class BacklogOAuthService:
                 "expires_at": expires_at,
             }
 
-    async def refresh_access_token(self, refresh_token: str) -> Dict[str, any]:
+    async def refresh_access_token(self, refresh_token: str, space_key: Optional[str] = None) -> Dict[str, any]:
         """
         リフレッシュトークンを使用してアクセストークンを更新します
 
         Args:
             refresh_token: 保存されているリフレッシュトークン
+            space_key: BacklogのスペースキーOptional）インスタンスのデフォルト値を使用
 
         Returns:
             新しいアクセストークン、リフレッシュトークン、有効期限などを含む辞書
@@ -119,7 +134,13 @@ class BacklogOAuthService:
         Raises:
             HTTPException: トークンの更新に失敗した場合
         """
-        token_url = f"{self.base_url}/api/v2/oauth2/token"
+        # space_keyが指定されている場合は、そのspace_keyのURLを使用
+        if space_key:
+            base_url = f"https://{space_key}.backlog.jp"
+        else:
+            base_url = self.base_url
+            
+        token_url = f"{base_url}/api/v2/oauth2/token"
 
         data = {
             "grant_type": "refresh_token",
@@ -151,12 +172,13 @@ class BacklogOAuthService:
                 "expires_at": expires_at,
             }
 
-    async def get_user_info(self, access_token: str) -> Dict[str, any]:
+    async def get_user_info(self, access_token: str, space_key: Optional[str] = None) -> Dict[str, any]:
         """
         アクセストークンを使用してユーザー情報を取得します
 
         Args:
             access_token: 有効なアクセストークン
+            space_key: BacklogのスペースキーOptional）インスタンスのデフォルト値を使用
 
         Returns:
             Backlogユーザー情報を含む辞書
@@ -164,7 +186,13 @@ class BacklogOAuthService:
         Raises:
             HTTPException: ユーザー情報の取得に失敗した場合
         """
-        user_url = f"{self.base_url}/api/v2/users/myself"
+        # space_keyが指定されている場合は、そのspace_keyのURLを使用
+        if space_key:
+            base_url = f"https://{space_key}.backlog.jp"
+        else:
+            base_url = self.base_url
+            
+        user_url = f"{base_url}/api/v2/users/myself"
 
         async with httpx.AsyncClient() as client:
             response = await client.get(
@@ -177,7 +205,7 @@ class BacklogOAuthService:
             return response.json()
 
     def save_token(
-        self, db: Session, user_id: int, token_data: Dict[str, any]
+        self, db: Session, user_id: int, token_data: Dict[str, any], space_key: Optional[str] = None
     ) -> OAuthToken:
         """
         トークンをデータベースに保存します
@@ -186,6 +214,7 @@ class BacklogOAuthService:
             db: データベースセッション
             user_id: ユーザーID
             token_data: トークン情報
+            space_key: BacklogのスペースキーOptional）
 
         Returns:
             保存されたOAuthTokenオブジェクト
@@ -203,6 +232,8 @@ class BacklogOAuthService:
             existing_token.refresh_token = token_data["refresh_token"]
             existing_token.expires_at = token_data["expires_at"]
             existing_token.updated_at = datetime.utcnow()
+            if space_key:
+                existing_token.backlog_space_key = space_key
             db.commit()
             return existing_token
         else:
@@ -213,6 +244,7 @@ class BacklogOAuthService:
                 access_token=token_data["access_token"],
                 refresh_token=token_data["refresh_token"],
                 expires_at=token_data["expires_at"],
+                backlog_space_key=space_key if space_key else self.space_key,
             )
             db.add(new_token)
             db.commit()

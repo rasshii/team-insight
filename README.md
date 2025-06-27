@@ -25,21 +25,25 @@ Team Insight は、Backlog API と連携してチームの開発プロセスを�
 
 #### 実装済み ✅
 - **Backlog OAuth 認証**: セキュアな OAuth2.0 認証と JWT セッション管理
+- **メール/パスワード認証**: 独立したユーザー管理システム（メール検証機能付き）
 - **RBAC（ロールベースアクセス制御）**: プロジェクト単位での柔軟な権限管理
 - **プロジェクト管理**: プロジェクト情報の取得と管理
 - **データ可視化**: D3.js によるボトルネック分析とスループット表示
 - **ヘルスチェック**: システム稼働状況の監視
+- **キャッシュシステム**: Redis によるAPI レスポンスのキャッシュ（有効化済み）
+- **統一エラーハンドリング**: 構造化されたエラーレスポンスとロギング
+- **セキュリティ強化**: パスワード検証、レート制限、機密データマスキング
 
 #### 開発中 🚧
 - **個人ダッシュボード**: 個人の生産性指標の可視化
-- **Backlog API 統合**: 実データの取得と同期
-- **キャッシュシステム**: Redis を活用したパフォーマンス最適化
+- **Backlog API 統合**: タスクデータの同期と分析
+- **組織ダッシュボード**: 組織全体の生産性分析
 
 #### 計画中 📋
-- **組織ダッシュボード**: 組織全体の生産性分析
 - **通知システム**: ボトルネックアラートと改善提案
 - **予測分析**: AI を活用した将来予測
 - **WebSocket 統合**: リアルタイム更新
+- **レポート生成**: PDF/Excel形式でのレポート出力
 
 ## 技術スタック
 
@@ -60,12 +64,15 @@ Team Insight は、Backlog API と連携してチームの開発プロセスを�
 - **Next.js** (14): App Router を使用した React フレームワーク
 - **React** (18): UI ライブラリ
 - **TypeScript** (5): 型安全な開発
-- **Redux Toolkit**: グローバル状態管理
+- **Redux Toolkit**: グローバル状態管理（ユーザー認証情報のみ）
+- **TanStack Query**: サーバー状態管理（APIデータのキャッシュと同期）
+- **TanStack Query** (v5): サーバー状態管理とデータフェッチング
 - **shadcn/ui**: Radix UI ベースのコンポーネントライブラリ
 - **Tailwind CSS** (v3): ユーティリティファースト CSS
 - **D3.js**: データ可視化ライブラリ
 - **Yarn v4 (Berry)**: パッケージ管理（Corepack 使用）
 - **react-hook-form + zod**: フォーム処理とバリデーション
+- **axios**: HTTP クライアント（統一されたエラーハンドリング付き）
 
 ### インフラ
 
@@ -97,21 +104,27 @@ cd team-insight
 
 ```env
 # データベース設定
-DATABASE_URL=postgresql://team_insight_user:team_insight_password@postgres:5432/team_insight
+DATABASE_URL=postgresql://teaminsight:teaminsight@postgres:5432/teaminsight
 
 # Redis設定
 REDIS_URL=redis://redis:6379/0
 
 # セキュリティ
-SECRET_KEY=your-secret-key-here
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
-JWT_REFRESH_TOKEN_EXPIRE_MINUTES=10080  # 7日間
+SECRET_KEY=your-secret-key-here  # 32文字以上の強力なキーを使用
 
 # Backlog OAuth設定
 BACKLOG_CLIENT_ID=your-client-id
 BACKLOG_CLIENT_SECRET=your-client-secret
-BACKLOG_REDIRECT_URI=http://localhost:3000/auth/callback
+BACKLOG_REDIRECT_URI=http://localhost/auth/callback
 BACKLOG_SPACE_KEY=your-space-key
+
+# SMTP設定（メール送信用）
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+SMTP_FROM_EMAIL=noreply@teaminsight.dev
+SMTP_FROM_NAME=Team Insight
 ```
 
 3. **セットアップスクリプトの実行**
@@ -357,54 +370,42 @@ class YourFeatureService {
 export const yourFeatureService = new YourFeatureService();
 ```
 
-3. **Redux Slice** (`src/store/slices/yourFeatureSlice.ts`):
+3. **React Query Hook** (`src/hooks/queries/useYourFeature.ts`):
 
 ```typescript
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import { yourFeatureService } from "@/services/your-feature.service";
-import { YourFeature } from "@/types/your-feature";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { yourFeatureService } from '@/services/your-feature.service'
+import { YourFeature } from '@/types/your-feature'
+import { queryKeys } from '@/lib/react-query'
+import { useToast } from '@/hooks/use-toast'
 
-interface YourFeatureState {
-  items: YourFeature[];
-  loading: boolean;
-  error: string | null;
+export const useYourFeatures = () => {
+  return useQuery({
+    queryKey: queryKeys.yourFeature.all,
+    queryFn: () => yourFeatureService.getAll(),
+    staleTime: 5 * 60 * 1000, // 5分
+  })
 }
 
-const initialState: YourFeatureState = {
-  items: [],
-  loading: false,
-  error: null,
-};
-
-export const fetchYourFeatures = createAsyncThunk(
-  "yourFeature/fetchAll",
-  async () => {
-    return await yourFeatureService.getAll();
-  }
-);
-
-const yourFeatureSlice = createSlice({
-  name: "yourFeature",
-  initialState,
-  reducers: {},
-  extraReducers: (builder) => {
-    builder
-      .addCase(fetchYourFeatures.pending, (state) => {
-        state.loading = true;
-        state.error = null;
+export const useCreateYourFeature = () => {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  
+  return useMutation({
+    mutationFn: yourFeatureService.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.yourFeature.all })
+      toast({ title: '作成しました' })
+    },
+    onError: (error) => {
+      toast({ 
+        title: 'エラー',
+        description: getApiErrorMessage(error),
+        variant: 'destructive'
       })
-      .addCase(fetchYourFeatures.fulfilled, (state, action) => {
-        state.loading = false;
-        state.items = action.payload;
-      })
-      .addCase(fetchYourFeatures.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || "エラーが発生しました";
-      });
-  },
-});
-
-export default yourFeatureSlice.reducer;
+    }
+  })
+}
 ```
 
 4. **ページコンポーネント** (`src/app/your-feature/page.tsx`):
@@ -412,24 +413,15 @@ export default yourFeatureSlice.reducer;
 ```typescript
 "use client";
 
-import { useEffect } from "react";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { fetchYourFeatures } from "@/store/slices/yourFeatureSlice";
+import { useYourFeatures } from "@/hooks/queries/useYourFeature";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function YourFeaturePage() {
-  const dispatch = useAppDispatch();
-  const { items, loading, error } = useAppSelector(
-    (state) => state.yourFeature
-  );
+  const { data: items, isLoading, error } = useYourFeatures();
 
-  useEffect(() => {
-    dispatch(fetchYourFeatures());
-  }, [dispatch]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="container mx-auto p-6">
         <Skeleton className="h-[200px] w-full" />
@@ -441,7 +433,7 @@ export default function YourFeaturePage() {
     return (
       <div className="container mx-auto p-6">
         <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{getApiErrorMessage(error)}</AlertDescription>
         </Alert>
       </div>
     );
@@ -451,7 +443,7 @@ export default function YourFeaturePage() {
     <div className="container mx-auto p-6">
       <h1 className="text-3xl font-bold mb-6">Your Feature</h1>
       <div className="grid gap-4">
-        {items.map((item) => (
+        {items?.map((item) => (
           <Card key={item.id}>
             <CardHeader>
               <CardTitle>{item.name}</CardTitle>

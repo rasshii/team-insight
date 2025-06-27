@@ -43,7 +43,9 @@ export function LoginContent() {
   const [isBacklogLoading, setIsBacklogLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
-  const from = searchParams?.get('from') || '/dashboard/personal'
+  // 開発時のテスト用: testパラメータがある場合は/settings/backlogへリダイレクト
+  const testMode = searchParams?.get('test') === 'backlog'
+  const from = testMode ? '/settings/backlog' : (searchParams?.get('from') || '/dashboard/personal')
   const error = searchParams?.get('error')
 
   const form = useForm<LoginFormData>({

@@ -8,7 +8,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Response
 from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session, joinedload
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 import logging
 from zoneinfo import ZoneInfo
@@ -41,6 +41,7 @@ from app.core.exceptions import (
     TokenExpiredException,
     NotFoundException,
     AlreadyExistsException,
+    ValidationException,
     handle_database_error
 )
 from app.core.database import transaction
@@ -54,6 +55,44 @@ import secrets
 router = APIRouter()
 
 logger = logging.getLogger(__name__)
+
+
+def _build_user_response(user: User, access_token: str = None) -> Dict[str, Any]:
+    """
+    統一的なユーザーレスポンスを構築
+    
+    Args:
+        user: ユーザーオブジェクト（user_rolesがロード済みであること）
+        access_token: アクセストークン（オプション）
+        
+    Returns:
+        レスポンス辞書
+    """
+    # UserRoleResponseのリストを作成
+    user_roles = build_user_role_responses(user.user_roles)
+    
+    # ユーザー情報の構築
+    user_info = UserInfoResponse(
+        id=user.id,
+        backlog_id=user.backlog_id,
+        email=user.email,
+        name=user.name,
+        user_id=user.user_id,
+        is_email_verified=user.is_email_verified,
+        is_active=user.is_active,
+        created_at=user.created_at,
+        updated_at=user.updated_at,
+        user_roles=user_roles
+    )
+    
+    # レスポンスの構築
+    response_data = {"user": user_info.model_dump()}
+    
+    if access_token:
+        response_data["access_token"] = access_token
+        response_data["token_type"] = "bearer"
+    
+    return response_data
 
 
 def _cleanup_oauth_state(db: Session, oauth_state: Optional[OAuthState]) -> None:
@@ -232,22 +271,8 @@ async def login(
         expires_delta=timedelta(minutes=AuthConstants.TOKEN_MAX_AGE // 60)
     )
     
-    # UserRoleResponseのリストを作成
-    user_roles = build_user_role_responses(user.user_roles)
-    
-    # ユーザー情報の構築
-    user_info = UserInfoResponse(
-        id=user.id,
-        backlog_id=user.backlog_id,
-        email=user.email,
-        name=user.name,
-        user_id=user.user_id,
-        is_email_verified=user.is_email_verified,
-        is_active=user.is_active,
-        created_at=user.created_at,
-        updated_at=user.updated_at,
-        user_roles=user_roles
-    )
+    # 統一的なユーザーレスポンスを構築
+    response_data = _build_user_response(user, access_token)
     
     # Cookieの設定
     response.set_cookie(
@@ -255,23 +280,21 @@ async def login(
         value=access_token,
         max_age=AuthConstants.TOKEN_MAX_AGE,
         path=AuthConstants.COOKIE_PATH,
+        domain="localhost",  # 開発環境用に明示的にドメインを設定
         httponly=True,
         samesite=AuthConstants.COOKIE_SAMESITE,
         secure=False  # HTTPSの場合はTrue
     )
     
     return formatter.success(
-        data={
-            "access_token": access_token,
-            "token_type": "bearer",
-            "user": user_info.model_dump()
-        },
+        data=response_data,
         message="ログインに成功しました"
     )
 
 
 @router.get("/backlog/authorize", response_model=AuthorizationResponse)
 async def get_authorization_url(
+    space_key: Optional[str] = Query(None, description="BacklogのスペースキーOptional）環境変数がデフォルト"),
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user),
 ):
@@ -281,12 +304,34 @@ async def get_authorization_url(
     このエンドポイントは、ユーザーをBacklogの認証ページにリダイレクトするための
     URLを生成します。CSRF攻撃を防ぐため、stateパラメータも生成して保存します。
 
+    Args:
+        space_key: BacklogのスペースキーOptional）環境変数がデフォルト
+
     Returns:
         認証URLとstateを含むレスポンス
     """
+    import json
+    import base64
+    
     try:
-        # 認証URLとstateを生成
-        auth_url, state = backlog_oauth_service.get_authorization_url()
+        # space_keyが指定されていない場合は環境変数のデフォルト値を使用
+        if not space_key:
+            space_key = settings.BACKLOG_SPACE_KEY
+            
+        # stateを生成
+        state_token = secrets.token_urlsafe(32)
+        
+        # space_keyを含むstateデータを作成
+        state_data = {
+            "token": state_token,
+            "space_key": space_key
+        }
+        
+        # stateデータをBase64エンコード
+        state = base64.urlsafe_b64encode(json.dumps(state_data).encode()).decode()
+        
+        # 認証URLを生成（space_keyを含める）
+        auth_url, _ = backlog_oauth_service.get_authorization_url(space_key=space_key, state=state)
 
         # stateをデータベースに保存（10分間有効）
         expires_at = datetime.now(ZoneInfo("Asia/Tokyo")) + timedelta(minutes=10)
@@ -300,8 +345,10 @@ async def get_authorization_url(
 
         return AuthorizationResponse(authorization_url=auth_url, state=state)
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"認証URLの生成に失敗しました: {str(e)}"
+        logger.error(f"認証URL生成エラー: {str(e)}", exc_info=True)
+        raise ExternalAPIException(
+            service="Backlog OAuth",
+            detail="認証URLの生成に失敗しました"
         )
 
 
@@ -336,25 +383,42 @@ async def handle_callback(request: CallbackRequest, db: Session = Depends(get_db
         # デバッグ用：現在のstateをすべて表示
         all_states = db.query(OAuthState).all()
         logger.debug(f"現在のstate一覧: {[s.state for s in all_states]}")
-        raise HTTPException(status_code=400, detail="無効なstateパラメータです")
+        raise ValidationException(detail="無効なstateパラメータです")
 
     if oauth_state.is_expired():
         logger.error(f"stateパラメータの有効期限切れ - state: {request.state}")
         db.delete(oauth_state)
         db.commit()
-        raise HTTPException(
-            status_code=400, detail="stateパラメータの有効期限が切れています"
+        raise ValidationException(
+            detail="stateパラメータの有効期限が切れています"
         )
 
     try:
+        # stateからspace_keyを取り出す
+        import json
+        import base64
+        
+        space_key = None
+        try:
+            # Base64デコード
+            state_json = base64.urlsafe_b64decode(request.state.encode()).decode()
+            state_data = json.loads(state_json)
+            space_key = state_data.get("space_key")
+            logger.info(f"stateからspace_keyを取得 - space_key: {space_key}")
+        except Exception as e:
+            logger.warning(f"stateのデコードに失敗（旧形式の可能性）: {str(e)}")
+            # 旧形式のstateの場合は環境変数のデフォルト値を使用
+            space_key = settings.BACKLOG_SPACE_KEY
+        
         # 認証コードをアクセストークンに交換
         logger.info("認証コードをアクセストークンに交換中...")
-        token_data = await backlog_oauth_service.exchange_code_for_token(request.code)
+        token_data = await backlog_oauth_service.exchange_code_for_token(request.code, space_key=space_key)
 
         # ユーザー情報を取得
         logger.info("ユーザー情報を取得中...")
         user_info = await backlog_oauth_service.get_user_info(
-            token_data["access_token"]
+            token_data["access_token"],
+            space_key=space_key
         )
 
         # ユーザーの作成または更新
@@ -374,8 +438,8 @@ async def handle_callback(request: CallbackRequest, db: Session = Depends(get_db
         else:
             logger.info(f"既存ユーザーを使用 - user_id: {user.id}")
 
-        # トークンを保存
-        backlog_oauth_service.save_token(db, user.id, token_data)
+        # トークンを保存（space_keyも含めて保存）
+        backlog_oauth_service.save_token(db, user.id, token_data, space_key=space_key)
 
         # 使用済みのstateを削除
         db.delete(oauth_state)
@@ -408,23 +472,11 @@ async def handle_callback(request: CallbackRequest, db: Session = Depends(get_db
                     db.query(User).filter(User.id == user.id)
                 ).first()
         
-        # UserRoleResponseのリストを作成
-        user_roles = build_user_role_responses(user.user_roles)
+        # 統一的なユーザーレスポンスを構築
+        response_data = _build_user_response(user, access_token)
         
         # レスポンスを作成
-        response = TokenResponse(
-            access_token=access_token,
-            token_type="bearer",
-            user=UserInfoResponse(
-                id=user.id,
-                backlog_id=user.backlog_id,
-                email=user.email,
-                name=user.name,
-                user_id=user.user_id,
-                is_email_verified=user.is_email_verified,
-                user_roles=user_roles
-            ),
-        )
+        response = TokenResponse(**response_data)
 
         # Set-Cookieヘッダーを設定
         # 開発環境では異なるポート間でクッキーを共有するため、SameSiteを削除
@@ -466,15 +518,15 @@ async def handle_callback(request: CallbackRequest, db: Session = Depends(get_db
         db.rollback()
         _cleanup_oauth_state(db, oauth_state)
         # 内部エラーの詳細を隠蔽
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        raise ExternalAPIException(
+            service="Backlog OAuth",
             detail="認証処理中にエラーが発生しました。しばらく時間をおいて再度お試しください。"
         )
 
 
 @router.post("/backlog/refresh", response_model=TokenResponse)
 async def refresh_token(
-    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)
 ):
     """
     Backlogのアクセストークンをリフレッシュします
@@ -499,13 +551,17 @@ async def refresh_token(
         raise NotFoundException(resource="Backlogトークン", detail=ErrorMessages.TOKEN_NOT_FOUND)
 
     try:
+        # space_keyを取得（既存のトークンから）
+        space_key = oauth_token.backlog_space_key or settings.BACKLOG_SPACE_KEY
+        
         # トークンをリフレッシュ
         new_token_data = await backlog_oauth_service.refresh_access_token(
-            oauth_token.refresh_token
+            oauth_token.refresh_token,
+            space_key=space_key
         )
 
-        # 新しいトークンを保存
-        backlog_oauth_service.save_token(db, current_user.id, new_token_data)
+        # 新しいトークンを保存（space_keyも含める）
+        backlog_oauth_service.save_token(db, current_user.id, new_token_data, space_key=space_key)
 
         # アプリケーション用のJWTトークンも新しく生成
         access_token = create_access_token(data={"sub": str(current_user.id)})
@@ -515,23 +571,11 @@ async def refresh_token(
             db.query(User).filter(User.id == current_user.id)
         ).first()
         
-        # UserRoleResponseのリストを作成
-        user_roles = build_user_role_responses(user_with_roles.user_roles)
+        # 統一的なユーザーレスポンスを構築
+        response_data = _build_user_response(user_with_roles, access_token)
         
         # レスポンスを作成
-        response = TokenResponse(
-            access_token=access_token,
-            token_type="bearer",
-            user=UserInfoResponse(
-                id=current_user.id,
-                backlog_id=current_user.backlog_id,
-                email=current_user.email,
-                name=current_user.name,
-                user_id=current_user.user_id,
-                is_email_verified=current_user.is_email_verified,
-                user_roles=user_roles
-            ),
-        )
+        response = TokenResponse(**response_data)
 
         # Set-Cookieヘッダーを設定
         # 開発環境では異なるポート間でクッキーを共有するため、SameSiteを削除
@@ -558,8 +602,10 @@ async def refresh_token(
         )
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"トークンのリフレッシュに失敗しました: {str(e)}"
+        logger.error(f"トークンリフレッシュエラー: {str(e)}", exc_info=True)
+        raise ExternalAPIException(
+            service="Backlog OAuth",
+            detail="トークンのリフレッシュに失敗しました"
         )
 
 
@@ -575,43 +621,19 @@ async def verify_token(
     トークンが有効かどうかを確認するために使用されます。
     """
     if not current_user:
-        raise HTTPException(
-            status_code=401,
-            detail="認証が必要です",
-            headers={"WWW-Authenticate": "Bearer"},
+        raise AuthenticationException(
+            detail="認証が必要です"
         )
     
     # ユーザーのロール情報を取得
-    from sqlalchemy.orm import joinedload
-    from app.models.rbac import UserRole
-    user = db.query(User).options(
-        joinedload(User.user_roles).joinedload(UserRole.role)
-    ).filter(User.id == current_user.id).first()
+    user = QueryBuilder.with_user_roles(
+        db.query(User).filter(User.id == current_user.id)
+    ).first()
     
-    # UserRoleResponseのリストを作成
-    from app.schemas.auth import UserRoleResponse, RoleResponse
-    user_roles = []
-    for ur in user.user_roles:
-        user_roles.append(UserRoleResponse(
-            id=ur.id,
-            role_id=ur.role_id,
-            project_id=ur.project_id,
-            role=RoleResponse(
-                id=ur.role.id,
-                name=ur.role.name,
-                description=ur.role.description
-            )
-        ))
+    # 統一的なユーザーレスポンスを構築
+    response_data = _build_user_response(user)
     
-    return UserInfoResponse(
-        id=current_user.id,
-        backlog_id=current_user.backlog_id,
-        email=current_user.email,
-        name=current_user.name,
-        user_id=current_user.user_id,
-        is_email_verified=current_user.is_email_verified,
-        user_roles=user_roles
-    )
+    return response_data["user"]
 
 
 @router.get("/me", response_model=UserInfoResponse)
@@ -634,32 +656,12 @@ async def get_current_user_info(
     ).filter(User.id == current_user.id).first()
     
     if not user:
-        raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
+        raise NotFoundException(resource="ユーザー")
     
-    # UserRoleResponseのリストを作成
-    from app.schemas.auth import UserRoleResponse, RoleResponse
-    user_roles = []
-    for ur in user.user_roles:
-        user_roles.append(UserRoleResponse(
-            id=ur.id,
-            role_id=ur.role_id,
-            project_id=ur.project_id,
-            role=RoleResponse(
-                id=ur.role.id,
-                name=ur.role.name,
-                description=ur.role.description
-            )
-        ))
+    # 統一的なユーザーレスポンスを構築
+    response_data = _build_user_response(user)
     
-    return UserInfoResponse(
-        id=user.id,
-        backlog_id=user.backlog_id,
-        email=user.email,
-        name=user.name,
-        user_id=user.user_id,
-        is_email_verified=user.is_email_verified,
-        user_roles=user_roles
-    )
+    return response_data["user"]
 
 
 @router.post("/email/verify", response_model=EmailVerificationResponse)
@@ -690,8 +692,7 @@ async def request_email_verification(
     
     # 既に検証済みの場合
     if current_user.is_email_verified and current_user.email == request.email:
-        raise HTTPException(
-            status_code=400,
+        raise ValidationException(
             detail="このメールアドレスは既に検証済みです"
         )
     
@@ -703,8 +704,8 @@ async def request_email_verification(
     ).first()
     
     if existing_user:
-        raise HTTPException(
-            status_code=400,
+        raise AlreadyExistsException(
+            resource="メールアドレス",
             detail="このメールアドレスは既に他のユーザーが使用しています"
         )
     
@@ -751,8 +752,8 @@ async def request_email_verification(
         current_user.email_verification_token_expires = None
         db.commit()
         
-        raise HTTPException(
-            status_code=500,
+        raise ExternalAPIException(
+            service="メール送信",
             detail="メールの送信に失敗しました。しばらくしてから再度お試しください。"
         )
 
@@ -786,8 +787,7 @@ async def confirm_email_verification(
     ).first()
     
     if not user:
-        raise HTTPException(
-            status_code=400,
+        raise ValidationException(
             detail="無効な検証トークンです"
         )
     
@@ -798,8 +798,7 @@ async def confirm_email_verification(
         user.email_verification_token_expires = None
         db.commit()
         
-        raise HTTPException(
-            status_code=400,
+        raise TokenExpiredException(
             detail="検証トークンの有効期限が切れています。再度検証メールをリクエストしてください。"
         )
     
@@ -844,14 +843,12 @@ async def resend_verification_email(
         HTTPException: 既に検証済み、またはメールアドレスが設定されていない場合
     """
     if current_user.is_email_verified:
-        raise HTTPException(
-            status_code=400,
+        raise ValidationException(
             detail="メールアドレスは既に検証済みです"
         )
     
     if not current_user.email:
-        raise HTTPException(
-            status_code=400,
+        raise ValidationException(
             detail="メールアドレスが設定されていません"
         )
     
@@ -866,7 +863,6 @@ async def resend_verification_email(
 @router.post("/logout")
 async def logout(
     response: Response,
-    current_user: User = Depends(get_current_user),
     formatter: ResponseFormatter = Depends(get_response_formatter)
 ) -> Dict[str, Any]:
     """

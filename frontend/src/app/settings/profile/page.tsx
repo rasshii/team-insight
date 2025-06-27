@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Mail, CheckCircle, XCircle } from "lucide-react";
-import { useAppSelector } from "@/hooks/redux";
+import { useAppSelector } from "@/store/hooks";
 import { useRequestEmailVerification, useResendVerificationEmail } from "@/hooks/queries/useAuth";
 import { toast } from "@/components/ui/use-toast";
 

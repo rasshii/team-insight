@@ -48,7 +48,7 @@ class RoleResponse(BaseModel):
     """
     id: int = Field(..., description="ロールID")
     name: str = Field(..., description="ロール名")
-    description: str = Field(..., description="ロールの説明")
+    description: Optional[str] = Field(None, description="ロールの説明")
 
     class Config:
         from_attributes = True
@@ -72,10 +72,10 @@ class UserInfoResponse(BaseModel):
     ユーザー情報のレスポンススキーマ
     """
     id: int = Field(..., description="内部ユーザーID")
-    backlog_id: int = Field(..., description="BacklogのユーザーID")
+    backlog_id: Optional[int] = Field(None, description="BacklogのユーザーID")
     email: Optional[str] = Field(None, description="メールアドレス")
     name: str = Field(..., description="ユーザー名")
-    user_id: str = Field(..., description="BacklogのユーザーID（文字列）")
+    user_id: Optional[str] = Field(None, description="BacklogのユーザーID（文字列）")
     is_email_verified: bool = Field(..., description="メールアドレス検証済みかどうか")
     user_roles: List[UserRoleResponse] = Field(default_factory=list, description="ユーザーのロール一覧")
 

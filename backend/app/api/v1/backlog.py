@@ -9,8 +9,8 @@ from app.db.session import get_db
 from app.models.user import User
 from app.models.auth import OAuthToken
 from app.core.security import get_current_user
-from app.core.response_builder import ResponseBuilder
-from app.core.response_formatter import ResponseFormatter, get_response_formatter
+from app.core.response_builder import ResponseBuilder, ResponseFormatter
+from app.core.deps import get_response_formatter
 from app.core.error_handler import AppException, ErrorCode
 from app.schemas.backlog import (
     BacklogApiKeyConnect,
@@ -28,9 +28,8 @@ router = APIRouter()
 @router.get("/connection", response_model=BacklogConnectionStatus)
 async def get_connection_status(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    formatter: ResponseFormatter = Depends(get_response_formatter)
-) -> Dict[str, Any]:
+    current_user: User = Depends(get_current_user)
+) -> BacklogConnectionStatus:
     """
     Backlog連携状態を取得する
     """
@@ -50,10 +49,7 @@ async def get_connection_status(
             expires_at=None,
             user_email=None
         )
-        return formatter(ResponseBuilder.success(
-            data=response_data.model_dump(),
-            message="Backlog連携が設定されていません"
-        ))
+        return response_data
     
     # トークンの有効性をチェック
     is_expired = oauth_token.expires_at and oauth_token.expires_at < datetime.utcnow()
@@ -68,10 +64,7 @@ async def get_connection_status(
         user_email=oauth_token.backlog_user_email
     )
     
-    return formatter(ResponseBuilder.success(
-        data=response_data.model_dump(),
-        message="連携済み" if not is_expired else "トークンの有効期限が切れています"
-    ))
+    return response_data
 
 
 @router.post("/connect/api-key")

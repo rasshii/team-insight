@@ -2,6 +2,7 @@ import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'ax
 import { env } from '@/config/env'
 import { store } from '@/store'
 import { logout } from '@/store/slices/authSlice'
+import { ApiError, ErrorResponse } from '@/types/error'
 
 /**
  * 統一されたAPIクライアント
@@ -46,7 +47,7 @@ class ApiClient {
     this.axiosInstance.interceptors.request.use(
       (config: InternalAxiosRequestConfig) => {
         // デバッグ用ログ（本番環境では無効化）
-        if (process.env.NODE_ENV === 'development') {
+        if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_API_DEBUG === 'true') {
           console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`)
         }
         
@@ -61,7 +62,7 @@ class ApiClient {
     this.axiosInstance.interceptors.response.use(
       (response) => {
         // デバッグ用ログ
-        if (process.env.NODE_ENV === 'development') {
+        if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_API_DEBUG === 'true') {
           console.log(`[API Response] ${response.config.method?.toUpperCase()} ${response.config.url} - ${response.status}`)
         }
         
@@ -73,6 +74,9 @@ class ApiClient {
         // エラーログ
         if (process.env.NODE_ENV === 'development') {
           console.error(`[API Error] ${error.config?.method?.toUpperCase()} ${error.config?.url} - ${error.response?.status}`)
+          if (error.response?.data) {
+            console.error('[API Error Details]', error.response.data)
+          }
         }
 
         // 401エラー（認証エラー）の場合
@@ -154,9 +158,26 @@ class ApiClient {
           })
         }
 
+        // エラーレスポンスをApiErrorクラスに変換
+        if (error.response?.data && this.isErrorResponse(error.response.data)) {
+          return Promise.reject(new ApiError(error.response.data as ErrorResponse))
+        }
+        
         return Promise.reject(error)
       }
     )
+  }
+
+  /**
+   * エラーレスポンスの判定
+   */
+  private isErrorResponse(data: any): data is ErrorResponse {
+    return data && 
+           typeof data === 'object' && 
+           'error' in data && 
+           typeof data.error === 'object' &&
+           'code' in data.error &&
+           'message' in data.error
   }
 
   // HTTPメソッドのラッパー
@@ -190,52 +211,73 @@ class ApiClient {
 export const apiClient = new ApiClient()
 
 /**
- * APIエラーかどうかを判定するタイプガード
+ * APIエラーかどうかを判定するタイプガード（AxiosError）
  */
-export const isApiError = (error: unknown): error is AxiosError => {
+export const isAxiosError = (error: unknown): error is AxiosError => {
   return axios.isAxiosError(error)
+}
+
+/**
+ * APIエラーかどうかを判定するタイプガード（ApiError）
+ */
+export const isApiError = (error: unknown): error is ApiError => {
+  return error instanceof ApiError
 }
 
 /**
  * APIエラーの詳細を取得
  */
 export const getApiErrorMessage = (error: unknown): string => {
-  if (!isApiError(error)) {
-    return 'エラーが発生しました'
+  // ApiErrorの場合
+  if (isApiError(error)) {
+    return error.message
   }
-
-  // バックエンドからのエラーメッセージ
-  if (error.response?.data) {
-    const data = error.response.data as any
-    if (data.detail) {
-      return data.detail
+  
+  // AxiosErrorの場合
+  if (isAxiosError(error)) {
+    // バックエンドからのエラーメッセージ
+    if (error.response?.data) {
+      const data = error.response.data as any
+      if (data.error?.message) {
+        return data.error.message
+      }
+      if (data.detail) {
+        return data.detail
+      }
+      if (data.message) {
+        return data.message
+      }
     }
-    if (data.message) {
-      return data.message
+
+    // HTTPステータスコードに基づくメッセージ
+    switch (error.response?.status) {
+      case 400:
+        return '不正なリクエストです'
+      case 401:
+        return '認証が必要です'
+      case 403:
+        return 'アクセス権限がありません'
+      case 404:
+        return 'リソースが見つかりません'
+      case 409:
+        return 'リソースが既に存在します'
+      case 422:
+        return '入力内容に誤りがあります'
+      case 500:
+        return 'サーバーエラーが発生しました'
+      case 502:
+      case 503:
+      case 504:
+        return 'サーバーが一時的に利用できません'
+      default:
+        return error.message || 'エラーが発生しました'
     }
   }
-
-  // HTTPステータスコードに基づくメッセージ
-  switch (error.response?.status) {
-    case 400:
-      return '不正なリクエストです'
-    case 401:
-      return '認証が必要です'
-    case 403:
-      return 'アクセス権限がありません'
-    case 404:
-      return 'リソースが見つかりません'
-    case 409:
-      return 'リソースが既に存在します'
-    case 422:
-      return '入力内容に誤りがあります'
-    case 500:
-      return 'サーバーエラーが発生しました'
-    case 502:
-    case 503:
-    case 504:
-      return 'サーバーが一時的に利用できません'
-    default:
-      return error.message || 'エラーが発生しました'
+  
+  // その他のエラー
+  if (error instanceof Error) {
+    return error.message
   }
+  
+  return 'エラーが発生しました'
 }
