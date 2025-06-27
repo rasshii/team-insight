@@ -119,6 +119,13 @@ export const authService = {
   },
 
   /**
+   * 検証メールを再送信
+   */
+  async resendVerificationEmail(): Promise<EmailVerificationResponse> {
+    return await apiClient.post('/api/v1/auth/email/verify/resend')
+  },
+
+  /**
    * OAuth stateの検証（セキュリティ用）
    * セッションストレージを使用してstateを一時的に保存
    */

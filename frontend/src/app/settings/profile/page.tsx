@@ -12,7 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Mail, CheckCircle, XCircle } from "lucide-react";
 import { useAppSelector } from "@/hooks/redux";
-import { authService } from "@/services/auth.service";
+import { useRequestEmailVerification, useResendVerificationEmail } from "@/hooks/queries/useAuth";
 import { toast } from "@/components/ui/use-toast";
 
 const emailSchema = z.object({
@@ -23,8 +23,9 @@ type EmailFormData = z.infer<typeof emailSchema>;
 
 export default function ProfileSettingsPage() {
   const user = useAppSelector((state) => state.auth.user);
-  const [isLoading, setIsLoading] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
+  const requestEmailVerificationMutation = useRequestEmailVerification();
+  const resendVerificationEmailMutation = useResendVerificationEmail();
 
   const {
     register,
@@ -38,7 +39,7 @@ export default function ProfileSettingsPage() {
     },
   });
 
-  const onSubmit = async (data: EmailFormData) => {
+  const onSubmit = (data: EmailFormData) => {
     if (data.email === user?.email && user?.is_email_verified) {
       toast({
         title: "変更なし",
@@ -47,23 +48,14 @@ export default function ProfileSettingsPage() {
       return;
     }
 
-    setIsLoading(true);
-    try {
-      const response = await authService.requestEmailVerification(data.email);
-      setVerificationSent(true);
-      toast({
-        title: "検証メールを送信しました",
-        description: response.message,
-      });
-    } catch (error: any) {
-      toast({
-        title: "エラー",
-        description: error.response?.data?.detail || "メールアドレスの更新に失敗しました",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    requestEmailVerificationMutation.mutate(
+      { email: data.email },
+      {
+        onSuccess: () => {
+          setVerificationSent(true);
+        },
+      }
+    );
   };
 
   if (!user) {
@@ -143,8 +135,8 @@ export default function ProfileSettingsPage() {
               )}
 
               <div className="flex gap-2">
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? (
+                <Button type="submit" disabled={requestEmailVerificationMutation.isPending}>
+                  {requestEmailVerificationMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       送信中...
@@ -157,27 +149,17 @@ export default function ProfileSettingsPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={async () => {
-                      setIsLoading(true);
-                      try {
-                        const response = await authService.resendVerificationEmail();
-                        toast({
-                          title: "検証メールを再送信しました",
-                          description: response.message,
-                        });
-                      } catch (error: any) {
-                        toast({
-                          title: "エラー",
-                          description: error.response?.data?.detail || "メールの送信に失敗しました",
-                          variant: "destructive",
-                        });
-                      } finally {
-                        setIsLoading(false);
-                      }
-                    }}
-                    disabled={isLoading}
+                    onClick={() => resendVerificationEmailMutation.mutate()}
+                    disabled={resendVerificationEmailMutation.isPending}
                   >
-                    検証メールを再送信
+                    {resendVerificationEmailMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        送信中...
+                      </>
+                    ) : (
+                      "検証メールを再送信"
+                    )}
                   </Button>
                 )}
               </div>

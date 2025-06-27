@@ -5,35 +5,21 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Mail, X, Loader2 } from "lucide-react";
 import { useAppSelector } from "@/store/hooks";
-import { authService } from "@/services/auth.service";
-import { toast } from "@/components/ui/use-toast";
+import { useRequestEmailVerification } from "@/hooks/queries/useAuth";
 
 export function EmailVerificationBanner() {
   const user = useAppSelector((state) => state.auth.user);
-  const [isLoading, setIsLoading] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
+  const requestEmailVerificationMutation = useRequestEmailVerification();
 
   // バナーを表示しない条件
   if (!user || user.is_email_verified || !user.email || isDismissed) {
     return null;
   }
 
-  const handleResendVerification = async () => {
-    setIsLoading(true);
-    try {
-      const response = await authService.resendVerificationEmail();
-      toast({
-        title: "検証メールを送信しました",
-        description: response.message,
-      });
-    } catch (error: any) {
-      toast({
-        title: "エラー",
-        description: error.response?.data?.detail || "メールの送信に失敗しました",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+  const handleResendVerification = () => {
+    if (user.email) {
+      requestEmailVerificationMutation.mutate({ email: user.email });
     }
   };
 
@@ -54,10 +40,10 @@ export function EmailVerificationBanner() {
             variant="outline"
             size="sm"
             onClick={handleResendVerification}
-            disabled={isLoading}
+            disabled={requestEmailVerificationMutation.isPending}
             className="ml-4 border-yellow-600 text-yellow-600 hover:bg-yellow-100"
           >
-            {isLoading ? (
+            {requestEmailVerificationMutation.isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 送信中...

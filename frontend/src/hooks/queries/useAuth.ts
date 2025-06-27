@@ -191,6 +191,30 @@ export const useConfirmEmailVerification = () => {
 }
 
 /**
+ * 検証メール再送信のミューテーションフック
+ */
+export const useResendVerificationEmail = () => {
+  const { toast } = useToast()
+
+  return useMutation({
+    mutationFn: authService.resendVerificationEmail,
+    onSuccess: (data) => {
+      toast({
+        title: '検証メールを再送信しました',
+        description: data.message,
+      })
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'エラー',
+        description: error.response?.data?.detail || 'メールの送信に失敗しました。',
+        variant: 'destructive',
+      })
+    },
+  })
+}
+
+/**
  * トークンリフレッシュのミューテーションフック
  * （通常は自動的に処理されるため、手動での使用は稀）
  */
