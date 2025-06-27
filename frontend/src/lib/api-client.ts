@@ -77,15 +77,35 @@ class ApiClient {
 
         // 401エラー（認証エラー）の場合
         if (error.response?.status === 401 && !originalRequest._retry) {
+          // 現在のパスを取得
+          const currentPath = typeof window !== 'undefined' ? window.location.pathname : ''
+          const isRootPage = currentPath === '/'
+          const isAuthPage = currentPath.startsWith('/auth/')
+          
+          console.log('[API Client] 401 error handling:', {
+            url: originalRequest.url,
+            currentPath,
+            isRootPage,
+            isAuthPage
+          })
+          
           // リフレッシュエンドポイント自体の401エラーの場合は、リトライしない
           if (originalRequest.url?.includes('/auth/backlog/refresh')) {
             // ログアウト処理
             store.dispatch(logout())
             
-            // ログインページへリダイレクト
-            if (typeof window !== 'undefined' && window.location.pathname !== '/auth/login') {
+            // ルートページや認証ページ以外の場合のみリダイレクト
+            if (typeof window !== 'undefined' && !isRootPage && !isAuthPage) {
+              console.log('[API Client] Redirecting to login page...')
               window.location.href = '/auth/login'
             }
+            return Promise.reject(error)
+          }
+
+          // /auth/me エンドポイントの401エラーで、ルートページや認証ページからの場合は、
+          // リダイレクトせずにエラーをそのまま返す（未認証状態として扱う）
+          if (originalRequest.url?.includes('/auth/me') && (isRootPage || isAuthPage)) {
+            console.log('[API Client] /auth/me 401 error on root/auth page - no redirect')
             return Promise.reject(error)
           }
 
@@ -116,8 +136,14 @@ class ApiClient {
                 // リフレッシュ失敗時はログアウト
                 store.dispatch(logout())
                 
-                // ログインページへリダイレクト
-                if (typeof window !== 'undefined' && window.location.pathname !== '/auth/login') {
+                // 現在のパスを取得
+                const currentPath = typeof window !== 'undefined' ? window.location.pathname : ''
+                const isRootPage = currentPath === '/'
+                const isAuthPage = currentPath.startsWith('/auth/')
+                
+                // ルートページや認証ページ以外の場合のみリダイレクト
+                if (typeof window !== 'undefined' && !isRootPage && !isAuthPage) {
+                  console.log('[API Client] Refresh failed, redirecting to login page...')
                   window.location.href = '/auth/login'
                 }
                 reject(refreshError)

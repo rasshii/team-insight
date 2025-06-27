@@ -227,13 +227,22 @@ export default function ProjectsPage() {
                       ? "Backlogからプロジェクトを同期してください"
                       : "Backlog連携を設定してください"}
                   </p>
-                  {isAdminOrLeader && connectionStatus?.connected && (
+                  {connectionStatus?.connected ? (
+                    isAdminOrLeader && (
+                      <Button
+                        onClick={handleSyncProjects}
+                        disabled={syncProjectsMutation.isPending}
+                        className="mt-4"
+                      >
+                        プロジェクトを同期
+                      </Button>
+                    )
+                  ) : (
                     <Button
-                      onClick={handleSyncProjects}
-                      disabled={syncProjectsMutation.isPending}
+                      onClick={() => router.push('/settings/backlog')}
                       className="mt-4"
                     >
-                      プロジェクトを同期
+                      Backlog連携を設定
                     </Button>
                   )}
                 </div>

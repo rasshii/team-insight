@@ -10,42 +10,48 @@ export const syncService = {
    * 接続状態を取得
    */
   async getConnectionStatus(): Promise<ConnectionStatus> {
-    return await apiClient.get('/api/v1/sync/connection/status')
+    const response = await apiClient.get('/api/v1/sync/connection/status')
+    return response.data.data
   },
 
   /**
    * ユーザーのタスクを同期
    */
   async syncUserTasks(): Promise<SyncResult> {
-    return await apiClient.post('/api/v1/sync/user/tasks')
+    const response = await apiClient.post('/api/v1/sync/user/tasks')
+    return response.data
   },
 
   /**
    * プロジェクトのタスクを同期
    */
   async syncProjectTasks(projectId: number): Promise<SyncResult> {
-    return await apiClient.post(`/api/v1/sync/project/${projectId}/tasks`)
+    const response = await apiClient.post(`/api/v1/sync/project/${projectId}/tasks`)
+    return response.data
   },
 
   /**
    * 全プロジェクトを同期
    */
   async syncAllProjects(): Promise<SyncResult> {
-    return await apiClient.post('/api/v1/sync/projects/all')
+    const response = await apiClient.post('/api/v1/sync/projects/all')
+    return response.data
   },
 
   /**
    * プロジェクトの同期状態を取得
    */
   async getProjectSyncStatus(projectId: number): Promise<SyncStatus> {
-    return await apiClient.get(`/api/v1/sync/project/${projectId}/status`)
+    const response = await apiClient.get(`/api/v1/sync/project/${projectId}/status`)
+    return response.data
   },
 
   /**
    * 単一の課題を同期
    */
   async syncSingleIssue(issueId: number): Promise<SyncResult> {
-    return await apiClient.post(`/api/v1/sync/issue/${issueId}`)
+    const response = await apiClient.post(`/api/v1/sync/issue/${issueId}`)
+    return response.data
   },
 
   /**
@@ -77,6 +83,7 @@ export const syncService = {
       duration_seconds?: number
     }>
   }> {
-    return await apiClient.get('/api/v1/sync/history', { params })
+    const response = await apiClient.get('/api/v1/sync/history', { params })
+    return response.data
   },
 }

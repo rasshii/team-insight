@@ -11,9 +11,78 @@ from app.models.auth import OAuthToken
 from app.models.sync_history import SyncHistory, SyncType, SyncStatus
 from app.services.sync_service import sync_service
 from app.core.permissions import PermissionChecker, RoleType
+from app.core.response_builder import ResponseBuilder
+from app.core.response_formatter import ResponseFormatter, get_response_formatter
 # from app.core.utils import get_valid_backlog_token  # TODO: implement this dependency
 
 router = APIRouter()
+
+
+@router.get("/connection/status")
+async def get_connection_status(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db_session),
+    formatter: ResponseFormatter = Depends(get_response_formatter)
+) -> Dict[str, Any]:
+    """
+    Backlog接続状態を取得する
+    """
+    # OAuthトークンの存在確認
+    oauth_token = db.query(OAuthToken).filter(
+        OAuthToken.user_id == current_user.id,
+        OAuthToken.provider == "backlog"
+    ).first()
+    
+    if not oauth_token:
+        return formatter(ResponseBuilder.success(
+            data={
+                "connected": False,
+                "message": "Backlogアクセストークンが設定されていません",
+                "status": "no_token",
+                "last_project_sync": None,
+                "last_task_sync": None,
+                "expires_at": None
+            }
+        ))
+    
+    # トークンの有効性確認
+    is_expired = oauth_token.expires_at and oauth_token.expires_at < datetime.utcnow()
+    
+    if is_expired:
+        return formatter(ResponseBuilder.success(
+            data={
+                "connected": False,
+                "message": "Backlogアクセストークンの有効期限が切れています",
+                "status": "expired",
+                "last_project_sync": None,
+                "last_task_sync": None,
+                "expires_at": oauth_token.expires_at.isoformat() if oauth_token.expires_at else None
+            }
+        ))
+    
+    # 最終同期時刻を取得
+    last_project_sync = db.query(SyncHistory).filter(
+        SyncHistory.user_id == current_user.id,
+        SyncHistory.sync_type == SyncType.ALL_PROJECTS,
+        SyncHistory.status == SyncStatus.COMPLETED
+    ).order_by(desc(SyncHistory.completed_at)).first()
+    
+    last_task_sync = db.query(SyncHistory).filter(
+        SyncHistory.user_id == current_user.id,
+        SyncHistory.sync_type.in_([SyncType.USER_TASKS, SyncType.PROJECT_TASKS]),
+        SyncHistory.status == SyncStatus.COMPLETED
+    ).order_by(desc(SyncHistory.completed_at)).first()
+    
+    return formatter(ResponseBuilder.success(
+        data={
+            "connected": True,
+            "message": "Backlogと正常に接続されています",
+            "status": "active",
+            "last_project_sync": last_project_sync.completed_at.isoformat() if last_project_sync else None,
+            "last_task_sync": last_task_sync.completed_at.isoformat() if last_task_sync else None,
+            "expires_at": oauth_token.expires_at.isoformat() if oauth_token.expires_at else None
+        }
+    ))
 
 
 @router.post("/user/tasks")

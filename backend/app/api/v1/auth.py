@@ -5,11 +5,11 @@
 認証URLの生成、コールバック処理、トークンのリフレッシュなどを処理します。
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Response
 from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Dict, Any
 import logging
 from zoneinfo import ZoneInfo
 
@@ -26,8 +26,11 @@ from app.schemas.auth import (
     EmailVerificationResponse,
     UserRoleResponse,
     RoleResponse,
+    SignupRequest,
+    SignupResponse,
+    LoginRequest,
 )
-from app.core.security import get_current_user, get_current_active_user, create_access_token
+from app.core.security import get_current_user, get_current_active_user, create_access_token, get_password_hash, verify_password
 from app.core.exceptions import ExternalAPIException
 from app.models.user import User
 from app.models.rbac import UserRole, Role
@@ -37,9 +40,16 @@ from app.core.exceptions import (
     AuthenticationException,
     TokenExpiredException,
     NotFoundException,
+    AlreadyExistsException,
     handle_database_error
 )
 from app.core.database import transaction
+from app.services.email import email_service
+from app.core.utils import normalize_email, generate_hash
+from app.core.deps import get_response_formatter
+from app.core.response_builder import ResponseBuilder, ResponseFormatter
+from app.core.config import settings
+import secrets
 
 router = APIRouter()
 
@@ -64,6 +74,200 @@ def _cleanup_oauth_state(db: Session, oauth_state: Optional[OAuthState]) -> None
         except Exception as e:
             logger.warning(f"OAuthStateのクリーンアップに失敗しました: {str(e)}")
             db.rollback()
+
+
+@router.post("/signup", response_model=SignupResponse)
+async def signup(
+    signup_data: SignupRequest,
+    db: Session = Depends(get_db),
+    formatter: ResponseFormatter = Depends(get_response_formatter)
+) -> Dict[str, Any]:
+    """
+    メール/パスワードでの新規ユーザー登録
+    
+    Args:
+        signup_data: サインアップ情報
+        db: データベースセッション
+        formatter: レスポンスフォーマッター
+        
+    Returns:
+        サインアップレスポンス
+        
+    Raises:
+        AlreadyExistsException: メールアドレスが既に使用されている場合
+    """
+    # メールアドレスを正規化
+    email = normalize_email(signup_data.email)
+    
+    # 既存ユーザーのチェック
+    existing_user = db.query(User).filter(
+        User.email == email
+    ).first()
+    
+    if existing_user:
+        raise AlreadyExistsException(
+            resource="メールアドレス",
+            detail=f"{email}は既に登録されています"
+        )
+    
+    # パスワードのハッシュ化
+    hashed_password = get_password_hash(signup_data.password)
+    
+    # メール確認トークンの生成
+    verification_token = secrets.token_urlsafe(32)
+    verification_expires = datetime.now(timezone.utc) + timedelta(hours=24)
+    
+    # 新規ユーザーの作成
+    new_user = User(
+        email=email,
+        name=signup_data.name,
+        hashed_password=hashed_password,
+        is_active=True,
+        is_email_verified=False,
+        email_verification_token=verification_token,
+        email_verification_token_expires=verification_expires,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc)
+    )
+    
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    # デフォルトロール（MEMBER）の割り当て
+    member_role = db.query(Role).filter(Role.name == "MEMBER").first()
+    if member_role:
+        user_role = UserRole(
+            user_id=new_user.id,
+            role_id=member_role.id,
+            created_at=datetime.now(timezone.utc)
+        )
+        db.add(user_role)
+        db.commit()
+    
+    # メール確認メールの送信
+    try:
+        await email_service.send_verification_email(
+            email=new_user.email,
+            name=new_user.name,
+            token=verification_token
+        )
+    except Exception as e:
+        logger.error(f"メール送信エラー: {str(e)}")
+        # メール送信に失敗してもユーザー登録は成功とする
+    
+    # ユーザー情報の構築
+    user_info = UserInfoResponse(
+        id=new_user.id,
+        email=new_user.email,
+        name=new_user.name,
+        is_email_verified=new_user.is_email_verified,
+        is_active=new_user.is_active,
+        created_at=new_user.created_at,
+        updated_at=new_user.updated_at,
+        user_roles=[],
+        backlog_id=None,
+        user_id=None
+    )
+    
+    return formatter.created(
+        data={
+            "user": user_info.model_dump(),
+            "requires_verification": True
+        },
+        message="アカウントが作成されました。メールアドレスの確認をお願いします。"
+    )
+
+
+@router.post("/login")
+async def login(
+    login_data: LoginRequest,
+    response: Response,
+    db: Session = Depends(get_db),
+    formatter: ResponseFormatter = Depends(get_response_formatter)
+) -> Dict[str, Any]:
+    """
+    メール/パスワードでのログイン
+    
+    Args:
+        login_data: ログイン情報
+        response: FastAPIレスポンスオブジェクト
+        db: データベースセッション
+        formatter: レスポンスフォーマッター
+        
+    Returns:
+        ログイン成功レスポンス
+        
+    Raises:
+        AuthenticationException: 認証に失敗した場合
+    """
+    # メールアドレスを正規化
+    email = normalize_email(login_data.email)
+    
+    # ユーザーの取得（ロール情報も含む）
+    user = QueryBuilder.with_user_roles(
+        db.query(User).filter(User.email == email)
+    ).first()
+    
+    if not user or not user.hashed_password:
+        raise AuthenticationException(
+            detail="メールアドレスまたはパスワードが正しくありません"
+        )
+    
+    # パスワードの検証
+    if not verify_password(login_data.password, user.hashed_password):
+        raise AuthenticationException(
+            detail="メールアドレスまたはパスワードが正しくありません"
+        )
+    
+    # アクティブユーザーかチェック
+    if not user.is_active:
+        raise AuthenticationException(
+            detail="アカウントが無効化されています"
+        )
+    
+    # JWTトークンの生成
+    access_token = create_access_token(
+        data={"sub": str(user.id)},
+        expires_delta=timedelta(minutes=AuthConstants.TOKEN_MAX_AGE // 60)
+    )
+    
+    # UserRoleResponseのリストを作成
+    user_roles = build_user_role_responses(user.user_roles)
+    
+    # ユーザー情報の構築
+    user_info = UserInfoResponse(
+        id=user.id,
+        backlog_id=user.backlog_id,
+        email=user.email,
+        name=user.name,
+        user_id=user.user_id,
+        is_email_verified=user.is_email_verified,
+        is_active=user.is_active,
+        created_at=user.created_at,
+        updated_at=user.updated_at,
+        user_roles=user_roles
+    )
+    
+    # Cookieの設定
+    response.set_cookie(
+        key=AuthConstants.COOKIE_NAME,
+        value=access_token,
+        max_age=AuthConstants.TOKEN_MAX_AGE,
+        path=AuthConstants.COOKIE_PATH,
+        httponly=True,
+        samesite=AuthConstants.COOKIE_SAMESITE,
+        secure=False  # HTTPSの場合はTrue
+    )
+    
+    return formatter.success(
+        data={
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": user_info.model_dump()
+        },
+        message="ログインに成功しました"
+    )
 
 
 @router.get("/backlog/authorize", response_model=AuthorizationResponse)
@@ -656,4 +860,29 @@ async def resend_verification_email(
         EmailVerificationRequest(email=current_user.email),
         current_user,
         db
+    )
+
+
+@router.post("/logout")
+async def logout(
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    formatter: ResponseFormatter = Depends(get_response_formatter)
+) -> Dict[str, Any]:
+    """
+    ログアウト処理
+    
+    HttpOnlyクッキーからアクセストークンを削除します。
+    """
+    # クッキーを削除
+    response.delete_cookie(
+        key=AuthConstants.COOKIE_NAME,  # "auth_token"を使用
+        path=AuthConstants.COOKIE_PATH,
+        httponly=True,
+        secure=not settings.DEBUG,  # 本番環境ではsecureを有効化
+        samesite=AuthConstants.COOKIE_SAMESITE
+    )
+    
+    return formatter.success(
+        message="ログアウトしました"
     )

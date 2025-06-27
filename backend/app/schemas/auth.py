@@ -5,7 +5,7 @@
 リクエスト/レスポンスのスキーマを定義します。
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr, validator
 from typing import Optional, List
 from datetime import datetime
 
@@ -190,5 +190,77 @@ class EmailVerificationResponse(BaseModel):
             "example": {
                 "message": "検証メールを送信しました",
                 "email": "user@example.com"
+            }
+        }
+
+
+class SignupRequest(BaseModel):
+    """
+    サインアップリクエストスキーマ
+    """
+    email: EmailStr = Field(..., description="メールアドレス")
+    password: str = Field(..., min_length=8, description="パスワード（8文字以上）")
+    name: str = Field(..., min_length=1, max_length=100, description="表示名")
+    
+    @validator('password')
+    def validate_password(cls, v):
+        """パスワードの強度検証"""
+        if len(v) < 8:
+            raise ValueError('パスワードは8文字以上必要です')
+        if not any(c.isupper() for c in v):
+            raise ValueError('パスワードには大文字を含める必要があります')
+        if not any(c.islower() for c in v):
+            raise ValueError('パスワードには小文字を含める必要があります')
+        if not any(c.isdigit() for c in v):
+            raise ValueError('パスワードには数字を含める必要があります')
+        if not any(c in '!@#$%^&*()_+-=[]{}|;:,.<>?' for c in v):
+            raise ValueError('パスワードには特殊文字を含める必要があります')
+        return v
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "email": "user@example.com",
+                "password": "SecurePass123!",
+                "name": "山田太郎"
+            }
+        }
+
+
+class LoginRequest(BaseModel):
+    """
+    ログインリクエストスキーマ
+    """
+    email: EmailStr = Field(..., description="メールアドレス")
+    password: str = Field(..., description="パスワード")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "email": "user@example.com",
+                "password": "SecurePass123!"
+            }
+        }
+
+
+class SignupResponse(BaseModel):
+    """
+    サインアップレスポンススキーマ
+    """
+    message: str = Field(..., description="処理結果メッセージ")
+    user: UserInfoResponse = Field(..., description="作成されたユーザー情報")
+    requires_verification: bool = Field(default=True, description="メール確認が必要かどうか")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "message": "アカウントが作成されました。メールアドレスの確認をお願いします。",
+                "user": {
+                    "id": 1,
+                    "email": "user@example.com",
+                    "name": "山田太郎",
+                    "is_email_verified": False
+                },
+                "requires_verification": True
             }
         }

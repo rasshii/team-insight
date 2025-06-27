@@ -37,9 +37,19 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
     const isRootPage = pathname === "/";
     const isAuthenticated = !!user;
     
+    console.log('[AuthInitializer] Redirect check:', {
+      pathname,
+      isLoading,
+      isAuthenticated,
+      isAuthPage,
+      isRootPage
+    });
+    
     if (!isAuthenticated && !isAuthPage && !isRootPage) {
+      console.log('[AuthInitializer] Redirecting to login...');
       router.replace("/auth/login");
     } else if (isAuthenticated && isRootPage) {
+      console.log('[AuthInitializer] Redirecting to dashboard...');
       router.replace("/dashboard/personal");
     }
   }, [isLoading, user, pathname, router]);
@@ -75,10 +85,14 @@ function useCurrentUser() {
     queryKey: queryKeys.auth.me,
     queryFn: async () => {
       try {
+        console.log('[AuthInitializer] Fetching current user...');
         const user = await authService.getCurrentUser();
+        console.log('[AuthInitializer] User fetched successfully:', user);
         dispatch(setUser(user));
         return user;
       } catch (error) {
+        console.error('[AuthInitializer] Error fetching user:', error);
+        // 401エラーの場合は正常な未認証状態として扱う
         dispatch(initializeAuth());
         return null;
       }

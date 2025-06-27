@@ -43,12 +43,13 @@ export const useLogout = () => {
       // Reduxストアをクリア
       dispatch(logoutAction())
       
-      // ログインページへリダイレクト
-      router.push('/auth/login')
-      
       toast({
         title: 'ログアウトしました',
       })
+      
+      // ページをリロードしてクッキーとキャッシュを完全にクリア
+      // window.location.hrefを使うことで、React Routerを経由せずに完全なリロードを実行
+      window.location.href = '/'
     },
     onError: (error: any) => {
       toast({

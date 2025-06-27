@@ -61,6 +61,23 @@ export interface EmailVerificationResponse {
   user?: UserInfoResponse
 }
 
+export interface SignupRequest {
+  email: string
+  password: string
+  name: string
+}
+
+export interface LoginRequest {
+  email: string
+  password: string
+}
+
+export interface SignupResponse {
+  message: string
+  user: UserInfoResponse
+  requires_verification: boolean
+}
+
 /**
  * 認証関連のAPIサービス
  * 
@@ -69,6 +86,20 @@ export interface EmailVerificationResponse {
  * フロントエンドでのトークン管理は不要
  */
 export const authService = {
+  /**
+   * メール/パスワードでサインアップ
+   */
+  async signup(data: SignupRequest): Promise<SignupResponse> {
+    return await apiClient.post('/api/v1/auth/signup', data)
+  },
+
+  /**
+   * メール/パスワードでログイン
+   */
+  async login(data: LoginRequest): Promise<TokenResponse> {
+    return await apiClient.post('/api/v1/auth/login', data)
+  },
+
   /**
    * 認証URLを取得
    */
@@ -87,7 +118,7 @@ export const authService = {
    * ログアウト
    */
   async logout(): Promise<void> {
-    return await apiClient.post('/api/v1/auth/logout')
+    await apiClient.post('/api/v1/auth/logout')
   },
 
   /**
@@ -108,14 +139,14 @@ export const authService = {
    * メール認証リクエスト
    */
   async requestEmailVerification(data: EmailVerificationRequest): Promise<EmailVerificationResponse> {
-    return await apiClient.post('/api/v1/auth/verify-email', data)
+    return await apiClient.post('/api/v1/auth/email/verify', data)
   },
 
   /**
    * メール認証確認
    */
   async confirmEmailVerification(data: EmailVerificationConfirmRequest): Promise<EmailVerificationResponse> {
-    return await apiClient.post('/api/v1/auth/verify-email/confirm', data)
+    return await apiClient.post('/api/v1/auth/email/verify/confirm', data)
   },
 
   /**

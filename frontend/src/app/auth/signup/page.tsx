@@ -1,17 +1,18 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { Loader2, Eye, EyeOff, LogIn } from 'lucide-react'
+import { Loader2, Eye, EyeOff } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -23,60 +24,66 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
 import { authService } from '@/services/auth.service'
 import { useToast } from '@/hooks/use-toast'
-import { useAppDispatch } from '@/store/hooks'
-import { setUser } from '@/store/slices/authSlice'
 
 // バリデーションスキーマ
-const loginSchema = z.object({
+const signupSchema = z.object({
   email: z.string().email('有効なメールアドレスを入力してください'),
-  password: z.string().min(1, 'パスワードを入力してください'),
+  password: z
+    .string()
+    .min(8, 'パスワードは8文字以上必要です')
+    .regex(/[A-Z]/, 'パスワードには大文字を含める必要があります')
+    .regex(/[a-z]/, 'パスワードには小文字を含める必要があります')
+    .regex(/[0-9]/, 'パスワードには数字を含める必要があります')
+    .regex(/[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/, 'パスワードには特殊文字を含める必要があります'),
+  confirmPassword: z.string(),
+  name: z.string().min(1, '名前を入力してください').max(100, '名前は100文字以内で入力してください'),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'パスワードが一致しません',
+  path: ['confirmPassword'],
 })
 
-type LoginFormData = z.infer<typeof loginSchema>
+type SignupFormData = z.infer<typeof signupSchema>
 
-export function LoginContent() {
+export default function SignupPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const dispatch = useAppDispatch()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
-  const [isBacklogLoading, setIsBacklogLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
-  const from = searchParams?.get('from') || '/dashboard/personal'
-  const error = searchParams?.get('error')
-
-  const form = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
+  const form = useForm<SignupFormData>({
+    resolver: zodResolver(signupSchema),
     defaultValues: {
       email: '',
       password: '',
+      confirmPassword: '',
+      name: '',
     },
   })
 
-  // メール/パスワードでのログイン
-  const onSubmit = async (data: LoginFormData) => {
+  const onSubmit = async (data: SignupFormData) => {
     setIsLoading(true)
     try {
-      const response = await authService.login(data)
-      
-      // ユーザー情報をストアに保存
-      dispatch(setUser(response.user))
-      
-      toast({
-        title: 'ログインしました',
-        description: 'ダッシュボードへ移動します',
+      const response = await authService.signup({
+        email: data.email,
+        password: data.password,
+        name: data.name,
       })
 
-      // 元のページへリダイレクト
-      router.push(from)
+      toast({
+        title: 'アカウントを作成しました',
+        description: response.message,
+      })
+
+      // メール確認ページへリダイレクト
+      router.push(`/auth/verify-email?email=${encodeURIComponent(data.email)}`)
     } catch (error: any) {
-      console.error('Login error:', error)
+      console.error('Signup error:', error)
       
       // エラーメッセージの表示
       const errorMessage = error.response?.data?.error?.message || 
                           error.response?.data?.detail || 
-                          'ログインに失敗しました'
+                          'アカウントの作成に失敗しました'
       
       toast({
         title: 'エラー',
@@ -89,8 +96,7 @@ export function LoginContent() {
   }
 
   // Backlog OAuth認証の開始
-  const handleBacklogLogin = async () => {
-    setIsBacklogLoading(true)
+  const handleBacklogSignup = async () => {
     try {
       const { authorization_url, state } = await authService.getAuthorizationUrl()
       authService.saveOAuthState(state)
@@ -102,7 +108,6 @@ export function LoginContent() {
         description: 'Backlog認証の開始に失敗しました',
         variant: 'destructive',
       })
-      setIsBacklogLoading(false)
     }
   }
 
@@ -116,10 +121,10 @@ export function LoginContent() {
         <div className="relative z-20 mt-auto">
           <blockquote className="space-y-2">
             <p className="text-lg">
-              チームの生産性を可視化し、ボトルネックを特定。
-              データに基づいた改善でプロジェクトを成功へ導きます。
+              Team Insightで、チームの生産性を可視化し、
+              データドリブンな意思決定を実現しましょう。
             </p>
-            <footer className="text-sm">継続的な改善のパートナー</footer>
+            <footer className="text-sm">チーム全体のパフォーマンス向上へ</footer>
           </blockquote>
         </div>
       </div>
@@ -127,54 +132,35 @@ export function LoginContent() {
         <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[450px]">
           <Card>
             <CardHeader className="space-y-1">
-              <CardTitle className="text-2xl font-bold text-center">ログイン</CardTitle>
+              <CardTitle className="text-2xl font-bold text-center">アカウント作成</CardTitle>
               <CardDescription className="text-center">
-                Team Insightにログインしてダッシュボードにアクセス
+                Team Insightを始めるためのアカウントを作成します
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>
-                    {error === 'auth_failed'
-                      ? '認証に失敗しました。もう一度お試しください。'
-                      : 'エラーが発生しました。'}
-                  </AlertDescription>
-                </Alert>
-              )}
-
               <div className="grid gap-2">
                 <Button
                   variant="outline"
-                  onClick={handleBacklogLogin}
-                  disabled={isLoading || isBacklogLoading}
+                  onClick={handleBacklogSignup}
+                  disabled={isLoading}
                   className="w-full"
                 >
-                  {isBacklogLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      接続中...
-                    </>
-                  ) : (
-                    <>
-                      <svg
-                        className="mr-2 h-4 w-4"
-                        aria-hidden="true"
-                        focusable="false"
-                        data-prefix="fab"
-                        data-icon="backlog"
-                        role="img"
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          fill="currentColor"
-                          d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"
-                        />
-                      </svg>
-                      Backlogアカウントでログイン
-                    </>
-                  )}
+                  <svg
+                    className="mr-2 h-4 w-4"
+                    aria-hidden="true"
+                    focusable="false"
+                    data-prefix="fab"
+                    data-icon="backlog"
+                    role="img"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      fill="currentColor"
+                      d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"
+                    />
+                  </svg>
+                  Backlogアカウントで登録
                 </Button>
               </div>
 
@@ -191,6 +177,24 @@ export function LoginContent() {
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   <FormField
                     control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>名前</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="山田太郎"
+                            disabled={isLoading}
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
                     name="email"
                     render={({ field }) => (
                       <FormItem>
@@ -199,7 +203,7 @@ export function LoginContent() {
                           <Input
                             type="email"
                             placeholder="name@example.com"
-                            disabled={isLoading || isBacklogLoading}
+                            disabled={isLoading}
                             {...field}
                           />
                         </FormControl>
@@ -213,21 +217,13 @@ export function LoginContent() {
                     name="password"
                     render={({ field }) => (
                       <FormItem>
-                        <div className="flex items-center justify-between">
-                          <FormLabel>パスワード</FormLabel>
-                          <Link 
-                            href="/auth/forgot-password" 
-                            className="text-sm text-primary hover:underline"
-                          >
-                            パスワードを忘れた方
-                          </Link>
-                        </div>
+                        <FormLabel>パスワード</FormLabel>
                         <FormControl>
                           <div className="relative">
                             <Input
                               type={showPassword ? 'text' : 'password'}
                               placeholder="••••••••"
-                              disabled={isLoading || isBacklogLoading}
+                              disabled={isLoading}
                               {...field}
                             />
                             <Button
@@ -245,40 +241,70 @@ export function LoginContent() {
                             </Button>
                           </div>
                         </FormControl>
+                        <FormDescription className="text-xs">
+                          8文字以上で、大文字・小文字・数字・特殊文字を含む
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
-                    disabled={isLoading || isBacklogLoading}
-                  >
+                  <FormField
+                    control={form.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>パスワード（確認）</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Input
+                              type={showConfirmPassword ? 'text' : 'password'}
+                              placeholder="••••••••"
+                              disabled={isLoading}
+                              {...field}
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            >
+                              {showConfirmPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ログイン中...
+                        アカウントを作成中...
                       </>
                     ) : (
-                      <>
-                        <LogIn className="mr-2 h-4 w-4" />
-                        ログイン
-                      </>
+                      'アカウントを作成'
                     )}
                   </Button>
                 </form>
               </Form>
 
               <div className="text-center text-sm text-muted-foreground">
-                ログインすることで、利用規約とプライバシーポリシーに同意したものとみなされます
+                利用規約とプライバシーポリシーに同意の上、アカウントを作成してください
               </div>
             </CardContent>
             <CardFooter>
               <div className="text-center text-sm w-full">
-                アカウントをお持ちでない方は{' '}
-                <Link href="/auth/signup" className="text-primary hover:underline">
-                  新規登録
+                すでにアカウントをお持ちですか？{' '}
+                <Link href="/auth/login" className="text-primary hover:underline">
+                  ログイン
                 </Link>
               </div>
             </CardFooter>

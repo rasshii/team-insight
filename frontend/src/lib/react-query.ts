@@ -85,6 +85,12 @@ export const queryKeys = {
     detail: (id: string | number) => ['users', 'detail', id] as const,
     roles: (id: string | number) => ['users', id, 'roles'] as const,
   },
+  
+  // Backlog連携
+  backlog: {
+    all: ['backlog'] as const,
+    connection: ['backlog', 'connection'] as const,
+  },
 } as const
 
 /**
