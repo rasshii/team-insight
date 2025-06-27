@@ -1,7 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/react-query'
 import { projectService, type Project, type ProjectCreateRequest, type ProjectUpdateRequest } from '@/services/project.service'
-import { useToast } from '@/hooks/use-toast'
+import { useApiMutation, useDeleteMutation } from '@/hooks/useApiMutation'
 
 /**
  * プロジェクト一覧を取得するフック
@@ -45,63 +45,37 @@ export const useProjectMembers = (projectId: string | number | null) => {
  * プロジェクトを作成するミューテーションフック
  */
 export const useCreateProject = () => {
-  const queryClient = useQueryClient()
-  const { toast } = useToast()
-
-  return useMutation({
-    mutationFn: (data: ProjectCreateRequest) => projectService.createProject(data),
-    onSuccess: (newProject) => {
-      // プロジェクトリストのキャッシュを無効化
-      queryClient.invalidateQueries({ queryKey: queryKeys.projects.all })
-      
-      toast({
-        title: 'プロジェクトを作成しました',
-        description: `${newProject.name}が正常に作成されました。`,
-      })
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'エラー',
-        description: error.response?.data?.detail || 'プロジェクトの作成に失敗しました。',
-        variant: 'destructive',
-      })
-    },
-  })
+  return useApiMutation(
+    (data: ProjectCreateRequest) => projectService.createProject(data),
+    {
+      successMessage: (project) => 'プロジェクトを作成しました',
+      successDescription: (project) => `${project.name}が正常に作成されました。`,
+      errorMessage: 'プロジェクトの作成に失敗しました。',
+      invalidateQueries: [queryKeys.projects.all],
+    }
+  )
 }
 
 /**
  * プロジェクトを更新するミューテーションフック
  */
 export const useUpdateProject = () => {
-  const queryClient = useQueryClient()
-  const { toast } = useToast()
-
-  return useMutation({
-    mutationFn: ({ projectId, data }: { projectId: string | number; data: ProjectUpdateRequest }) => 
+  return useApiMutation(
+    ({ projectId, data }: { projectId: string | number; data: ProjectUpdateRequest }) => 
       projectService.updateProject(projectId, data),
-    onSuccess: (updatedProject) => {
-      // 特定のプロジェクトのキャッシュを更新
-      queryClient.setQueryData(
-        queryKeys.projects.detail(updatedProject.id),
-        updatedProject
-      )
-      
-      // プロジェクトリストのキャッシュを無効化
-      queryClient.invalidateQueries({ queryKey: queryKeys.projects.all })
-      
-      toast({
-        title: 'プロジェクトを更新しました',
-        description: `${updatedProject.name}が正常に更新されました。`,
-      })
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'エラー',
-        description: error.response?.data?.detail || 'プロジェクトの更新に失敗しました。',
-        variant: 'destructive',
-      })
-    },
-  })
+    {
+      successMessage: (project) => 'プロジェクトを更新しました',
+      successDescription: (project) => `${project.name}が正常に更新されました。`,
+      errorMessage: 'プロジェクトの更新に失敗しました。',
+      invalidateQueries: [queryKeys.projects.all],
+      setQueryData: [
+        {
+          queryKey: (project: Project) => queryKeys.projects.detail(project.id),
+          updater: (project) => project,
+        },
+      ],
+    }
+  )
 }
 
 /**
@@ -109,30 +83,18 @@ export const useUpdateProject = () => {
  */
 export const useDeleteProject = () => {
   const queryClient = useQueryClient()
-  const { toast } = useToast()
-
-  return useMutation({
-    mutationFn: (projectId: string | number) => projectService.deleteProject(projectId),
-    onSuccess: (_, deletedProjectId) => {
-      // プロジェクトのキャッシュを削除
-      queryClient.removeQueries({ queryKey: queryKeys.projects.detail(deletedProjectId) })
-      
-      // プロジェクトリストのキャッシュを無効化
-      queryClient.invalidateQueries({ queryKey: queryKeys.projects.all })
-      
-      toast({
-        title: 'プロジェクトを削除しました',
-        description: 'プロジェクトが正常に削除されました。',
-      })
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'エラー',
-        description: error.response?.data?.detail || 'プロジェクトの削除に失敗しました。',
-        variant: 'destructive',
-      })
-    },
-  })
+  
+  return useDeleteMutation(
+    (projectId: string | number) => projectService.deleteProject(projectId),
+    {
+      resourceName: 'プロジェクト',
+      invalidateQueries: [queryKeys.projects.all],
+      onSuccessCallback: (_, projectId) => {
+        // キャッシュから削除
+        queryClient.removeQueries({ queryKey: queryKeys.projects.detail(projectId) })
+      },
+    }
+  )
 }
 
 /**
@@ -140,53 +102,32 @@ export const useDeleteProject = () => {
  */
 export const useSyncProjectTasks = () => {
   const queryClient = useQueryClient()
-  const { toast } = useToast()
-
-  return useMutation({
-    mutationFn: (projectId: string | number) => projectService.syncProjectTasks(projectId),
-    onSuccess: (result, projectId) => {
-      // タスク関連のキャッシュを無効化
-      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.byProject(projectId) })
-      
-      toast({
-        title: '同期が完了しました',
-        description: `新規: ${result.created}件、更新: ${result.updated}件、合計: ${result.total}件`,
-      })
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'エラー',
-        description: error.response?.data?.detail || 'タスクの同期に失敗しました。',
-        variant: 'destructive',
-      })
-    },
-  })
+  
+  return useApiMutation(
+    (projectId: string | number) => projectService.syncProjectTasks(projectId),
+    {
+      successMessage: '同期が完了しました',
+      successDescription: (result) => `新規: ${result.created}件、更新: ${result.updated}件、合計: ${result.total}件`,
+      errorMessage: 'タスクの同期に失敗しました。',
+      onSuccessCallback: (_, projectId) => {
+        // タスク関連のキャッシュを無効化
+        queryClient.invalidateQueries({ queryKey: queryKeys.tasks.byProject(projectId) })
+      },
+    }
+  )
 }
 
 /**
  * すべてのプロジェクトを同期するミューテーションフック
  */
 export const useSyncAllProjects = () => {
-  const queryClient = useQueryClient()
-  const { toast } = useToast()
-
-  return useMutation({
-    mutationFn: () => projectService.syncAllProjects(),
-    onSuccess: (result) => {
-      // プロジェクト関連のすべてのキャッシュを無効化
-      queryClient.invalidateQueries({ queryKey: queryKeys.projects.all })
-      
-      toast({
-        title: '同期が完了しました',
-        description: `新規: ${result.created}件、更新: ${result.updated}件、合計: ${result.total}件`,
-      })
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'エラー',
-        description: error.response?.data?.detail || 'プロジェクトの同期に失敗しました。',
-        variant: 'destructive',
-      })
-    },
-  })
+  return useApiMutation(
+    () => projectService.syncAllProjects(),
+    {
+      successMessage: '同期が完了しました',
+      successDescription: (result) => `新規: ${result.created}件、更新: ${result.updated}件、合計: ${result.total}件`,
+      errorMessage: 'プロジェクトの同期に失敗しました。',
+      invalidateQueries: [queryKeys.projects.all],
+    }
+  )
 }

@@ -17,6 +17,8 @@ from app.core.cache import CacheMiddleware
 from app.core.redis_client import redis_client
 from app.db.session import get_db
 from app.schemas.health import HealthResponse, ServiceStatus
+from app.core.error_handler import register_error_handlers
+from app.core.request_id_middleware import RequestIDMiddleware
 
 # ログ設定
 logging.basicConfig(
@@ -63,7 +65,8 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
-    lifespan=lifespan
+    lifespan=lifespan,
+    debug=settings.DEBUG
 )
 
 # CORS設定
@@ -87,6 +90,9 @@ app.add_middleware(
     allow_headers=["*"],  # すべてのヘッダーを許可
 )
 
+# リクエストIDミドルウェアの設定
+app.add_middleware(RequestIDMiddleware)
+
 # キャッシュミドルウェアの設定
 # 認証関連のパスは除外し、APIエンドポイントのみキャッシュ対象とする
 app.add_middleware(
@@ -106,6 +112,9 @@ app.add_middleware(
         "/openapi.json"
     ]
 )
+
+# エラーハンドラーの登録
+register_error_handlers(app)
 
 # APIルーターの登録
 app.include_router(api_router, prefix=settings.API_V1_STR)

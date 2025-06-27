@@ -64,6 +64,7 @@ class ErrorCode(str, Enum):
     # システムエラー
     SYSTEM_ERROR = "SYS_001"
     DATABASE_ERROR = "SYS_002"
+    INTERNAL_ERROR = "SYS_003"
 
 
 class ErrorMessages:

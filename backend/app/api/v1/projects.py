@@ -7,7 +7,7 @@
 
 import logging
 from typing import List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session, joinedload
 from app.api import deps
 from datetime import timedelta
@@ -16,17 +16,21 @@ from app.schemas.project import Project as ProjectSchema, ProjectUpdate
 from app.db.session import get_db
 from app.core.cache import cache_response, cache_invalidate
 from app.models.user import User
+from app.core.deps import get_response_formatter
+from app.core.response_builder import ResponseFormatter
+from app.core.exceptions import NotFoundException, ExternalAPIException
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
-@router.get("/", response_model=List[ProjectSchema])
+@router.get("/")
 def get_projects(
     db: Session = Depends(deps.get_db_session), 
-    current_user: User = Depends(deps.get_current_active_user)
-) -> List[Project]:
+    current_user: User = Depends(deps.get_current_active_user),
+    formatter: ResponseFormatter = Depends(get_response_formatter)
+) -> Dict[str, Any]:
     """
     現在のユーザーが参加しているプロジェクト一覧を取得
     
@@ -39,14 +43,26 @@ def get_projects(
     """
     # ユーザーが参加しているプロジェクトを取得（リレーションシップを含む）
     user_with_projects = db.query(User).options(joinedload(User.projects)).filter(User.id == current_user.id).first()
-    return user_with_projects.projects if user_with_projects else []
+    projects = user_with_projects.projects if user_with_projects else []
+    
+    # Pydanticスキーマに変換
+    projects_data = [ProjectSchema.model_validate(p).model_dump() for p in projects]
+    
+    if not projects_data:
+        return formatter.no_content("プロジェクトが見つかりませんでした")
+    
+    return formatter.success(
+        data={"projects": projects_data},
+        message=f"{len(projects_data)}件のプロジェクトを取得しました"
+    )
 
 
-@router.get("/{project_id}", response_model=ProjectSchema)
+@router.get("/{project_id}")
 def get_project_detail(
     project: Project = Depends(deps.get_current_project),
-    current_user: User = Depends(deps.get_current_active_user)
-) -> Project:
+    current_user: User = Depends(deps.get_current_active_user),
+    formatter: ResponseFormatter = Depends(get_response_formatter)
+) -> Dict[str, Any]:
     """
     プロジェクト詳細を取得します
 
@@ -62,13 +78,21 @@ def get_project_detail(
     logger.info(
         f"プロジェクト詳細取得: プロジェクトID {project.id}, ユーザー {current_user.email}"
     )
-    return project
+    
+    # Pydanticスキーマに変換
+    project_data = ProjectSchema.model_validate(project).model_dump()
+    
+    return formatter.success(
+        data=project_data,
+        message="プロジェクト詳細を取得しました"
+    )
 
 
 @router.get("/{project_id}/metrics")
 def get_project_metrics(
     project: Project = Depends(deps.get_current_project),
     current_user: User = Depends(deps.get_current_active_user),
+    formatter: ResponseFormatter = Depends(get_response_formatter),
     period: str = "month"  # week, month, quarter
 ) -> Dict[str, Any]:
     """
@@ -120,28 +144,32 @@ def get_project_metrics(
             },
         }
 
-        return {
-            "message": "プロジェクトメトリクスを取得しました",
-            "project_id": project.id,
-            "period": period,
-            "data": metrics_data,
-            "cached": False,
-        }
+        return formatter.success(
+            data={
+                "project_id": project.id,
+                "period": period,
+                "metrics": metrics_data,
+                "cached": False,
+            },
+            message="プロジェクトメトリクスを取得しました"
+        )
 
     except Exception as e:
         logger.error(f"プロジェクトメトリクス取得エラー: {e}")
-        raise HTTPException(
-            status_code=500, detail="プロジェクトメトリクスの取得に失敗しました"
+        raise ExternalAPIException(
+            service="メトリクスサービス",
+            detail="プロジェクトメトリクスの取得に失敗しました"
         )
 
 
-@router.put("/{project_id}", response_model=ProjectSchema)
+@router.put("/{project_id}")
 def update_project(
     update_data: ProjectUpdate,
     project: Project = Depends(deps.get_current_project_as_leader),
     current_user: User = Depends(deps.get_current_active_user),
-    db: Session = Depends(deps.get_db_session)
-) -> Project:
+    db: Session = Depends(deps.get_db_session),
+    formatter: ResponseFormatter = Depends(get_response_formatter)
+) -> Dict[str, Any]:
     """
     プロジェクト情報を更新します
 
@@ -167,15 +195,23 @@ def update_project(
     
     db.commit()
     db.refresh(project)
-    return project
+    
+    # Pydanticスキーマに変換
+    project_data = ProjectSchema.model_validate(project).model_dump()
+    
+    return formatter.updated(
+        data=project_data,
+        message="プロジェクト情報を更新しました"
+    )
 
 
 @router.delete("/{project_id}")
 def delete_project(
     project: Project = Depends(deps.get_current_project_as_admin),
     current_user: User = Depends(deps.get_current_active_user),
-    db: Session = Depends(deps.get_db_session)
-) -> Dict[str, str]:
+    db: Session = Depends(deps.get_db_session),
+    formatter: ResponseFormatter = Depends(get_response_formatter)
+) -> Dict[str, Any]:
     """
     プロジェクトを削除します
 
@@ -193,7 +229,10 @@ def delete_project(
         f"プロジェクト削除: プロジェクトID {project.id}, ユーザー {current_user.email}"
     )
     
+    project_id = project.id
     db.delete(project)
     db.commit()
     
-    return {"message": f"プロジェクト（ID: {project.id}）を削除しました"}
+    return formatter.deleted(
+        message=f"プロジェクト（ID: {project_id}）を削除しました"
+    )

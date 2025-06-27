@@ -11,7 +11,7 @@ from app.models.auth import OAuthToken
 from app.models.sync_history import SyncHistory, SyncType, SyncStatus
 from app.services.sync_service import sync_service
 from app.core.permissions import PermissionChecker, RoleType
-from app.core.utils import get_valid_backlog_token
+# from app.core.utils import get_valid_backlog_token  # TODO: implement this dependency
 
 router = APIRouter()
 
@@ -21,7 +21,7 @@ async def sync_user_tasks(
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db_session),
-    token: OAuthToken = Depends(get_valid_backlog_token)
+    # token: OAuthToken = Depends(get_valid_backlog_token)  # TODO: implement this dependency
 ) -> Dict[str, Any]:
     """
     現在のユーザーのタスクを同期
@@ -50,7 +50,7 @@ async def sync_project_tasks(
     project: Project = Depends(get_current_project),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db_session),
-    token: OAuthToken = Depends(get_valid_backlog_token)
+    # token: OAuthToken = Depends(get_valid_backlog_token)  # TODO: implement this dependency
 ) -> Dict[str, Any]:
     """
     指定されたプロジェクトのタスクを同期
@@ -98,7 +98,7 @@ async def sync_all_projects(
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db_session),
-    token: OAuthToken = Depends(get_valid_backlog_token)
+    # token: OAuthToken = Depends(get_valid_backlog_token)  # TODO: implement this dependency
 ) -> Dict[str, Any]:
     """
     Backlogから全プロジェクトを同期
@@ -133,7 +133,7 @@ async def sync_single_issue(
     issue_id: int,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db_session),
-    token: OAuthToken = Depends(get_valid_backlog_token)
+    # token: OAuthToken = Depends(get_valid_backlog_token)  # TODO: implement this dependency
 ) -> Dict[str, Any]:
     """
     単一の課題を同期
