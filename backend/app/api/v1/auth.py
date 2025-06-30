@@ -13,12 +13,13 @@ from typing import Optional, Dict, Any
 import logging
 from zoneinfo import ZoneInfo
 
-from app.db.session import get_db
+from app.api.deps import get_db_session
 from app.services.backlog_oauth import backlog_oauth_service
 from app.models.auth import OAuthState, OAuthToken
 from app.schemas.auth import (
     AuthorizationResponse,
     TokenResponse,
+    TokenRefreshResponse,
     CallbackRequest,
     UserInfoResponse,
     EmailVerificationRequest,
@@ -30,7 +31,7 @@ from app.schemas.auth import (
     SignupResponse,
     LoginRequest,
 )
-from app.core.security import get_current_user, get_current_active_user, create_access_token, get_password_hash, verify_password
+from app.core.security import get_current_user, get_current_active_user, create_access_token, create_refresh_token, get_password_hash, verify_password, get_current_user_with_refresh_token
 from app.core.exceptions import ExternalAPIException
 from app.models.user import User
 from app.models.rbac import UserRole, Role
@@ -118,7 +119,7 @@ def _cleanup_oauth_state(db: Session, oauth_state: Optional[OAuthState]) -> None
 @router.post("/signup", response_model=SignupResponse)
 async def signup(
     signup_data: SignupRequest,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
     formatter: ResponseFormatter = Depends(get_response_formatter)
 ) -> Dict[str, Any]:
     """
@@ -222,7 +223,7 @@ async def signup(
 async def login(
     login_data: LoginRequest,
     response: Response,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
     formatter: ResponseFormatter = Depends(get_response_formatter)
 ) -> Dict[str, Any]:
     """
@@ -271,16 +272,34 @@ async def login(
         expires_delta=timedelta(minutes=AuthConstants.TOKEN_MAX_AGE // 60)
     )
     
+    # リフレッシュトークンの生成
+    refresh_token = create_refresh_token(
+        data={"sub": str(user.id)}
+    )
+    
     # 統一的なユーザーレスポンスを構築
     response_data = _build_user_response(user, access_token)
+    response_data["refresh_token"] = refresh_token
     
-    # Cookieの設定
+    # Cookieの設定（アクセストークン）
     response.set_cookie(
         key=AuthConstants.COOKIE_NAME,
         value=access_token,
         max_age=AuthConstants.TOKEN_MAX_AGE,
         path=AuthConstants.COOKIE_PATH,
         domain="localhost",  # 開発環境用に明示的にドメインを設定
+        httponly=True,
+        samesite=AuthConstants.COOKIE_SAMESITE,
+        secure=False  # HTTPSの場合はTrue
+    )
+    
+    # Cookieの設定（リフレッシュトークン）
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        max_age=30 * 24 * 60 * 60,  # 30日間
+        path=AuthConstants.COOKIE_PATH,
+        domain="localhost",
         httponly=True,
         samesite=AuthConstants.COOKIE_SAMESITE,
         secure=False  # HTTPSの場合はTrue
@@ -295,7 +314,7 @@ async def login(
 @router.get("/backlog/authorize", response_model=AuthorizationResponse)
 async def get_authorization_url(
     space_key: Optional[str] = Query(None, description="BacklogのスペースキーOptional）環境変数がデフォルト"),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
     current_user: Optional[User] = Depends(get_current_user),
 ):
     """
@@ -353,7 +372,7 @@ async def get_authorization_url(
 
 
 @router.post("/backlog/callback", response_model=TokenResponse)
-async def handle_callback(request: CallbackRequest, db: Session = Depends(get_db)):
+async def handle_callback(request: CallbackRequest, db: Session = Depends(get_db_session)):
     """
     Backlog OAuth2.0認証のコールバックを処理します
 
@@ -447,6 +466,9 @@ async def handle_callback(request: CallbackRequest, db: Session = Depends(get_db
 
         # JWTトークンを生成（アプリケーション内での認証用）
         access_token = create_access_token(data={"sub": str(user.id)})
+        
+        # リフレッシュトークンを生成
+        refresh_token = create_refresh_token(data={"sub": str(user.id)})
 
         logger.info(f"認証コールバック成功 - user_id: {user.id}")
 
@@ -474,6 +496,7 @@ async def handle_callback(request: CallbackRequest, db: Session = Depends(get_db
         
         # 統一的なユーザーレスポンスを構築
         response_data = _build_user_response(user, access_token)
+        response_data["refresh_token"] = refresh_token
         
         # レスポンスを作成
         response = TokenResponse(**response_data)
@@ -482,24 +505,36 @@ async def handle_callback(request: CallbackRequest, db: Session = Depends(get_db
         # 開発環境では異なるポート間でクッキーを共有するため、SameSiteを削除
         from app.core.config import settings
         
-        cookie_header = (
+        # アクセストークンのCookie
+        access_cookie_header = (
             f"{AuthConstants.COOKIE_NAME}={access_token}; "
             f"Path={AuthConstants.COOKIE_PATH}; HttpOnly; "
             f"Max-Age={AuthConstants.TOKEN_MAX_AGE}"
         )
         
+        # リフレッシュトークンのCookie
+        refresh_cookie_header = (
+            f"refresh_token={refresh_token}; "
+            f"Path={AuthConstants.COOKIE_PATH}; HttpOnly; "
+            f"Max-Age={30 * 24 * 60 * 60}"  # 30日間
+        )
+        
         # 開発環境ではドメインを明示的に設定して、異なるポート間でクッキーを共有
         if settings.DEBUG:
-            cookie_header += "; Domain=localhost"
+            access_cookie_header += "; Domain=localhost"
+            refresh_cookie_header += "; Domain=localhost"
         else:
             # 本番環境ではSameSiteを追加
-            cookie_header += f"; SameSite={AuthConstants.COOKIE_SAMESITE}"
+            access_cookie_header += f"; SameSite={AuthConstants.COOKIE_SAMESITE}"
+            refresh_cookie_header += f"; SameSite={AuthConstants.COOKIE_SAMESITE}"
+        
+        # Set-Cookieヘッダーは単一の文字列として連結
+        headers = {}
+        headers["Set-Cookie"] = f"{access_cookie_header}, {refresh_cookie_header}"
         
         return JSONResponse(
             content=response.model_dump(),
-            headers={
-                "Set-Cookie": cookie_header
-            },
+            headers=headers
         )
 
     except HTTPException:
@@ -526,7 +561,7 @@ async def handle_callback(request: CallbackRequest, db: Session = Depends(get_db
 
 @router.post("/backlog/refresh", response_model=TokenResponse)
 async def refresh_token(
-    db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)
+    db: Session = Depends(get_db_session), current_user: User = Depends(get_current_active_user)
 ):
     """
     Backlogのアクセストークンをリフレッシュします
@@ -612,7 +647,7 @@ async def refresh_token(
 @router.get("/verify", response_model=UserInfoResponse)
 async def verify_token(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db_session)
 ):
     """
     JWTトークンの有効性を確認し、ユーザー情報を返す
@@ -639,7 +674,7 @@ async def verify_token(
 @router.get("/me", response_model=UserInfoResponse)
 async def get_current_user_info(
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db_session)
 ):
     """
     現在ログイン中のユーザー情報を取得します
@@ -668,7 +703,7 @@ async def get_current_user_info(
 async def request_email_verification(
     request: EmailVerificationRequest,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
 ):
     """
     メールアドレス検証用のメールを送信します
@@ -761,7 +796,7 @@ async def request_email_verification(
 @router.post("/email/verify/confirm", response_model=EmailVerificationResponse)
 async def confirm_email_verification(
     request: EmailVerificationConfirmRequest,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
 ):
     """
     メールアドレスの検証を確認します
@@ -831,7 +866,7 @@ async def confirm_email_verification(
 @router.post("/email/verify/resend", response_model=EmailVerificationResponse)
 async def resend_verification_email(
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
 ):
     """
     検証メールを再送信します
@@ -860,6 +895,80 @@ async def resend_verification_email(
     )
 
 
+@router.post("/refresh")
+async def refresh_jwt_token(
+    response: Response,
+    current_user: User = Depends(get_current_user_with_refresh_token),
+    db: Session = Depends(get_db_session),
+    formatter: ResponseFormatter = Depends(get_response_formatter)
+) -> Dict[str, Any]:
+    """
+    JWTトークンをリフレッシュします
+
+    リフレッシュトークンを使用して新しいアクセストークンとリフレッシュトークンを生成します。
+
+    Args:
+        response: FastAPIレスポンスオブジェクト
+        current_user: リフレッシュトークンから取得したユーザー
+        db: データベースセッション
+        formatter: レスポンスフォーマッター
+
+    Returns:
+        新しいトークンとユーザー情報を含むレスポンス
+
+    Raises:
+        HTTPException: リフレッシュトークンが無効な場合
+    """
+    # 新しいアクセストークンを生成
+    access_token = create_access_token(
+        data={"sub": str(current_user.id)},
+        expires_delta=timedelta(minutes=AuthConstants.TOKEN_MAX_AGE // 60)
+    )
+    
+    # 新しいリフレッシュトークンを生成
+    refresh_token = create_refresh_token(
+        data={"sub": str(current_user.id)}
+    )
+    
+    # ユーザーのロール情報を取得
+    user = QueryBuilder.with_user_roles(
+        db.query(User).filter(User.id == current_user.id)
+    ).first()
+    
+    # 統一的なユーザーレスポンスを構築
+    response_data = _build_user_response(user, access_token)
+    response_data["refresh_token"] = refresh_token
+    
+    # Cookieの設定（アクセストークン）
+    response.set_cookie(
+        key=AuthConstants.COOKIE_NAME,
+        value=access_token,
+        max_age=AuthConstants.TOKEN_MAX_AGE,
+        path=AuthConstants.COOKIE_PATH,
+        domain="localhost",
+        httponly=True,
+        samesite=AuthConstants.COOKIE_SAMESITE,
+        secure=False
+    )
+    
+    # Cookieの設定（リフレッシュトークン）
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        max_age=30 * 24 * 60 * 60,  # 30日間
+        path=AuthConstants.COOKIE_PATH,
+        domain="localhost",
+        httponly=True,
+        samesite=AuthConstants.COOKIE_SAMESITE,
+        secure=False
+    )
+    
+    return formatter.success(
+        data=response_data,
+        message="トークンを更新しました"
+    )
+
+
 @router.post("/logout")
 async def logout(
     response: Response,
@@ -870,12 +979,21 @@ async def logout(
     
     HttpOnlyクッキーからアクセストークンを削除します。
     """
-    # クッキーを削除
+    # クッキーを削除（アクセストークン）
     response.delete_cookie(
         key=AuthConstants.COOKIE_NAME,  # "auth_token"を使用
         path=AuthConstants.COOKIE_PATH,
         httponly=True,
         secure=not settings.DEBUG,  # 本番環境ではsecureを有効化
+        samesite=AuthConstants.COOKIE_SAMESITE
+    )
+    
+    # クッキーを削除（リフレッシュトークン）
+    response.delete_cookie(
+        key="refresh_token",
+        path=AuthConstants.COOKIE_PATH,
+        httponly=True,
+        secure=not settings.DEBUG,
         samesite=AuthConstants.COOKIE_SAMESITE
     )
     

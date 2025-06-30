@@ -145,9 +145,9 @@ make setup
 
 4. **アプリケーションへのアクセス**
 
-- フロントエンド: http://localhost:3000
-- バックエンド API: http://localhost:8000
-- API ドキュメント: http://localhost:8000/docs
+- フロントエンド: http://localhost (Nginx経由)
+- バックエンド API: http://localhost/api (Nginx経由)
+- API ドキュメント: http://localhost/api/v1/docs (Nginx経由)
 
 ## 開発ガイド
 
@@ -727,7 +727,7 @@ docker-compose up -d
 
 ### 開発のヒント
 
-1. **API ドキュメント**: http://localhost:8000/docs で対話的に API をテスト
+1. **API ドキュメント**: http://localhost/api/v1/docs で対話的に API をテスト（Nginx経由）
 2. **Redux DevTools**: ブラウザ拡張機能で状態管理をデバッグ
 3. **Docker logs**: `docker-compose logs -f [service]` でリアルタイムログ確認
 4. **Hot Reload**: フロントエンド・バックエンドともに自動リロード対応

@@ -29,7 +29,7 @@ class EnvironmentConfig {
       // サーバーサイド: process.envから直接読み込み
       return {
         NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "http://localhost",
-        NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+        NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost",
         NEXT_PUBLIC_ENABLE_ANALYTICS:
           process.env.NEXT_PUBLIC_ENABLE_ANALYTICS === "true",
         NEXT_PUBLIC_ENABLE_DEBUG_PANEL:
@@ -41,7 +41,7 @@ class EnvironmentConfig {
       // クライアントサイド: ビルド時に置換された値を使用
       return {
         NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "http://localhost",
-        NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+        NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost",
         NEXT_PUBLIC_ENABLE_ANALYTICS:
           process.env.NEXT_PUBLIC_ENABLE_ANALYTICS === "true",
         NEXT_PUBLIC_ENABLE_DEBUG_PANEL:

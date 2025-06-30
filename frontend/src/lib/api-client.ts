@@ -94,7 +94,7 @@ class ApiClient {
           })
           
           // リフレッシュエンドポイント自体の401エラーの場合は、リトライしない
-          if (originalRequest.url?.includes('/auth/backlog/refresh')) {
+          if (originalRequest.url?.includes('/auth/refresh') || originalRequest.url?.includes('/auth/backlog/refresh')) {
             // ログアウト処理
             store.dispatch(logout())
             
@@ -129,8 +129,8 @@ class ApiClient {
           this.isRefreshing = true
 
           return new Promise((resolve, reject) => {
-            // トークンリフレッシュを試行
-            this.axiosInstance.post('/api/v1/auth/backlog/refresh')
+            // JWTトークンリフレッシュを試行
+            this.axiosInstance.post('/api/v1/auth/refresh')
               .then(() => {
                 this.processQueue(null)
                 resolve(this.axiosInstance(originalRequest))

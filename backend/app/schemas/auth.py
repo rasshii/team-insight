@@ -109,6 +109,7 @@ class TokenResponse(BaseModel):
     トークンレスポンススキーマ
     """
     access_token: str = Field(..., description="アプリケーション用のJWTアクセストークン")
+    refresh_token: str = Field(..., description="JWTリフレッシュトークン")
     token_type: str = Field(default="bearer", description="トークンタイプ")
     user: UserInfoResponse = Field(..., description="ユーザー情報")
 
@@ -116,6 +117,7 @@ class TokenResponse(BaseModel):
         json_schema_extra = {
             "example": {
                 "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
                 "token_type": "bearer",
                 "user": {
                     "id": 1,
@@ -124,6 +126,24 @@ class TokenResponse(BaseModel):
                     "name": "山田太郎",
                     "user_id": "yamada"
                 }
+            }
+        }
+
+
+class TokenRefreshResponse(BaseModel):
+    """
+    トークンリフレッシュレスポンススキーマ
+    """
+    access_token: str = Field(..., description="新しいJWTアクセストークン")
+    refresh_token: str = Field(..., description="新しいJWTリフレッシュトークン")
+    token_type: str = Field(default="bearer", description="トークンタイプ")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                "token_type": "bearer"
             }
         }
 

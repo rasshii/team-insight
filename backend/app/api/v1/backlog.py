@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import requests
 from urllib.parse import urlencode
 
-from app.db.session import get_db
+from app.api.deps import get_db_session
 from app.models.user import User
 from app.models.auth import OAuthToken
 from app.core.security import get_current_user
@@ -27,7 +27,7 @@ router = APIRouter()
 
 @router.get("/connection", response_model=BacklogConnectionStatus)
 async def get_connection_status(
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ) -> BacklogConnectionStatus:
     """
@@ -70,7 +70,7 @@ async def get_connection_status(
 @router.post("/connect/api-key")
 async def connect_with_api_key(
     connection_data: BacklogApiKeyConnect,
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     formatter: ResponseFormatter = Depends(get_response_formatter)
 ) -> Dict[str, Any]:
@@ -127,7 +127,7 @@ async def connect_with_api_key(
 
 @router.post("/connect/oauth")
 async def connect_with_oauth(
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     formatter: ResponseFormatter = Depends(get_response_formatter)
 ) -> Dict[str, Any]:
@@ -152,7 +152,7 @@ async def connect_with_oauth(
 
 @router.post("/test")
 async def test_connection(
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     formatter: ResponseFormatter = Depends(get_response_formatter)
 ) -> Dict[str, Any]:
@@ -219,7 +219,7 @@ async def test_connection(
 
 @router.post("/disconnect")
 async def disconnect_backlog(
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     formatter: ResponseFormatter = Depends(get_response_formatter)
 ) -> Dict[str, Any]:

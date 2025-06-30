@@ -14,7 +14,6 @@ from datetime import datetime, timedelta
 
 from app.core.config import settings
 from app.models.auth import OAuthToken
-from app.db.session import get_db
 from sqlalchemy.orm import Session
 
 

@@ -13,7 +13,6 @@ from app.api import deps
 from datetime import timedelta
 from app.models.project import Project
 from app.schemas.project import Project as ProjectSchema, ProjectUpdate
-from app.db.session import get_db
 from app.core.cache import cache_response, cache_invalidate
 from app.models.user import User
 from app.core.deps import get_response_formatter

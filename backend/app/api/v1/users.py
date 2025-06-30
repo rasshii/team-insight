@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_
 
-from app.db.session import get_db
+from app.api.deps import get_db_session
 from app.models.user import User
 from app.models.rbac import Role, UserRole
 from app.schemas.users import (
@@ -37,7 +37,7 @@ async def list_users(
     role_id: Optional[int] = Query(None, description="ロールIDでフィルタ"),
     is_active: Optional[bool] = Query(None, description="アクティブ状態でフィルタ"),
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
 ):
     """
     ユーザー一覧を取得します（管理者のみ）
@@ -120,7 +120,7 @@ async def list_users(
 async def get_user(
     user_id: int,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
 ):
     """
     特定のユーザー情報を取得します（管理者のみ）
@@ -165,7 +165,7 @@ async def update_user(
     user_id: int,
     user_update: UserUpdate,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
 ):
     """
     ユーザー情報を更新します（管理者のみ）
@@ -222,7 +222,7 @@ async def assign_roles(
     user_id: int,
     request: UserRoleAssignmentRequest,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
 ):
     """
     ユーザーにロールを割り当てます（管理者のみ）
@@ -272,7 +272,7 @@ async def remove_roles(
     user_id: int,
     request: UserRoleRemovalRequest,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
 ):
     """
     ユーザーからロールを削除します（管理者のみ）
@@ -304,7 +304,7 @@ async def update_user_role(
     user_id: int,
     request: UserRoleUpdateRequest,
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
 ):
     """
     ユーザーのロールを更新します（管理者のみ）
@@ -342,7 +342,7 @@ async def update_user_role(
 @require_role([RoleType.ADMIN])
 async def get_available_roles(
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_session),
 ):
     """
     割り当て可能なロール一覧を取得します（管理者のみ）

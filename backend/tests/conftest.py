@@ -9,7 +9,7 @@ from typing import Generator
 from unittest.mock import Mock, patch
 from datetime import datetime, timedelta
 
-from app.db.session import SessionLocal, get_db
+from app.db.session import SessionLocal
 from app.models.user import User
 from app.models.auth import OAuthToken, OAuthState
 from app.models.project import Project

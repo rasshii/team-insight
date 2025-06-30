@@ -15,7 +15,7 @@ interface ClientEnvConfig {
 // Next.jsはビルド時にこれらの値を文字列リテラルに置換する
 const clientEnv: ClientEnvConfig = {
   NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "http://localhost",
-  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost",
   NEXT_PUBLIC_ENABLE_ANALYTICS: process.env.NEXT_PUBLIC_ENABLE_ANALYTICS === "true",
   NEXT_PUBLIC_ENABLE_DEBUG_PANEL: process.env.NEXT_PUBLIC_ENABLE_DEBUG_PANEL === "true",
 };

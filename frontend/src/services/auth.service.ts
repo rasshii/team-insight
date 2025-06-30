@@ -129,10 +129,17 @@ export const authService = {
   },
 
   /**
-   * トークンをリフレッシュ
+   * Backlogトークンをリフレッシュ
    */
-  async refreshToken(): Promise<TokenResponse> {
+  async refreshBacklogToken(): Promise<TokenResponse> {
     return await apiClient.post('/api/v1/auth/backlog/refresh')
+  },
+
+  /**
+   * JWTトークンをリフレッシュ
+   */
+  async refreshJwtToken(): Promise<TokenResponse> {
+    return await apiClient.post('/api/v1/auth/refresh')
   },
 
   /**

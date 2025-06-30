@@ -15,7 +15,7 @@ from app.core.config import settings, validate_settings
 from app.api.v1 import api_router
 from app.core.cache import CacheMiddleware
 from app.core.redis_client import redis_client
-from app.db.session import get_db
+from app.api.deps import get_db_session
 from app.schemas.health import HealthResponse, ServiceStatus
 from app.core.error_handler import register_error_handlers
 from app.core.request_id_middleware import RequestIDMiddleware
@@ -122,7 +122,7 @@ async def root():
     return {"message": "Welcome to Team Insight API"}
 
 @app.get("/health", response_model=HealthResponse)
-async def health_check(db: Session = Depends(get_db)) -> HealthResponse:
+async def health_check(db: Session = Depends(get_db_session)) -> HealthResponse:
     """
     アプリケーションの健全性チェック
 
