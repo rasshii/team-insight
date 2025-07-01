@@ -41,7 +41,33 @@ Team Insightでは、ユーザーのメールアドレスを検証する機能�
 
 ## Configuration
 
-### 環境変数 (.env)
+### 開発環境（MailHog使用）
+
+開発環境では、MailHogが自動的に設定されます。特別な設定は不要です。
+
+```env
+# 開発環境では自動設定（docker-compose.yml参照）
+# 手動で設定する場合：
+SMTP_HOST=mailhog
+SMTP_PORT=1025
+SMTP_USER=
+SMTP_PASSWORD=
+SMTP_FROM_EMAIL=noreply@teaminsight.dev
+SMTP_FROM_NAME=Team Insight
+SMTP_TLS=false
+SMTP_SSL=false
+EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS=24
+```
+
+#### MailHogでメール確認
+
+1. 開発環境を起動: `make start`
+2. MailHog Web UIにアクセス: http://localhost:8025
+3. または、コマンドで開く: `make mailhog-ui`
+
+### 本番環境（Gmail等）
+
+本番環境では、実際のSMTPサーバーを使用します：
 
 ```env
 # Email Settings
@@ -56,7 +82,7 @@ SMTP_SSL=false
 EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS=24
 ```
 
-### Gmail App Password設定
+#### Gmail App Password設定
 
 Gmailを使用する場合、アプリパスワードが必要です：
 
@@ -83,15 +109,28 @@ Gmailを使用する場合、アプリパスワードが必要です：
 
 ## Testing
 
-### メール送信テスト
+### 開発環境でのメール送信テスト（MailHog使用）
 
-```bash
-# バックエンドコンテナに入る
-make backend-shell
+1. **MailHog Web UIでメール確認**
+   ```bash
+   # MailHog Web UIを開く
+   make mailhog-ui
+   # または、直接アクセス: http://localhost:8025
+   ```
 
-# テストスクリプトを実行
-python scripts/test_email_verification.py
-```
+2. **メール送信テスト**
+   ```bash
+   # バックエンドコンテナに入る
+   make backend-shell
+
+   # テストスクリプトを実行
+   python scripts/test_email_verification.py
+   ```
+
+3. **MailHogでメールを確認**
+   - 送信されたメールはすべてMailHogでキャッチされます
+   - 実際のメールアドレスには送信されません
+   - Web UIで送信内容、HTMLプレビュー、ヘッダー情報を確認できます
 
 ### API テスト
 

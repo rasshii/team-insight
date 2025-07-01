@@ -8,9 +8,34 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { LoadingSpinner } from "../components/ui/loading-spinner";
 import { store } from "../store";
 import { queryClient } from "../lib/react-query";
+import { authEventEmitter } from "../lib/auth-event-emitter";
+import { logout } from "../store/slices/authSlice";
 
 // プロバイダーコンポーネント
 export function Providers({ children }: { children: React.ReactNode }) {
+  // 認証イベントのリスナーを設定
+  useEffect(() => {
+    const handleAuthEvent = (event: string) => {
+      switch (event) {
+        case 'logout':
+        case 'token-refresh-failed':
+          // Reduxストアのログアウトアクションをディスパッチ
+          store.dispatch(logout());
+          break;
+      }
+    };
+
+    // イベントリスナーを登録
+    authEventEmitter.on('logout', handleAuthEvent);
+    authEventEmitter.on('token-refresh-failed', handleAuthEvent);
+
+    // クリーンアップ
+    return () => {
+      authEventEmitter.off('logout', handleAuthEvent);
+      authEventEmitter.off('token-refresh-failed', handleAuthEvent);
+    };
+  }, []);
+
   return (
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>

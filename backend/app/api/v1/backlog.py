@@ -13,7 +13,6 @@ from app.core.response_builder import ResponseBuilder, ResponseFormatter
 from app.core.deps import get_response_formatter
 from app.core.error_handler import AppException, ErrorCode
 from app.schemas.backlog import (
-    BacklogApiKeyConnect,
     BacklogOAuthConnect,
     BacklogConnectionStatus,
     BacklogConnectionTest,
@@ -57,7 +56,7 @@ async def get_connection_status(
     response_data = BacklogConnectionStatus(
         is_connected=not is_expired,
         space_key=oauth_token.backlog_space_key,
-        connection_type="api_key" if oauth_token.is_api_key else "oauth",
+        connection_type="oauth",
         connected_at=oauth_token.created_at,
         last_sync_at=oauth_token.last_used_at,
         expires_at=oauth_token.expires_at,
@@ -66,63 +65,6 @@ async def get_connection_status(
     
     return response_data
 
-
-@router.post("/connect/api-key")
-async def connect_with_api_key(
-    connection_data: BacklogApiKeyConnect,
-    db: Session = Depends(get_db_session),
-    current_user: User = Depends(get_current_user),
-    formatter: ResponseFormatter = Depends(get_response_formatter)
-) -> Dict[str, Any]:
-    """
-    APIキーでBacklogと連携する
-    """
-    # APIキーの有効性をテスト
-    test_url = f"https://{connection_data.space_key}.backlog.jp/api/v2/users/myself"
-    headers = {"apiKey": connection_data.api_key}
-    
-    try:
-        response = requests.get(test_url, headers=headers, timeout=10)
-        response.raise_for_status()
-        user_info = response.json()
-    except requests.exceptions.RequestException as e:
-        raise AppException(
-            error_code=ErrorCode.EXTERNAL_API_ERROR,
-            detail="APIキーが無効か、スペースキーが正しくありません",
-            status_code=status.HTTP_400_BAD_REQUEST
-        )
-    
-    # 既存のトークンを削除
-    db.query(OAuthToken).filter(
-        OAuthToken.user_id == current_user.id,
-        OAuthToken.provider == "backlog"
-    ).delete()
-    
-    # 新しいトークンを作成
-    oauth_token = OAuthToken(
-        user_id=current_user.id,
-        provider="backlog",
-        access_token=connection_data.api_key,
-        refresh_token=None,
-        expires_at=None,  # APIキーは無期限
-        is_api_key=True,
-        backlog_space_key=connection_data.space_key,
-        backlog_user_id=str(user_info.get("id")),
-        backlog_user_email=user_info.get("mailAddress")
-    )
-    
-    db.add(oauth_token)
-    db.commit()
-    
-    return formatter(ResponseBuilder.success(
-        data={
-            "is_connected": True,
-            "space_key": connection_data.space_key,
-            "connection_type": "api_key",
-            "user_email": user_info.get("mailAddress")
-        },
-        message="Backlog連携が完了しました"
-    ))
 
 
 @router.post("/connect/oauth")
@@ -174,11 +116,7 @@ async def test_connection(
     
     # APIリクエストを送信
     url = f"https://{oauth_token.backlog_space_key}.backlog.jp/api/v2/users/myself"
-    
-    if oauth_token.is_api_key:
-        headers = {"apiKey": oauth_token.access_token}
-    else:
-        headers = {"Authorization": f"Bearer {oauth_token.access_token}"}
+    headers = {"Authorization": f"Bearer {oauth_token.access_token}"}
     
     try:
         response = requests.get(url, headers=headers, timeout=10)

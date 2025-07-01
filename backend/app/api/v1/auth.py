@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 
 from app.api.deps import get_db_session
 from app.services.backlog_oauth import backlog_oauth_service
+from app.services.auth_service import AuthService
 from app.models.auth import OAuthState, OAuthToken
 from app.schemas.auth import (
     AuthorizationResponse,
@@ -372,7 +373,11 @@ async def get_authorization_url(
 
 
 @router.post("/backlog/callback", response_model=TokenResponse)
-async def handle_callback(request: CallbackRequest, db: Session = Depends(get_db_session)):
+async def handle_callback(
+    request: CallbackRequest, 
+    db: Session = Depends(get_db_session),
+    auth_service: AuthService = Depends(lambda: AuthService(backlog_oauth_service))
+):
     """
     Backlog OAuth2.0認証のコールバックを処理します
 
@@ -381,12 +386,15 @@ async def handle_callback(request: CallbackRequest, db: Session = Depends(get_db
 
     Args:
         request: 認証コードとstateを含むリクエスト
+        db: データベースセッション
+        auth_service: 認証サービス
 
     Returns:
         アクセストークンとユーザー情報を含むレスポンス
 
     Raises:
-        HTTPException: state検証失敗またはトークン取得失敗時
+        ValidationException: state検証失敗時
+        ExternalAPIException: トークン取得失敗時
     """
     logger = logging.getLogger(__name__)
 
@@ -395,104 +403,37 @@ async def handle_callback(request: CallbackRequest, db: Session = Depends(get_db
     )
 
     # stateの検証
-    oauth_state = db.query(OAuthState).filter(OAuthState.state == request.state).first()
-
-    if not oauth_state:
-        logger.error(f"無効なstateパラメータ - state: {request.state}")
-        # デバッグ用：現在のstateをすべて表示
-        all_states = db.query(OAuthState).all()
-        logger.debug(f"現在のstate一覧: {[s.state for s in all_states]}")
-        raise ValidationException(detail="無効なstateパラメータです")
-
-    if oauth_state.is_expired():
-        logger.error(f"stateパラメータの有効期限切れ - state: {request.state}")
-        db.delete(oauth_state)
-        db.commit()
-        raise ValidationException(
-            detail="stateパラメータの有効期限が切れています"
-        )
+    oauth_state = auth_service.validate_oauth_state(db, request.state)
 
     try:
         # stateからspace_keyを取り出す
-        import json
-        import base64
-        
-        space_key = None
-        try:
-            # Base64デコード
-            state_json = base64.urlsafe_b64decode(request.state.encode()).decode()
-            state_data = json.loads(state_json)
-            space_key = state_data.get("space_key")
-            logger.info(f"stateからspace_keyを取得 - space_key: {space_key}")
-        except Exception as e:
-            logger.warning(f"stateのデコードに失敗（旧形式の可能性）: {str(e)}")
-            # 旧形式のstateの場合は環境変数のデフォルト値を使用
-            space_key = settings.BACKLOG_SPACE_KEY
+        space_key = auth_service.extract_space_key_from_state(request.state)
         
         # 認証コードをアクセストークンに交換
-        logger.info("認証コードをアクセストークンに交換中...")
-        token_data = await backlog_oauth_service.exchange_code_for_token(request.code, space_key=space_key)
+        token_data = await auth_service.exchange_code_for_token(request.code, space_key)
 
         # ユーザー情報を取得
-        logger.info("ユーザー情報を取得中...")
-        user_info = await backlog_oauth_service.get_user_info(
+        user_info = await auth_service.get_backlog_user_info(
             token_data["access_token"],
-            space_key=space_key
+            space_key
         )
 
         # ユーザーの作成または更新
-        user = db.query(User).filter(User.backlog_id == user_info["id"]).first()
-        if not user:
-            # 新規ユーザーの作成
-            logger.info(f"新規ユーザーを作成 - backlog_id: {user_info['id']}")
-            user = User(
-                backlog_id=user_info["id"],
-                email=user_info.get("mailAddress"),
-                name=user_info["name"],
-                user_id=user_info["userId"],
-            )
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-        else:
-            logger.info(f"既存ユーザーを使用 - user_id: {user.id}")
+        user = auth_service.find_or_create_user(db, user_info)
 
         # トークンを保存（space_keyも含めて保存）
-        backlog_oauth_service.save_token(db, user.id, token_data, space_key=space_key)
+        auth_service.save_oauth_token(db, user.id, token_data, space_key)
 
         # 使用済みのstateを削除
-        db.delete(oauth_state)
-        db.commit()
+        auth_service.cleanup_oauth_state(db, oauth_state)
 
         # JWTトークンを生成（アプリケーション内での認証用）
-        access_token = create_access_token(data={"sub": str(user.id)})
-        
-        # リフレッシュトークンを生成
-        refresh_token = create_refresh_token(data={"sub": str(user.id)})
+        access_token, refresh_token = auth_service.create_jwt_tokens(user.id)
 
         logger.info(f"認証コールバック成功 - user_id: {user.id}")
 
-        # ユーザーのロール情報を取得
-        user = QueryBuilder.with_user_roles(
-            db.query(User).filter(User.id == user.id)
-        ).first()
-        
-        # 新規ユーザーの場合、デフォルトロール（MEMBER）を割り当て
-        if not user.user_roles:
-            member_role = db.query(Role).filter(Role.name == "MEMBER").first()
-            if member_role:
-                user_role = UserRole(
-                    user_id=user.id,
-                    role_id=member_role.id,
-                    project_id=None  # グローバルロール
-                )
-                db.add(user_role)
-                db.commit()
-                db.refresh(user)
-                # ロール情報を再取得
-                user = QueryBuilder.with_user_roles(
-                    db.query(User).filter(User.id == user.id)
-                ).first()
+        # ユーザーにデフォルトロールを割り当て
+        user = auth_service.assign_default_role_if_needed(db, user)
         
         # 統一的なユーザーレスポンスを構築
         response_data = _build_user_response(user, access_token)

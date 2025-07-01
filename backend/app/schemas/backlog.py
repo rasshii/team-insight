@@ -6,13 +6,7 @@ from pydantic import BaseModel, Field, EmailStr
 class BacklogConnectionBase(BaseModel):
     """Backlog連携の基本スキーマ"""
     space_key: Optional[str] = Field(None, description="Backlogスペースキー")
-    connection_type: Optional[Literal["api_key", "oauth"]] = Field(None, description="連携方法")
-
-
-class BacklogApiKeyConnect(BaseModel):
-    """APIキー連携のリクエストスキーマ"""
-    space_key: str = Field(..., description="Backlogスペースキー", min_length=1, max_length=100)
-    api_key: str = Field(..., description="BacklogのAPIキー", min_length=1)
+    connection_type: Optional[Literal["oauth"]] = Field(None, description="連携方法")
 
 
 class BacklogOAuthConnect(BaseModel):

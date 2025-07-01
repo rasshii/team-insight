@@ -1,27 +1,113 @@
 import httpx
-from typing import List, Dict, Any, Optional
+from typing import List, Optional, AsyncContextManager, Union
+from contextlib import asynccontextmanager
 from app.core.config import settings
+from app.core.exceptions import ExternalAPIException
+from app.schemas.backlog_types import (
+    BacklogUser,
+    BacklogIssue,
+    BacklogProject,
+    BacklogProjectWithDetails
+)
 import logging
 
 logger = logging.getLogger(__name__)
 
 
 class BacklogClient:
-    """Backlog APIクライアント"""
+    """Backlog APIクライアント
+    
+    Backlog API v2との通信を管理するクライアントクラス。
+    HTTPクライアントの作成、ヘッダー設定、エラーハンドリングを統一化。
+    """
     
     def __init__(self):
         self.base_url = f"https://{settings.BACKLOG_SPACE_KEY}.backlog.jp/api/v2"
         self.timeout = httpx.Timeout(30.0, connect=10.0)
     
-    async def get_user_info(self, access_token: str) -> Dict[str, Any]:
-        """ユーザー情報を取得"""
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.get(
-                f"{self.base_url}/users/myself",
-                headers={"Authorization": f"Bearer {access_token}"}
+    @asynccontextmanager
+    async def _get_client(self, access_token: str) -> AsyncContextManager[httpx.AsyncClient]:
+        """
+        認証済みHTTPクライアントを取得
+        
+        Args:
+            access_token: Backlog APIアクセストークン
+            
+        Yields:
+            httpx.AsyncClient: 設定済みのHTTPクライアント
+        """
+        headers = {"Authorization": f"Bearer {access_token}"}
+        async with httpx.AsyncClient(
+            timeout=self.timeout,
+            headers=headers,
+            follow_redirects=True
+        ) as client:
+            yield client
+    
+    async def _make_request(
+        self,
+        method: str,
+        endpoint: str,
+        access_token: str,
+        **kwargs
+    ) -> Union[dict, list]:
+        """
+        APIリクエストを実行
+        
+        Args:
+            method: HTTPメソッド（GET, POST, PUT, DELETE）
+            endpoint: APIエンドポイント（base_urlからの相対パス）
+            access_token: アクセストークン
+            **kwargs: httpxリクエストの追加引数
+            
+        Returns:
+            APIレスポンスのJSONデータ
+            
+        Raises:
+            ExternalAPIException: APIリクエストが失敗した場合
+        """
+        url = f"{self.base_url}{endpoint}"
+        
+        try:
+            async with self._get_client(access_token) as client:
+                response = await client.request(method, url, **kwargs)
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Backlog API HTTP error: {e.response.status_code} - {e.response.text}")
+            raise ExternalAPIException(
+                service="Backlog",
+                detail=f"APIリクエストが失敗しました: {e.response.status_code}",
+                data={
+                    "status_code": e.response.status_code,
+                    "response_text": e.response.text[:500]  # レスポンスの最初の500文字のみ
+                }
             )
-            response.raise_for_status()
-            return response.json()
+        except httpx.RequestError as e:
+            logger.error(f"Backlog API request error: {str(e)}")
+            raise ExternalAPIException(
+                service="Backlog",
+                detail=f"APIとの通信中にエラーが発生しました: {str(e)}",
+                data={"error_type": type(e).__name__}
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error in Backlog API call: {str(e)}")
+            raise ExternalAPIException(
+                service="Backlog",
+                detail="予期しないエラーが発生しました",
+                data={"error_type": type(e).__name__, "error": str(e)}
+            )
+    
+    async def get_user_info(self, access_token: str) -> dict:
+        """ユーザー情報を取得
+        
+        Args:
+            access_token: Backlog APIアクセストークン
+            
+        Returns:
+            ユーザー情報のディクショナリ
+        """
+        return await self._make_request("GET", "/users/myself", access_token)
     
     async def get_user_issues(
         self, 
@@ -31,8 +117,20 @@ class BacklogClient:
         status_ids: Optional[List[int]] = None,
         limit: int = 100,
         offset: int = 0
-    ) -> List[Dict[str, Any]]:
-        """ユーザーの課題一覧を取得"""
+    ) -> List[dict]:
+        """ユーザーの課題一覧を取得
+        
+        Args:
+            user_id: ユーザーID
+            access_token: アクセストークン
+            project_id: プロジェクトID（オプション）
+            status_ids: ステータスIDのリスト（オプション）
+            limit: 取得件数の上限
+            offset: オフセット
+            
+        Returns:
+            課題情報のリスト
+        """
         params = {
             "assigneeId[]": user_id,
             "count": limit,
@@ -47,14 +145,7 @@ class BacklogClient:
         if status_ids:
             params["statusId[]"] = status_ids
         
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.get(
-                f"{self.base_url}/issues",
-                params=params,
-                headers={"Authorization": f"Bearer {access_token}"}
-            )
-            response.raise_for_status()
-            return response.json()
+        return await self._make_request("GET", "/issues", access_token, params=params)
     
     async def get_project_issues(
         self, 
@@ -63,8 +154,19 @@ class BacklogClient:
         status_ids: Optional[List[int]] = None,
         limit: int = 100,
         offset: int = 0
-    ) -> List[Dict[str, Any]]:
-        """プロジェクトの課題一覧を取得"""
+    ) -> List[dict]:
+        """プロジェクトの課題一覧を取得
+        
+        Args:
+            project_id: プロジェクトID
+            access_token: アクセストークン
+            status_ids: ステータスIDのリスト（オプション）
+            limit: 取得件数の上限
+            offset: オフセット
+            
+        Returns:
+            課題情報のリスト
+        """
         params = {
             "projectId[]": project_id,
             "count": limit,
@@ -76,73 +178,72 @@ class BacklogClient:
         if status_ids:
             params["statusId[]"] = status_ids
         
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.get(
-                f"{self.base_url}/issues",
-                params=params,
-                headers={"Authorization": f"Bearer {access_token}"}
-            )
-            response.raise_for_status()
-            return response.json()
+        return await self._make_request("GET", "/issues", access_token, params=params)
     
     async def get_issue_by_id(
         self,
         issue_id: int,
         access_token: str
-    ) -> Dict[str, Any]:
-        """課題の詳細情報を取得"""
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.get(
-                f"{self.base_url}/issues/{issue_id}",
-                headers={"Authorization": f"Bearer {access_token}"}
-            )
-            response.raise_for_status()
-            return response.json()
+    ) -> dict:
+        """課題の詳細情報を取得
+        
+        Args:
+            issue_id: 課題ID
+            access_token: アクセストークン
+            
+        Returns:
+            課題の詳細情報
+        """
+        return await self._make_request("GET", f"/issues/{issue_id}", access_token)
     
     async def get_project(
         self,
         project_id: int,
         access_token: str
-    ) -> Dict[str, Any]:
-        """プロジェクト情報を取得"""
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.get(
-                f"{self.base_url}/projects/{project_id}",
-                headers={"Authorization": f"Bearer {access_token}"}
-            )
-            response.raise_for_status()
-            return response.json()
+    ) -> dict:
+        """プロジェクト情報を取得
+        
+        Args:
+            project_id: プロジェクトID
+            access_token: アクセストークン
+            
+        Returns:
+            プロジェクト情報
+        """
+        return await self._make_request("GET", f"/projects/{project_id}", access_token)
     
     async def get_projects(
         self,
         access_token: str,
         archived: bool = False
-    ) -> List[Dict[str, Any]]:
-        """プロジェクト一覧を取得"""
-        params = {"archived": archived}
+    ) -> List[dict]:
+        """プロジェクト一覧を取得
         
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.get(
-                f"{self.base_url}/projects",
-                params=params,
-                headers={"Authorization": f"Bearer {access_token}"}
-            )
-            response.raise_for_status()
-            return response.json()
+        Args:
+            access_token: アクセストークン
+            archived: アーカイブ済みプロジェクトを含むか
+            
+        Returns:
+            プロジェクト情報のリスト
+        """
+        params = {"archived": archived}
+        return await self._make_request("GET", "/projects", access_token, params=params)
     
     async def get_issue_statuses(
         self,
         project_id: int,
         access_token: str
-    ) -> List[Dict[str, Any]]:
-        """プロジェクトの課題ステータス一覧を取得"""
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.get(
-                f"{self.base_url}/projects/{project_id}/statuses",
-                headers={"Authorization": f"Bearer {access_token}"}
-            )
-            response.raise_for_status()
-            return response.json()
+    ) -> List[dict]:
+        """プロジェクトの課題ステータス一覧を取得
+        
+        Args:
+            project_id: プロジェクトID
+            access_token: アクセストークン
+            
+        Returns:
+            ステータス情報のリスト
+        """
+        return await self._make_request("GET", f"/projects/{project_id}/statuses", access_token)
     
     async def get_issue_comments(
         self,
@@ -150,22 +251,25 @@ class BacklogClient:
         access_token: str,
         limit: int = 100,
         offset: int = 0
-    ) -> List[Dict[str, Any]]:
-        """課題のコメント一覧を取得"""
+    ) -> List[dict]:
+        """課題のコメント一覧を取得
+        
+        Args:
+            issue_id: 課題ID
+            access_token: アクセストークン
+            limit: 取得件数の上限
+            offset: オフセット
+            
+        Returns:
+            コメント情報のリスト
+        """
         params = {
             "count": limit,
             "offset": offset,
             "order": "asc"
         }
         
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.get(
-                f"{self.base_url}/issues/{issue_id}/comments",
-                params=params,
-                headers={"Authorization": f"Bearer {access_token}"}
-            )
-            response.raise_for_status()
-            return response.json()
+        return await self._make_request("GET", f"/issues/{issue_id}/comments", access_token, params=params)
     
     async def get_user_activities(
         self,
@@ -174,7 +278,7 @@ class BacklogClient:
         activity_type_ids: Optional[List[int]] = None,
         limit: int = 100,
         offset: int = 0
-    ) -> List[Dict[str, Any]]:
+    ) -> List[dict]:
         """ユーザーのアクティビティ一覧を取得"""
         params = {
             "userId[]": user_id,
@@ -194,7 +298,7 @@ class BacklogClient:
             response.raise_for_status()
             return response.json()
     
-    async def get_priorities(self, access_token: str) -> List[Dict[str, Any]]:
+    async def get_priorities(self, access_token: str) -> List[dict]:
         """優先度一覧を取得"""
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             response = await client.get(
@@ -208,7 +312,7 @@ class BacklogClient:
         self,
         project_id: int,
         access_token: str
-    ) -> List[Dict[str, Any]]:
+    ) -> List[dict]:
         """プロジェクトの課題種別一覧を取得"""
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             response = await client.get(
@@ -223,7 +327,7 @@ class BacklogClient:
         self,
         project_id: int,
         access_token: str
-    ) -> List[Dict[str, Any]]:
+    ) -> List[dict]:
         """プロジェクトメンバー一覧を取得"""
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             response = await client.get(
@@ -237,7 +341,7 @@ class BacklogClient:
         self,
         project_id: int,
         access_token: str
-    ) -> List[Dict[str, Any]]:
+    ) -> List[dict]:
         """プロジェクトのカテゴリ一覧を取得"""
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             response = await client.get(
@@ -251,7 +355,7 @@ class BacklogClient:
         self,
         project_id: int,
         access_token: str
-    ) -> List[Dict[str, Any]]:
+    ) -> List[dict]:
         """プロジェクトのマイルストーン一覧を取得"""
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             response = await client.get(
@@ -265,7 +369,7 @@ class BacklogClient:
         self,
         project_id: int,
         access_token: str
-    ) -> Dict[str, Any]:
+    ) -> dict:
         """プロジェクトの統計情報を取得"""
         # 課題の統計情報を取得
         async with httpx.AsyncClient(timeout=self.timeout) as client:

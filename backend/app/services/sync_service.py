@@ -10,6 +10,7 @@ from app.models.auth import OAuthToken
 from app.models.sync_history import SyncHistory, SyncType, SyncStatus
 from app.core.exceptions import ExternalAPIException, DatabaseException
 from app.core.token_refresh import token_refresh_service
+from app.schemas.backlog_types import BacklogIssue
 import logging
 
 logger = logging.getLogger(__name__)
@@ -26,96 +27,63 @@ class SyncService:
             "完了": TaskStatus.CLOSED,
         }
     
-    async def sync_user_tasks(
+    def _create_sync_history(
         self,
-        user: User,
-        access_token: str,
         db: Session,
-        project_id: Optional[int] = None
-    ) -> Dict[str, Any]:
-        """ユーザーのタスクを同期"""
-        # 同期履歴を作成
+        user_id: int,
+        sync_type: SyncType,
+        target_id: Optional[int] = None,
+        target_name: str = ""
+    ) -> SyncHistory:
+        """
+        同期履歴を作成する共通メソッド
+        
+        Args:
+            db: データベースセッション
+            user_id: ユーザーID
+            sync_type: 同期タイプ
+            target_id: 対象ID（プロジェクトIDなど）
+            target_name: 対象名称
+            
+        Returns:
+            作成された同期履歴オブジェクト
+        """
         sync_history = SyncHistory(
-            user_id=user.id,
-            sync_type=SyncType.USER_TASKS,
+            user_id=user_id,
+            sync_type=sync_type,
             status=SyncStatus.STARTED,
-            target_id=project_id,
-            target_name=f"User {user.name} tasks"
+            target_id=target_id,
+            target_name=target_name
         )
         db.add(sync_history)
         db.flush()
+        return sync_history
+    
+    async def _sync_issues_common(
+        self,
+        issues: List[dict],
+        sync_history: Optional[SyncHistory],
+        db: Session,
+        project_id: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        課題同期の共通処理
+        
+        Args:
+            issues: 同期する課題のリスト
+            sync_history: 同期履歴オブジェクト（Optional）
+            db: データベースセッション
+            project_id: プロジェクトID（課題作成時に指定）
+            
+        Returns:
+            同期結果の辞書
+        """
+        created_count = 0
+        updated_count = 0
         
         try:
-            issues = await backlog_client.get_user_issues(
-                user.backlog_id,
-                access_token,
-                project_id=project_id
-            )
-            
-            created_count = 0
-            updated_count = 0
-            
             for issue_data in issues:
-                task = await self._sync_issue(issue_data, db)
-                if task.created_at == task.updated_at:
-                    created_count += 1
-                else:
-                    updated_count += 1
-            
-            # 同期履歴を完了としてマーク
-            sync_history.complete(
-                items_created=created_count,
-                items_updated=updated_count,
-                total_items=len(issues)
-            )
-            
-            db.commit()
-            
-            return {
-                "success": True,
-                "created": created_count,
-                "updated": updated_count,
-                "total": len(issues)
-            }
-        except Exception as e:
-            logger.error(f"Failed to sync user tasks: {str(e)}")
-            sync_history.fail(str(e))
-            db.rollback()
-            raise
-    
-    async def sync_project_tasks(
-        self,
-        project: Project,
-        access_token: str,
-        db: Session,
-        user: Optional[User] = None
-    ) -> Dict[str, Any]:
-        """プロジェクトのタスクを同期"""
-        # 同期履歴を作成（userが渡されない場合は適切に処理）
-        if user:
-            sync_history = SyncHistory(
-                user_id=user.id,
-                sync_type=SyncType.PROJECT_TASKS,
-                status=SyncStatus.STARTED,
-                target_id=project.id,
-                target_name=f"Project: {project.name}"
-            )
-            db.add(sync_history)
-            db.flush()
-        else:
-            sync_history = None
-            
-        try:
-            issues = await backlog_client.get_project_issues(
-                project.backlog_id,
-                access_token
-            )
-            
-            created_count = 0
-            updated_count = 0
-            
-            for issue_data in issues:
-                task = await self._sync_issue(issue_data, db, project_id=project.id)
+                task = await self._sync_issue(issue_data, db, project_id=project_id)
                 if task.created_at == task.updated_at:
                     created_count += 1
                 else:
@@ -138,10 +106,100 @@ class SyncService:
                 "total": len(issues)
             }
         except Exception as e:
-            logger.error(f"Failed to sync project tasks: {str(e)}")
+            logger.error(f"Failed to sync issues: {str(e)}")
             if sync_history:
                 sync_history.fail(str(e))
             db.rollback()
+            raise
+    
+    async def sync_user_tasks(
+        self,
+        user: User,
+        access_token: str,
+        db: Session,
+        project_id: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        ユーザーのタスクを同期
+        
+        Args:
+            user: 対象ユーザー
+            access_token: Backlog APIアクセストークン
+            db: データベースセッション
+            project_id: プロジェクトID（指定時はそのプロジェクトのみ）
+            
+        Returns:
+            同期結果の辞書
+        """
+        # 同期履歴を作成
+        sync_history = self._create_sync_history(
+            db=db,
+            user_id=user.id,
+            sync_type=SyncType.USER_TASKS,
+            target_id=project_id,
+            target_name=f"User {user.name} tasks"
+        )
+        
+        try:
+            # Backlogから課題を取得
+            issues = await backlog_client.get_user_issues(
+                user.backlog_id,
+                access_token,
+                project_id=project_id
+            )
+            
+            # 共通処理で同期を実行
+            return await self._sync_issues_common(issues, sync_history, db)
+        except Exception as e:
+            logger.error(f"Failed to sync user tasks: {str(e)}")
+            raise
+    
+    async def sync_project_tasks(
+        self,
+        project: Project,
+        access_token: str,
+        db: Session,
+        user: Optional[User] = None
+    ) -> Dict[str, Any]:
+        """
+        プロジェクトのタスクを同期
+        
+        Args:
+            project: 対象プロジェクト
+            access_token: Backlog APIアクセストークン
+            db: データベースセッション
+            user: 同期を実行するユーザー（オプション）
+            
+        Returns:
+            同期結果の辞書
+        """
+        # 同期履歴を作成（userが渡されない場合はNone）
+        sync_history = None
+        if user:
+            sync_history = self._create_sync_history(
+                db=db,
+                user_id=user.id,
+                sync_type=SyncType.PROJECT_TASKS,
+                target_id=project.id,
+                target_name=f"Project: {project.name}"
+            )
+            
+        try:
+            # Backlogから課題を取得
+            issues = await backlog_client.get_project_issues(
+                project.backlog_id,
+                access_token
+            )
+            
+            # 共通処理で同期を実行
+            return await self._sync_issues_common(
+                issues, 
+                sync_history, 
+                db, 
+                project_id=project.id
+            )
+        except Exception as e:
+            logger.error(f"Failed to sync project tasks: {str(e)}")
             raise
     
     async def sync_single_issue(
@@ -163,7 +221,7 @@ class SyncService:
     
     async def _sync_issue(
         self,
-        issue_data: Dict[str, Any],
+        issue_data: dict,
         db: Session,
         project_id: Optional[int] = None
     ) -> Task:

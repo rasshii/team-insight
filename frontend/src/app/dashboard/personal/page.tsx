@@ -24,6 +24,8 @@ import { formatDistanceToNow } from "date-fns";
 import { ja } from "date-fns/locale/ja";
 import { usePersonalDashboard } from "@/hooks/queries/useAnalytics";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ThroughputChart } from "@/components/charts/ThroughputChart";
+import { BarChart3, Workflow } from "lucide-react";
 
 export default function PersonalDashboardPage() {
   const { data: dashboard, isLoading, error } = usePersonalDashboard();
@@ -78,7 +80,14 @@ export default function PersonalDashboardPage() {
     return null;
   }
 
-  const { statistics } = dashboard;
+  const statistics = dashboard.kpi_summary || dashboard.statistics || {
+    total_tasks: 0,
+    completed_tasks: 0,
+    in_progress_tasks: 0,
+    overdue_tasks: 0,
+    completion_rate: 0,
+    average_completion_days: 0
+  };
 
   return (
     <PrivateRoute>
@@ -258,6 +267,118 @@ export default function PersonalDashboardPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* 詳細分析セクション */}
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* ワークフロー分析 */}
+            {dashboard.workflow_analysis && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Workflow className="h-5 w-5" />
+                    ワークフロー分析
+                  </CardTitle>
+                  <CardDescription>
+                    各ステータスでの平均滞留時間（日数）
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {dashboard.workflow_analysis.map((item) => (
+                      <div key={item.status} className="space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium">
+                            {item.status === 'TODO' ? '未着手' :
+                             item.status === 'IN_PROGRESS' ? '進行中' :
+                             item.status === 'DONE' ? '完了待ち' :
+                             item.status === 'CLOSED' ? '完了' : item.status}
+                          </span>
+                          <span className="text-muted-foreground">
+                            平均 {item.average_days} 日
+                          </span>
+                        </div>
+                        <Progress 
+                          value={Math.min((item.average_days / 10) * 100, 100)} 
+                          className="h-2"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 平均処理時間とスキルマトリックス */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  パフォーマンス詳細
+                </CardTitle>
+                <CardDescription>
+                  あなたの効率性指標
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* 平均処理時間 */}
+                <div className="p-4 bg-muted/50 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">平均処理時間</span>
+                    <span className="text-2xl font-bold">
+                      {statistics.average_completion_days} 日
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    タスク完了までの平均日数
+                  </p>
+                </div>
+
+                {/* スキルマトリックス */}
+                {dashboard.skill_matrix && dashboard.skill_matrix.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">タスクタイプ別効率</p>
+                    {dashboard.skill_matrix.map((skill) => (
+                      <div key={skill.task_type} className="flex items-center justify-between text-sm">
+                        <span>
+                          {skill.task_type === 'FEATURE' ? '機能開発' :
+                           skill.task_type === 'BUG' ? 'バグ修正' :
+                           skill.task_type === 'IMPROVEMENT' ? '改善' :
+                           skill.task_type === 'REFACTORING' ? 'リファクタリング' :
+                           skill.task_type}
+                        </span>
+                        <span className="text-muted-foreground">
+                          平均 {skill.average_completion_days || 0} 日 ({skill.total_count}件)
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* 生産性トレンドチャート */}
+          {dashboard.productivity_trend && dashboard.productivity_trend.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  生産性トレンド
+                </CardTitle>
+                <CardDescription>
+                  過去30日間の完了タスク数推移
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="h-[300px]">
+                <ThroughputChart
+                  data={dashboard.productivity_trend.map(item => ({
+                    date: item.date,
+                    value: item.completed_count
+                  }))}
+                />
+              </CardContent>
+            </Card>
+          )}
 
           {/* アクションプロンプト */}
           {statistics.overdue_tasks === 0 && statistics.completion_rate > 80 && (

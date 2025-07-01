@@ -10,33 +10,70 @@ from unittest.mock import Mock, patch
 from datetime import datetime, timedelta
 
 from app.db.session import SessionLocal
+from app.db.base import Base  # Import base to ensure all models are loaded
 from app.models.user import User
 from app.models.auth import OAuthToken, OAuthState
 from app.models.project import Project
 from app.core.security import get_password_hash, create_access_token
 from sqlalchemy import delete, text
+from sqlalchemy.orm import Session
 
 @pytest.fixture(autouse=True)
 def clean_database():
-    """各テストの前後でデータベースをクリーンアップ"""
+    """各テストの前後でデータベースをクリーンアップとRBACセットアップ"""
+    from app.models.rbac import Role, Permission
+    from app.core.permissions import RoleType
+    
     db = SessionLocal()
-    # テスト前にクリーンアップ
-    # project_members から先に削除（外部キー制約のため）
-    db.execute(text("DELETE FROM team_insight.project_members"))
-    db.execute(delete(OAuthToken))
-    db.execute(delete(OAuthState))
-    db.execute(delete(Project))
-    db.execute(delete(User).where(User.email.in_(["test@example.com", "admin@example.com"])))
-    db.commit()
+    try:
+        # テスト前にクリーンアップ
+        # 外部キー制約の順序を考慮して削除
+        db.execute(text("DELETE FROM team_insight.tasks"))
+        db.execute(text("DELETE FROM team_insight.sync_histories"))
+        db.execute(text("DELETE FROM team_insight.project_members"))
+        db.execute(text("DELETE FROM team_insight.user_roles"))
+        db.execute(delete(OAuthToken))
+        db.execute(delete(OAuthState))
+        db.execute(delete(Project))
+        db.execute(delete(User).where(User.email.in_(["test@example.com", "admin@example.com", "projecttest@example.com"])))
+        db.commit()
+        
+        # RBACの基本ロールをセットアップ
+        roles_data = [
+            {"name": RoleType.ADMIN.value, "description": "Admin", "is_system": True},
+            {"name": RoleType.PROJECT_LEADER.value, "description": "Project Leader", "is_system": True},
+            {"name": RoleType.MEMBER.value, "description": "Member", "is_system": True}
+        ]
+        
+        for role_data in roles_data:
+            existing_role = db.query(Role).filter(Role.name == role_data["name"]).first()
+            if not existing_role:
+                role = Role(**role_data)
+                db.add(role)
+        
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"Cleanup/Setup error (before test): {e}")
+    
     yield
-    # テスト後にもクリーンアップ
-    db.execute(text("DELETE FROM team_insight.project_members"))
-    db.execute(delete(OAuthToken))
-    db.execute(delete(OAuthState))
-    db.execute(delete(Project))
-    db.execute(delete(User).where(User.email.in_(["test@example.com", "admin@example.com"])))
-    db.commit()
-    db.close()
+    
+    try:
+        # テスト後にもクリーンアップ
+        db.execute(text("DELETE FROM team_insight.tasks"))
+        db.execute(text("DELETE FROM team_insight.sync_histories"))
+        db.execute(text("DELETE FROM team_insight.project_members"))
+        db.execute(text("DELETE FROM team_insight.user_roles"))
+        db.execute(delete(OAuthToken))
+        db.execute(delete(OAuthState))
+        db.execute(delete(Project))
+        db.execute(delete(User).where(User.email.in_(["test@example.com", "admin@example.com", "projecttest@example.com"])))
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"Cleanup error (after test): {e}")
+    finally:
+        db.close()
 
 @pytest.fixture(scope="function")
 def test_user():
@@ -118,6 +155,14 @@ def auth_headers(test_user) -> dict:
 
 
 @pytest.fixture
+def auth_cookies(test_user) -> dict:
+    """認証Cookie（一般ユーザー用）"""
+    # test_userのIDを直接使用（セッションをまたがないように）
+    access_token = create_access_token(data={"sub": str(test_user.id)})
+    return {"auth_token": access_token}
+
+
+@pytest.fixture
 def test_superuser():
     """テスト用管理者ユーザー"""
     db = SessionLocal()
@@ -191,9 +236,11 @@ def mock_redis():
 @pytest.fixture
 def test_project(test_user):
     """テスト用プロジェクト"""
+    # 新しいセッションで作業
     db = SessionLocal()
-    # test_userを現在のセッションにマージ
-    test_user = db.merge(test_user)
+    
+    # test_userを新しいセッションで取得
+    user = db.query(User).filter(User.id == test_user.id).first()
     
     project = Project(
         backlog_id=1234,
@@ -205,13 +252,23 @@ def test_project(test_user):
     db.commit()
     
     # ユーザーをプロジェクトに追加
-    project.members.append(test_user)
+    project.members.append(user)
     db.commit()
-    db.refresh(project)
+    
+    # IDを保存
+    project_id = project.id
     
     yield project
-    db.delete(project)
-    db.commit()
+    
+    # クリーンアップ
+    # 新しいセッションでクリーンアップ
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if project:
+        project.members.clear()
+        db.commit()
+        db.delete(project)
+        db.commit()
+    
     db.close()
 
 

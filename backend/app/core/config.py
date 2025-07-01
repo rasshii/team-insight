@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 from pydantic import Field
+from typing import List
 
 
 class Settings(BaseSettings):
@@ -10,11 +11,11 @@ class Settings(BaseSettings):
 
 
     # セキュリティ設定
-    SECRET_KEY: str = Field(..., env="SECRET_KEY")  # 必須項目、デフォルト値なし
+    SECRET_KEY: str = Field(default="your-secret-key-here", env="SECRET_KEY")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
-        default=30, env="ACCESS_TOKEN_EXPIRE_MINUTES"
+        default=10080, env="ACCESS_TOKEN_EXPIRE_MINUTES"  # 7 days in minutes
     )
-
+    
     # データベース設定
     DATABASE_URL: str = Field(
         default="postgresql://postgres:postgres@localhost:5432/team_insight",
@@ -60,10 +61,20 @@ class Settings(BaseSettings):
     SMTP_TLS: bool = Field(default=True, env="SMTP_TLS")
     SMTP_SSL: bool = Field(default=False, env="SMTP_SSL")
     EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS: int = Field(default=24, env="EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS")
+    
+    # 初期管理者設定
+    INITIAL_ADMIN_EMAILS: str = Field(default="", env="INITIAL_ADMIN_EMAILS")
 
     class Config:
         case_sensitive = True
         env_file = ".env"
+        
+        @classmethod
+        def parse_env_var(cls, field_name: str, raw_val: str) -> any:
+            # INITIAL_ADMIN_EMAILSをカンマ区切りリストとして解析
+            if field_name == "INITIAL_ADMIN_EMAILS":
+                return [email.strip() for email in raw_val.split(",") if email.strip()]
+            return raw_val
 
 
 # シングルトンインスタンス
@@ -72,16 +83,20 @@ settings = Settings()
 # 設定の検証とログ出力
 import logging
 
-logger = logging.getLogger(__name__)
-
 
 def validate_settings():
     """起動時の設定検証"""
+    # ロガーを関数内で取得（遅延初期化）
+    logger = logging.getLogger(__name__)
     issues = []
 
-    # SECRET_KEYの検証（環境変数から設定されていない場合はPydanticがエラーを発生させる）
-    # 追加の検証: SECRET_KEYの長さをチェック
-    if len(settings.SECRET_KEY) < 32:
+    # SECRET_KEYの検証
+    if settings.SECRET_KEY == "your-secret-key-here":
+        if settings.DEBUG:
+            logger.warning("デフォルトのSECRET_KEYを使用しています - 本番環境では必ず変更してください")
+        else:
+            issues.append("本番環境でデフォルトのSECRET_KEYを使用しています")
+    elif len(settings.SECRET_KEY) < 32:
         if settings.DEBUG:
             logger.warning("SECRET_KEYが短すぎます（32文字以上を推奨） - 本番環境では必ず強力な値を使用してください")
         else:

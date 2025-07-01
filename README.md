@@ -118,13 +118,14 @@ BACKLOG_CLIENT_SECRET=your-client-secret
 BACKLOG_REDIRECT_URI=http://localhost/auth/callback
 BACKLOG_SPACE_KEY=your-space-key
 
-# SMTP設定（メール送信用）
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASSWORD=your-app-password
-SMTP_FROM_EMAIL=noreply@teaminsight.dev
-SMTP_FROM_NAME=Team Insight
+# SMTP設定（開発環境はMailHogが自動設定されます）
+# プロダクション環境の場合は以下を設定
+# SMTP_HOST=smtp.gmail.com
+# SMTP_PORT=587
+# SMTP_USER=your-email@gmail.com
+# SMTP_PASSWORD=your-app-password
+# SMTP_FROM_EMAIL=noreply@teaminsight.dev
+# SMTP_FROM_NAME=Team Insight
 ```
 
 3. **セットアップスクリプトの実行**
@@ -148,6 +149,7 @@ make setup
 - フロントエンド: http://localhost (Nginx経由)
 - バックエンド API: http://localhost/api (Nginx経由)
 - API ドキュメント: http://localhost/api/v1/docs (Nginx経由)
+- MailHog Web UI: http://localhost:8025 (開発環境のメール確認)
 
 ## 開発ガイド
 
@@ -215,6 +217,18 @@ make rebuild       # 全イメージを再ビルド
 make ps            # コンテナの状態を表示
 make shell         # バックエンドコンテナのシェルに入る
 ```
+
+#### ロール管理（CLIツール）
+
+```bash
+make set-admin EMAIL=user@example.com       # ユーザーを管理者に設定
+make set-role EMAIL=user@example.com ROLE=PROJECT_LEADER  # ロール設定
+make list-users     # 全ユーザーとロールを一覧表示
+make remove-role EMAIL=user@example.com ROLE=MEMBER # ロール削除
+make init-admin     # 環境変数から初期管理者を設定
+```
+
+**注意**: MVPでは管理画面は実装されていません。ロール管理はCLIツールで行います。管理画面は次フェーズで実装予定です。
 
 ### バックエンド開発
 

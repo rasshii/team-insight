@@ -63,7 +63,6 @@ class TestPermissionChecker:
         
         # クリーンアップ
         db_session.delete(user_role)
-        db_session.delete(role)
         db_session.delete(user)
         db_session.commit()
     
@@ -116,7 +115,6 @@ class TestPermissionChecker:
         
         # クリーンアップ
         db_session.delete(user_role)
-        db_session.delete(role)
         db_session.delete(project)
         db_session.delete(user)
         db_session.commit()
@@ -164,7 +162,9 @@ class TestProjectAccessControl:
             headers=auth_headers
         )
         assert response.status_code == 200
-        assert response.json()["id"] == test_project.id
+        data = response.json()
+        assert "data" in data
+        assert data["data"]["id"] == test_project.id
     
     def test_project_detail_forbidden_for_non_member(
         self, test_project: Project, db_session: Session
@@ -191,7 +191,12 @@ class TestProjectAccessControl:
             headers=headers
         )
         assert response.status_code == 403
-        assert "アクセス権限がありません" in response.json()["detail"]
+        response_json = response.json()
+        # Check if it's wrapped in an error structure
+        if "error" in response_json:
+            assert "アクセス権限がありません" in response_json["error"]["message"]
+        else:
+            assert "アクセス権限がありません" in response_json["detail"]
         
         # クリーンアップ
         db_session.delete(other_user)
@@ -208,7 +213,11 @@ class TestProjectAccessControl:
             headers=auth_headers
         )
         assert response.status_code == 403
-        assert "PROJECT_LEADER権限が必要" in response.json()["detail"]
+        response_json = response.json()
+        if "error" in response_json:
+            assert "PROJECT_LEADER権限が必要" in response_json["error"]["message"]
+        else:
+            assert "PROJECT_LEADER権限が必要" in response_json["detail"]
         
         # リーダー権限を付与
         leader_role = db_session.query(Role).filter(
@@ -238,7 +247,9 @@ class TestProjectAccessControl:
             headers=auth_headers
         )
         assert response.status_code == 200
-        assert response.json()["description"] == "Updated description"
+        data = response.json()
+        assert "data" in data
+        assert data["data"]["description"] == "Updated description"
         
         # クリーンアップ
         db_session.delete(user_role)
@@ -254,7 +265,11 @@ class TestProjectAccessControl:
             headers=auth_headers
         )
         assert response.status_code == 403
-        assert "ADMIN権限が必要" in response.json()["detail"]
+        response_json = response.json()
+        if "error" in response_json:
+            assert "ADMIN権限が必要" in response_json["error"]["message"]
+        else:
+            assert "ADMIN権限が必要" in response_json["detail"]
         
         # 管理者として削除を試みる（成功するはず）
         response = client.delete(
@@ -262,7 +277,9 @@ class TestProjectAccessControl:
             headers=admin_headers
         )
         assert response.status_code == 200
-        assert "削除しました" in response.json()["message"]
+        data = response.json()
+        assert "message" in data
+        assert "削除しました" in data["message"]
 
 
 class TestRoleInheritance:

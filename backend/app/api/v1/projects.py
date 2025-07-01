@@ -47,9 +47,6 @@ def get_projects(
     # Pydanticスキーマに変換
     projects_data = [ProjectSchema.model_validate(p).model_dump() for p in projects]
     
-    if not projects_data:
-        return formatter.no_content("プロジェクトが見つかりませんでした")
-    
     return formatter.success(
         data={"projects": projects_data},
         message=f"{len(projects_data)}件のプロジェクトを取得しました"

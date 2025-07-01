@@ -17,24 +17,6 @@ export const useBacklogConnection = () => {
 }
 
 /**
- * APIキーでBacklog連携するミューテーションフック
- */
-export const useConnectBacklogApiKey = () => {
-  const queryClient = useQueryClient()
-  
-  return useApiMutation(
-    backlogService.connectWithApiKey,
-    {
-      successMessage: 'Backlog連携を設定しました',
-      errorMessage: 'Backlog連携の設定に失敗しました',
-      onSuccessCallback: () => {
-        queryClient.invalidateQueries({ queryKey: queryKeys.backlog.all })
-      },
-    }
-  )
-}
-
-/**
  * OAuthでBacklog連携するミューテーションフック
  */
 export const useConnectBacklogOAuth = () => {

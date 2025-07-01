@@ -8,16 +8,11 @@ import { apiClient } from '@/lib/api-client'
 export interface BacklogConnectionStatus {
   is_connected: boolean
   space_key: string | null
-  connection_type: 'api_key' | 'oauth' | null
+  connection_type: 'oauth' | null
   connected_at: string | null
   last_sync_at: string | null
   expires_at: string | null
   user_email: string | null
-}
-
-export interface ConnectApiKeyParams {
-  space_key: string
-  api_key: string
 }
 
 export interface ConnectOAuthParams {
@@ -27,7 +22,7 @@ export interface ConnectOAuthParams {
 export interface BacklogConnectionResponse {
   is_connected: boolean
   space_key: string
-  connection_type: 'api_key' | 'oauth'
+  connection_type: 'oauth'
   user_email: string
 }
 
@@ -60,14 +55,6 @@ export const backlogService = {
    */
   async getConnection(): Promise<BacklogConnectionStatus> {
     const response = await apiClient.get('/api/v1/backlog/connection')
-    return response.data.data
-  },
-
-  /**
-   * APIキーでBacklogと連携
-   */
-  async connectWithApiKey(params: ConnectApiKeyParams): Promise<BacklogConnectionResponse> {
-    const response = await apiClient.post('/api/v1/backlog/connect/api-key', params)
     return response.data.data
   },
 

@@ -1,8 +1,7 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios'
 import { env } from '@/config/env'
-import { store } from '@/store'
-import { logout } from '@/store/slices/authSlice'
 import { ApiError, ErrorResponse } from '@/types/error'
+import { authEventEmitter } from './auth-event-emitter'
 
 /**
  * 統一されたAPIクライアント
@@ -95,8 +94,8 @@ class ApiClient {
           
           // リフレッシュエンドポイント自体の401エラーの場合は、リトライしない
           if (originalRequest.url?.includes('/auth/refresh') || originalRequest.url?.includes('/auth/backlog/refresh')) {
-            // ログアウト処理
-            store.dispatch(logout())
+            // ログアウトイベントを発火
+            authEventEmitter.emit('logout')
             
             // ルートページや認証ページ以外の場合のみリダイレクト
             if (typeof window !== 'undefined' && !isRootPage && !isAuthPage) {
@@ -137,8 +136,9 @@ class ApiClient {
               })
               .catch((refreshError) => {
                 this.processQueue(refreshError, null)
-                // リフレッシュ失敗時はログアウト
-                store.dispatch(logout())
+                // リフレッシュ失敗時はログアウトイベントを発火
+                authEventEmitter.emit('token-refresh-failed')
+                authEventEmitter.emit('logout')
                 
                 // 現在のパスを取得
                 const currentPath = typeof window !== 'undefined' ? window.location.pathname : ''

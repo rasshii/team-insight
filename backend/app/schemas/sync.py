@@ -66,37 +66,3 @@ class TaskSyncResult(BaseModel):
     
     class Config:
         from_attributes = True
-
-
-class BacklogConnectionRequest(BaseModel):
-    """Backlog接続設定リクエスト"""
-    connection_type: str = Field(..., description="接続タイプ: 'api_key' or 'oauth'")
-    space_key: Optional[str] = Field(None, description="Backlogスペース名")
-    api_key: Optional[str] = Field(None, description="APIキー（api_key方式の場合）")
-    
-    class Config:
-        from_attributes = True
-
-
-class BacklogConnectionResponse(BaseModel):
-    """Backlog接続設定レスポンス"""
-    connected: bool
-    connection_type: str
-    space_key: Optional[str] = None
-    last_tested: Optional[datetime] = None
-    test_result: Optional[str] = None
-    
-    class Config:
-        from_attributes = True
-
-
-class BacklogTestConnectionResponse(BaseModel):
-    """Backlog接続テストレスポンス"""
-    success: bool
-    message: str
-    user_info: Optional[Dict[str, Any]] = None
-    projects_count: Optional[int] = None
-    error_details: Optional[str] = None
-    
-    class Config:
-        from_attributes = True

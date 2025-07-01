@@ -117,6 +117,11 @@ class SensitiveDataFilter(logging.Filter):
 def setup_logging() -> None:
     """ログ設定をセットアップ"""
     
+    # テスト環境では設定をスキップ（pytestのcaplogと競合を避ける）
+    import sys
+    if "pytest" in sys.modules:
+        return
+    
     # ログレベルの設定
     log_level = logging.DEBUG if settings.DEBUG else logging.INFO
     

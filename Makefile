@@ -10,6 +10,7 @@ FRONTEND_CONTAINER := frontend
 BACKEND_CONTAINER := backend
 DB_CONTAINER := postgres
 REDIS_CONTAINER := redis
+MAILHOG_CONTAINER := mailhog
 
 # ヘルプ
 .PHONY: help
@@ -31,10 +32,12 @@ help:
 	@echo "  make backend-logs   - バックエンドのログを表示"
 	@echo "  make db-logs        - データベースのログを表示"
 	@echo "  make redis-logs     - Redisのログを表示"
+	@echo "  make mailhog-logs   - MailHogのログを表示"
 	@echo "  make frontend-shell - フロントエンドコンテナに接続"
 	@echo "  make backend-shell  - バックエンドコンテナに接続"
 	@echo "  make db-shell       - データベースコンテナに接続"
 	@echo "  make redis-shell    - Redisコンテナに接続"
+	@echo "  make mailhog-ui     - MailHog Web UIを開く (http://localhost:8025)"
 	@echo ""
 	@echo "データベース操作:"
 	@echo "  make migrate        - DBマイグレーションを実行"
@@ -61,6 +64,13 @@ help:
 	@echo "  make generate-types - OpenAPIからTypeScript型を生成"
 	@echo "  make update-types   - バックエンド起動確認後に型を生成"
 	@echo "  make dev-sync       - マイグレーション実行と型生成を一括実行"
+	@echo ""
+	@echo "ロール管理:"
+	@echo "  make set-admin EMAIL=user@example.com       - ユーザーを管理者に設定"
+	@echo "  make set-role EMAIL=user@example.com ROLE=PROJECT_LEADER - ロール設定"
+	@echo "  make remove-role EMAIL=user@example.com ROLE=MEMBER - ロール削除"
+	@echo "  make list-users     - 全ユーザーとロールを一覧表示"
+	@echo "  make init-admin     - 環境変数から初期管理者を設定"
 
 # 初回セットアップ
 .PHONY: setup
@@ -169,6 +179,19 @@ db-logs:
 .PHONY: redis-logs
 redis-logs:
 	@$(DOCKER_COMPOSE) logs -f $(REDIS_CONTAINER)
+
+# MailHogログ
+.PHONY: mailhog-logs
+mailhog-logs:
+	@$(DOCKER_COMPOSE) logs -f $(MAILHOG_CONTAINER)
+
+# MailHog Web UIを開く
+.PHONY: mailhog-ui
+mailhog-ui:
+	@echo "🌐 MailHog Web UIを開いています..."
+	@command -v open >/dev/null 2>&1 && open http://localhost:8025 || \
+	command -v xdg-open >/dev/null 2>&1 && xdg-open http://localhost:8025 || \
+	echo "📧 ブラウザで http://localhost:8025 を開いてください"
 
 # フロントエンドシェル
 .PHONY: frontend-shell
@@ -325,3 +348,99 @@ cache-keys:
 nginx-access-log:
 	@echo "📝 Nginxのアクセスログ（標準出力）を表示します..."
 	@$(DOCKER_COMPOSE) logs nginx
+
+# ==================================================
+# ロール管理コマンド
+# ==================================================
+
+# ユーザーを管理者に設定
+.PHONY: set-admin
+set-admin:
+	@if [ -z "$(EMAIL)" ]; then \
+		echo "❌ EMAILを指定してください"; \
+		echo "使用例: make set-admin EMAIL=user@example.com"; \
+		exit 1; \
+	fi
+	@echo "🔧 $(EMAIL) を管理者に設定します..."
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) python scripts/manage_roles.py set-admin $(EMAIL)
+
+# ユーザーにロールを設定
+.PHONY: set-role
+set-role:
+	@if [ -z "$(EMAIL)" ] || [ -z "$(ROLE)" ]; then \
+		echo "❌ EMAILとROLEを指定してください"; \
+		echo "使用例: make set-role EMAIL=user@example.com ROLE=PROJECT_LEADER"; \
+		echo "有効なロール: ADMIN, PROJECT_LEADER, MEMBER"; \
+		exit 1; \
+	fi
+	@echo "🔧 $(EMAIL) に $(ROLE) ロールを設定します..."
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) python scripts/manage_roles.py set-role $(EMAIL) $(ROLE)
+
+# ユーザーからロールを削除
+.PHONY: remove-role
+remove-role:
+	@if [ -z "$(EMAIL)" ] || [ -z "$(ROLE)" ]; then \
+		echo "❌ EMAILとROLEを指定してください"; \
+		echo "使用例: make remove-role EMAIL=user@example.com ROLE=PROJECT_LEADER"; \
+		exit 1; \
+	fi
+	@echo "🗑️  $(EMAIL) から $(ROLE) ロールを削除します..."
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) python scripts/manage_roles.py remove-role $(EMAIL) $(ROLE)
+
+# 全ユーザーとロールを一覧表示
+.PHONY: list-users
+list-users:
+	@echo "📋 ユーザーとロールの一覧を表示します..."
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) python scripts/manage_roles.py list-users
+
+# 初期管理者を設定（環境変数から）
+.PHONY: init-admin
+init-admin:
+	@echo "🔧 環境変数から初期管理者を設定します..."
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) python scripts/init_admin.py
+
+# ユーザーを管理者に設定
+.PHONY: set-admin
+set-admin:
+	@if [ -z "$(EMAIL)" ]; then \
+		echo "❌ エラー: EMAILを指定してください"; \
+		echo "使用方法: make set-admin EMAIL=user@example.com"; \
+		exit 1; \
+	fi
+	@echo "👤 $(EMAIL) を管理者に設定..."
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) python scripts/manage_roles.py set-admin $(EMAIL)
+
+# ユーザーにロールを設定
+.PHONY: set-role
+set-role:
+	@if [ -z "$(EMAIL)" ] || [ -z "$(ROLE)" ]; then \
+		echo "❌ エラー: EMAILとROLEを指定してください"; \
+		echo "使用方法: make set-role EMAIL=user@example.com ROLE=PROJECT_LEADER"; \
+		echo "利用可能なロール: ADMIN, PROJECT_LEADER, MEMBER"; \
+		exit 1; \
+	fi
+	@echo "👤 $(EMAIL) に $(ROLE) ロールを設定..."
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) python scripts/manage_roles.py set-role $(EMAIL) $(ROLE)
+
+# 全ユーザーとロールを一覧表示
+.PHONY: list-users
+list-users:
+	@echo "👥 ユーザー一覧を表示..."
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) python scripts/manage_roles.py list-users
+
+# ユーザーからロールを削除
+.PHONY: remove-role
+remove-role:
+	@if [ -z "$(EMAIL)" ] || [ -z "$(ROLE)" ]; then \
+		echo "❌ エラー: EMAILとROLEを指定してください"; \
+		echo "使用方法: make remove-role EMAIL=user@example.com ROLE=PROJECT_LEADER"; \
+		exit 1; \
+	fi
+	@echo "👤 $(EMAIL) から $(ROLE) ロールを削除..."
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) python scripts/manage_roles.py remove-role $(EMAIL) $(ROLE)
+
+# 初期管理者を設定（環境変数から）
+.PHONY: init-admin
+init-admin:
+	@echo "👤 環境変数から初期管理者を設定..."
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) python scripts/init_admin.py

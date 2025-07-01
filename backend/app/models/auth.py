@@ -31,13 +31,6 @@ class OAuthToken(Base):
     expires_at = Column(DateTime, nullable=True)  # トークンの有効期限
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # APIキー連携用フィールド
-    is_api_key = Column(Boolean, default=False)  # APIキー連携かどうか
-    backlog_space_key = Column(String(100), nullable=True)  # Backlogスペースキー
-    backlog_user_id = Column(String(100), nullable=True)  # BacklogユーザーID
-    backlog_user_email = Column(String(255), nullable=True)  # Backlogユーザーメール
-    last_used_at = Column(DateTime, nullable=True)  # 最終使用日時
 
     # リレーション
     user = relationship("User", back_populates="oauth_tokens")

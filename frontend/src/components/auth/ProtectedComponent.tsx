@@ -119,3 +119,41 @@ export const ProjectLeaderOnly = ({
     {children}
   </ProtectedComponent>
 );
+
+/**
+ * 権限チェック用のHOC（Higher Order Component）
+ * 
+ * @example
+ * ```tsx
+ * const AdminSettingsPage = withPermission(SettingsPage, {
+ *   roles: [RoleType.ADMIN]
+ * });
+ * 
+ * // 使用時
+ * <AdminSettingsPage projectId={projectId} />
+ * ```
+ */
+export function withPermission<P extends object>(
+  Component: ComponentType<P>,
+  requirement: {
+    roles?: RoleType[];
+    permissions?: string[];
+    requireAll?: boolean;
+  }
+) {
+  return React.forwardRef<any, P & { projectId?: number }>((props, ref) => {
+    const { projectId, ...restProps } = props;
+
+    return (
+      <ProtectedComponent
+        roles={requirement.roles}
+        permissions={requirement.permissions}
+        projectId={projectId}
+        requireAll={requirement.requireAll}
+        showError
+      >
+        <Component {...(restProps as P)} ref={ref} projectId={projectId} />
+      </ProtectedComponent>
+    );
+  });
+}
