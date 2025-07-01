@@ -34,3 +34,15 @@ class BacklogDisconnect(BaseModel):
     """連携解除のレスポンススキーマ"""
     success: bool = Field(..., description="解除成功フラグ")
     message: str = Field(..., description="解除結果メッセージ")
+
+
+class BacklogSpaceKeyUpdate(BaseModel):
+    """スペースキー更新のリクエストスキーマ"""
+    space_key: str = Field(..., description="Backlogスペースキー", min_length=1, max_length=100)
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "space_key": "example-space"
+            }
+        }

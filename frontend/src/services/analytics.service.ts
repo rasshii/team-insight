@@ -43,16 +43,31 @@ export interface CycleTimeData {
 export interface PersonalDashboard {
   user_id: number;
   user_name: string;
-  statistics: {
+  kpi_summary: {
     total_tasks: number;
     completed_tasks: number;
     in_progress_tasks: number;
     overdue_tasks: number;
     completion_rate: number;
+    average_completion_days: number;
   };
+  workflow_analysis: Array<{
+    status: string;
+    average_days: number;
+  }>;
+  productivity_trend: Array<{
+    date: string;
+    completed_count: number;
+  }>;
+  skill_matrix: Array<{
+    task_type: string;
+    total_count: number;
+    average_completion_days: number | null;
+  }>;
   recent_completed_tasks: Array<{
     id: number;
     title: string;
+    project_name: string | null;
     completed_date: string | null;
   }>;
 }

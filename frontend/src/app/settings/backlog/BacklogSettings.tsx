@@ -9,18 +9,21 @@ import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
-import { useBacklogConnection, useConnectBacklogOAuth, useDisconnectBacklog, useTestBacklogConnection } from '@/hooks/queries/useBacklog'
+import { useBacklogConnection, useConnectBacklogOAuth, useDisconnectBacklog, useTestBacklogConnection, useUpdateBacklogSpaceKey } from '@/hooks/queries/useBacklog'
 
 export default function BacklogSettingsPage() {
   const router = useRouter()
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle')
   const [testMessage, setTestMessage] = useState<string>('')
+  const [isEditingSpaceKey, setIsEditingSpaceKey] = useState(false)
+  const [newSpaceKey, setNewSpaceKey] = useState('')
 
   // React Query hooks
   const { data: connection, isLoading: isLoadingConnection } = useBacklogConnection()
   const connectOAuthMutation = useConnectBacklogOAuth()
   const disconnectMutation = useDisconnectBacklog()
   const testConnectionMutation = useTestBacklogConnection()
+  const updateSpaceKeyMutation = useUpdateBacklogSpaceKey()
 
   const handleTestConnection = async () => {
     setTestStatus('testing')
@@ -118,7 +121,58 @@ export default function BacklogSettingsPage() {
               <div className="space-y-4">
                 <div>
                   <Label>スペースキー</Label>
-                  <p className="text-sm text-muted-foreground mt-1">{connection.space_key}</p>
+                  {isEditingSpaceKey ? (
+                    <div className="flex gap-2 mt-1">
+                      <Input
+                        value={newSpaceKey}
+                        onChange={(e) => setNewSpaceKey(e.target.value)}
+                        placeholder="your-space"
+                        className="flex-1"
+                      />
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          updateSpaceKeyMutation.mutate(
+                            { space_key: newSpaceKey },
+                            {
+                              onSuccess: () => {
+                                setIsEditingSpaceKey(false)
+                                setNewSpaceKey('')
+                              },
+                            }
+                          )
+                        }}
+                        disabled={!newSpaceKey || updateSpaceKeyMutation.isPending}
+                      >
+                        保存
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setIsEditingSpaceKey(false)
+                          setNewSpaceKey('')
+                        }}
+                      >
+                        キャンセル
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-sm text-muted-foreground">{connection.space_key || '未設定'}</p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-primary"
+                        onClick={() => {
+                          setNewSpaceKey(connection.space_key || '')
+                          setIsEditingSpaceKey(true)
+                        }}
+                      >
+                        編集
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 <div>

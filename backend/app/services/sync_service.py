@@ -11,6 +11,7 @@ from app.models.sync_history import SyncHistory, SyncType, SyncStatus
 from app.core.exceptions import ExternalAPIException, DatabaseException
 from app.core.token_refresh import token_refresh_service
 from app.schemas.backlog_types import BacklogIssue
+from app.core.config import settings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -384,6 +385,8 @@ class SyncService:
         db: Session
     ) -> Dict[str, Any]:
         """全プロジェクトを同期"""
+        logger.info(f"Starting project sync for user {user.id}")
+        
         # 同期履歴を作成
         sync_history = SyncHistory(
             user_id=user.id,
@@ -396,12 +399,17 @@ class SyncService:
         
         try:
             # Backlogから全プロジェクトを取得
+            logger.info(f"Fetching projects from Backlog for user {user.id}")
+            logger.info(f"Using Backlog space key: {settings.BACKLOG_SPACE_KEY}")
+            logger.info(f"Backlog API base URL: {backlog_client.base_url}")
             projects_data = await backlog_client.get_projects(access_token)
+            logger.info(f"Received {len(projects_data)} projects from Backlog")
             
             created_count = 0
             updated_count = 0
             
             for project_data in projects_data:
+                logger.debug(f"Syncing project: {project_data.get('projectKey')} - {project_data.get('name')}")
                 project = await self._sync_project(project_data, db)
                 if project.created_at == project.updated_at:
                     created_count += 1
@@ -420,7 +428,17 @@ class SyncService:
             
             db.commit()
             
-            logger.info(f"Synced {len(projects_data)} projects for user {user.id}")
+            # プロジェクトが更新されたらキャッシュを無効化
+            from app.core.redis_client import redis_client
+            try:
+                # プロジェクト関連のキャッシュを削除
+                deleted_count = await redis_client.delete_pattern("cache:http:*projects*")
+                logger.info(f"Invalidated {deleted_count} project cache entries after sync")
+            except Exception as e:
+                logger.warning(f"Failed to invalidate project cache: {str(e)}")
+                # キャッシュ削除の失敗は同期処理全体を止めない
+            
+            logger.info(f"Successfully synced {len(projects_data)} projects for user {user.id} (created: {created_count}, updated: {updated_count})")
             
             return {
                 "success": True,
@@ -429,7 +447,7 @@ class SyncService:
                 "total": len(projects_data)
             }
         except Exception as e:
-            logger.error(f"Failed to sync all projects: {str(e)}")
+            logger.error(f"Failed to sync all projects for user {user.id}: {str(e)}", exc_info=True)
             sync_history.fail(str(e))
             db.rollback()
             raise
@@ -473,43 +491,52 @@ class SyncService:
                 access_token
             )
             
-            # バルク操作でメンバーを更新
-            # メンバーのbacklog_idを収集
-            backlog_ids = [member["id"] for member in members_data]
-            
-            # 既存ユーザーを一括取得
-            existing_users = db.query(User).filter(
-                User.backlog_id.in_(backlog_ids)
-            ).all()
-            existing_user_map = {u.backlog_id: u for u in existing_users}
-            
-            # 新規ユーザーをバルク作成
-            new_users = []
+            # プロジェクトメンバーとして設定するユーザーリスト
             all_users = []
             
             for member_data in members_data:
-                if member_data["id"] in existing_user_map:
-                    all_users.append(existing_user_map[member_data["id"]])
-                else:
-                    new_user = User(
+                # 既存ユーザーを検索
+                user = db.query(User).filter(
+                    User.backlog_id == member_data["id"]
+                ).first()
+                
+                if not user:
+                    # 新規ユーザーを作成
+                    user = User(
                         backlog_id=member_data["id"],
                         user_id=member_data.get("userId"),
                         name=member_data["name"],
                         email=member_data.get("mailAddress"),
                         is_active=True
                     )
-                    new_users.append(new_user)
-                    all_users.append(new_user)
-            
-            # 新規ユーザーをバルク挿入
-            if new_users:
-                db.bulk_save_objects(new_users)
-                db.flush()  # IDを取得
+                    db.add(user)
+                    # 個別にflushして重複エラーを回避
+                    try:
+                        db.flush()
+                    except SQLAlchemyError as e:
+                        # 重複エラーの場合は既存ユーザーを取得
+                        db.rollback()
+                        user = db.query(User).filter(
+                            User.backlog_id == member_data["id"]
+                        ).first()
+                        if not user:
+                            logger.error(f"Failed to create or get user for backlog_id: {member_data['id']}")
+                            continue
+                else:
+                    # 既存ユーザーの情報を更新
+                    user.name = member_data["name"]
+                    if member_data.get("mailAddress"):
+                        user.email = member_data.get("mailAddress")
+                    user.is_active = True
+                
+                all_users.append(user)
             
             # プロジェクトメンバーを更新
             project.members = all_users
             
-            logger.info(f"Synced {len(members_data)} members for project {project.id}")
+            logger.info(f"Synced {len(all_users)} members for project {project.id} ({project.project_key})")
+            logger.info(f"Project {project.project_key} member IDs: {[u.id for u in all_users]}")
+            logger.info(f"Project {project.project_key} member names: {[u.name for u in all_users]}")
             
         except ExternalAPIException:
             # Backlog APIエラーは再raise（上位で適切に処理される）
@@ -551,8 +578,15 @@ class SyncService:
         # トークンが期限切れまたは期限切れ間近の場合はリフレッシュを試みる
         if token.is_expired() or token_refresh_service._should_refresh_token(token):
             logger.info(f"Token expired or about to expire for user {user.id}, attempting refresh")
+            logger.info(f"Token expires at: {token.expires_at}, current time: {datetime.utcnow()}")
+            logger.info(f"Token has refresh_token: {bool(token.refresh_token)}")
+            
             try:
-                refreshed_token = await token_refresh_service.refresh_token(token, db)
+                # スペースキーがあることを確認
+                space_key = token.backlog_space_key or settings.BACKLOG_SPACE_KEY
+                logger.info(f"Using space key for refresh: {space_key}")
+                
+                refreshed_token = await token_refresh_service.refresh_token(token, db, space_key)
                 if refreshed_token:
                     token = refreshed_token
                     logger.info(f"Successfully refreshed token for user {user.id}")
@@ -561,15 +595,15 @@ class SyncService:
                     return {
                         "connected": False,
                         "status": "expired",
-                        "message": "アクセストークンの有効期限が切れており、リフレッシュに失敗しました",
+                        "message": "アクセストークンの有効期限が切れており、リフレッシュに失敗しました。再度ログインしてください。",
                         "expires_at": token.expires_at
                     }
             except Exception as e:
-                logger.error(f"Error refreshing token for user {user.id}: {str(e)}")
+                logger.error(f"Error refreshing token for user {user.id}: {str(e)}", exc_info=True)
                 return {
                     "connected": False,
                     "status": "expired",
-                    "message": "アクセストークンの有効期限が切れており、リフレッシュに失敗しました",
+                    "message": f"アクセストークンの有効期限が切れており、リフレッシュに失敗しました: {str(e)}",
                     "expires_at": token.expires_at
                 }
         

@@ -74,9 +74,9 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
     request_id = request.headers.get("X-Request-ID")
     
     logger.error(
-        f"AppException handled: {exc.error_code.value} - {exc.detail}",
+        f"AppException handled: {exc.error_code} - {exc.detail}",
         extra={
-            "error_code": exc.error_code.value,
+            "error_code": exc.error_code,
             "status_code": exc.status_code,
             "request_id": request_id,
             "path": request.url.path
@@ -84,7 +84,7 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
     )
     
     response = ErrorResponse.create(
-        error_code=exc.error_code.value,
+        error_code=exc.error_code,
         message=exc.detail,
         status_code=exc.status_code,
         request_id=request_id

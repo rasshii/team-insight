@@ -14,7 +14,12 @@ export const useProjects = (params?: {
 }) => {
   return useQuery({
     queryKey: queryKeys.projects.list(params),
-    queryFn: () => projectService.getProjects(params),
+    queryFn: async () => {
+      console.log('Fetching projects with params:', params);
+      const result = await projectService.getProjects(params);
+      console.log('Projects service returned:', result);
+      return result;
+    },
     staleTime: 5 * 60 * 1000, // 5分
   })
 }
@@ -121,13 +126,25 @@ export const useSyncProjectTasks = () => {
  * すべてのプロジェクトを同期するミューテーションフック
  */
 export const useSyncAllProjects = () => {
+  const queryClient = useQueryClient()
+  
   return useApiMutation(
     () => projectService.syncAllProjects(),
     {
       successMessage: '同期が完了しました',
-      successDescription: (result) => `新規: ${result.created}件、更新: ${result.updated}件、合計: ${result.total}件`,
+      successDescription: (result) => {
+        // レスポンスがラップされている場合とそうでない場合を処理
+        const data = result.data || result
+        return `新規: ${data.created}件、更新: ${data.updated}件、合計: ${data.total}件`
+      },
       errorMessage: 'プロジェクトの同期に失敗しました。',
-      invalidateQueries: [queryKeys.projects.all],
+      invalidateQueries: [queryKeys.projects.all, queryKeys.sync.status],
+      onSuccessCallback: async (result) => {
+        console.log('Sync success callback result:', result);
+        // プロジェクト一覧を強制的に再取得
+        await queryClient.refetchQueries({ queryKey: queryKeys.projects.all })
+        console.log('Projects refetched');
+      }
     }
   )
 }

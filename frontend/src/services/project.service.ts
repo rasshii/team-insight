@@ -55,7 +55,9 @@ export const projectService = {
     search?: string
     status?: 'active' | 'archived'
   }): Promise<ProjectListResponse> {
-    return await apiClient.get('/api/v1/projects/', { params })
+    const response = await apiClient.get('/api/v1/projects/', { params })
+    // Handle wrapped response from backend
+    return response.data || response
   },
 
   /**
@@ -102,7 +104,7 @@ export const projectService = {
     updated: number
     total: number
   }> {
-    return await apiClient.post(`/api/v1/sync/tasks/${projectId}/`)
+    return await apiClient.post(`/api/v1/sync/tasks/${projectId}`)
   },
 
   /**
@@ -114,6 +116,8 @@ export const projectService = {
     updated: number
     total: number
   }> {
-    return await apiClient.post('/api/v1/sync/projects/all/')
+    const response = await apiClient.post('/api/v1/sync/projects/all')
+    // Handle wrapped response from backend
+    return response.data || response
   },
 }

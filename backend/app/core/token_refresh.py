@@ -130,13 +130,14 @@ class TokenRefreshService:
         # 5分前にリフレッシュ
         return expires_at <= now + timedelta(minutes=5)
     
-    async def refresh_token(self, token: OAuthToken, db: Session) -> Optional[OAuthToken]:
+    async def refresh_token(self, token: OAuthToken, db: Session, space_key: Optional[str] = None) -> Optional[OAuthToken]:
         """
         トークンをリフレッシュ
         
         Args:
             token: リフレッシュするトークン
             db: データベースセッション
+            space_key: Backlogスペースキー（オプション）
             
         Returns:
             リフレッシュされたトークン、失敗時はNone
@@ -144,7 +145,8 @@ class TokenRefreshService:
         try:
             # リフレッシュトークンを使用して新しいトークンを取得
             new_token_data = await backlog_oauth_service.refresh_access_token(
-                token.refresh_token
+                token.refresh_token,
+                space_key=space_key
             )
             
             # データベースのトークンを更新
@@ -159,7 +161,7 @@ class TokenRefreshService:
             return token
             
         except Exception as e:
-            logger.error(f"Failed to refresh Backlog token: {str(e)}")
+            logger.error(f"Failed to refresh Backlog token: {str(e)}", exc_info=True)
             return None
 
 

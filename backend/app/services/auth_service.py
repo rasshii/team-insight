@@ -156,7 +156,7 @@ class AuthService:
         
         return user
     
-    def save_oauth_token(self, db: Session, user_id: int, token_data: dict, space_key: str) -> None:
+    def save_oauth_token(self, db: Session, user_id: int, token_data: dict, space_key: str, user_info: dict = None) -> None:
         """
         OAuthトークンを保存
         
@@ -165,8 +165,15 @@ class AuthService:
             user_id: ユーザーID
             token_data: トークンデータ
             space_key: Backlogスペースキー
+            user_info: Backlogユーザー情報（オプション）
         """
-        self.backlog_oauth_service.save_token(db, user_id, token_data, space_key=space_key)
+        saved_token = self.backlog_oauth_service.save_token(db, user_id, token_data, space_key=space_key)
+        
+        # Backlogユーザー情報も保存（提供されている場合）
+        if user_info and saved_token:
+            saved_token.backlog_user_id = str(user_info.get("id", ""))
+            saved_token.backlog_user_email = user_info.get("mailAddress", "")
+            db.commit()
     
     def assign_default_role_if_needed(self, db: Session, user: User) -> User:
         """

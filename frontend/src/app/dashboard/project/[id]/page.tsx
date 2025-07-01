@@ -35,7 +35,10 @@ import {
 import { BottleneckChart } from "@/components/charts/BottleneckChart";
 import { ThroughputChart } from "@/components/charts/ThroughputChart";
 import { useRouter } from "next/navigation";
-import { useProject } from "@/hooks/queries/useProjects";
+import { useProject, useSyncProjectTasks } from "@/hooks/queries/useProjects";
+import { toast } from "@/components/ui/use-toast";
+import { getTaskStatusLabel } from "@/lib/task-utils";
+import { useProjectStatuses } from "@/hooks/queries/useBacklog";
 
 interface ProjectDashboardPageProps {
   params: {
@@ -53,8 +56,31 @@ export default function ProjectDashboardPage({ params }: ProjectDashboardPagePro
   const { data: bottlenecks, isLoading: bottlenecksLoading } = useProjectBottlenecks(projectId);
   const { data: velocity, isLoading: velocityLoading } = useProjectVelocity(projectId);
   const { data: cycleTime, isLoading: cycleTimeLoading } = useProjectCycleTime(projectId);
+  const { data: statusesData, isLoading: statusesLoading } = useProjectStatuses(projectId, !!project);
+  
+  // タスク同期ミューテーション
+  const syncTasksMutation = useSyncProjectTasks();
 
-  const isLoading = projectLoading || healthLoading || bottlenecksLoading || velocityLoading || cycleTimeLoading;
+  const isLoading = projectLoading || healthLoading || bottlenecksLoading || velocityLoading || cycleTimeLoading || statusesLoading;
+
+  // ステータス名のマッピングを作成
+  const getStatusLabel = (statusKey: string) => {
+    if (statusesData?.statuses) {
+      // ステータスIDで検索
+      const statusById = statusesData.statuses.find(s => s.id.toString() === statusKey);
+      if (statusById) return statusById.name;
+      
+      // ステータス名で検索（互換性のため）
+      const statusByName = statusesData.statuses.find(s => 
+        s.name.toLowerCase() === statusKey.toLowerCase() ||
+        s.name === statusKey
+      );
+      if (statusByName) return statusByName.name;
+    }
+    
+    // フォールバックとして固定マッピングを使用
+    return getTaskStatusLabel(statusKey);
+  };
 
   if (isLoading) {
     return (
@@ -133,9 +159,30 @@ export default function ProjectDashboardPage({ params }: ProjectDashboardPagePro
                 プロジェクトダッシュボード
               </p>
             </div>
-            <Button variant="outline" size="sm">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              データを更新
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => {
+                syncTasksMutation.mutate(projectId, {
+                  onSuccess: () => {
+                    toast({
+                      title: "同期完了",
+                      description: "タスクデータを最新の状態に更新しました。",
+                    });
+                  },
+                  onError: () => {
+                    toast({
+                      title: "同期エラー",
+                      description: "タスクの同期に失敗しました。",
+                      variant: "destructive",
+                    });
+                  }
+                });
+              }}
+              disabled={syncTasksMutation.isPending}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${syncTasksMutation.isPending ? 'animate-spin' : ''}`} />
+              {syncTasksMutation.isPending ? '同期中...' : 'タスクを同期'}
             </Button>
           </div>
 
@@ -200,18 +247,42 @@ export default function ProjectDashboardPage({ params }: ProjectDashboardPagePro
               </CardHeader>
               <CardContent>
                 <div className="space-y-1 text-sm">
-                  <div className="flex justify-between">
-                    <span>未着手</span>
-                    <span className="font-medium">{health?.status_distribution?.TODO || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>進行中</span>
-                    <span className="font-medium">{health?.status_distribution?.IN_PROGRESS || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>完了</span>
-                    <span className="font-medium">{health?.status_distribution?.CLOSED || 0}</span>
-                  </div>
+                  {statusesData?.statuses ? (
+                    // Backlog APIから取得したステータスを表示
+                    statusesData.statuses
+                      .sort((a, b) => a.displayOrder - b.displayOrder)
+                      .map(status => {
+                        const count = health?.status_distribution?.[status.id] || 
+                                     health?.status_distribution?.[status.name] || 
+                                     0;
+                        return (
+                          <div key={status.id} className="flex justify-between">
+                            <span style={{ color: status.color }}>{status.name}</span>
+                            <span className="font-medium">{count}</span>
+                          </div>
+                        );
+                      })
+                  ) : (
+                    // フォールバック: 固定のステータスを表示
+                    <>
+                      <div className="flex justify-between">
+                        <span>未着手</span>
+                        <span className="font-medium">{health?.status_distribution?.TODO || 0}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>進行中</span>
+                        <span className="font-medium">{health?.status_distribution?.IN_PROGRESS || 0}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>処理済み</span>
+                        <span className="font-medium">{health?.status_distribution?.RESOLVED || 0}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>完了</span>
+                        <span className="font-medium">{health?.status_distribution?.CLOSED || 0}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -253,7 +324,8 @@ export default function ProjectDashboardPage({ params }: ProjectDashboardPagePro
                   <ThroughputChart
                     data={velocity.map(item => ({
                       date: item.date,
-                      value: item.completed_count
+                      completed_tasks: item.completed_count,
+                      story_points: item.story_points || 0
                     }))}
                   />
                 </CardContent>
@@ -278,17 +350,14 @@ export default function ProjectDashboardPage({ params }: ProjectDashboardPagePro
                       <div key={status} className="space-y-1">
                         <div className="flex items-center justify-between text-sm">
                           <span className="font-medium">
-                            {status === 'TODO' ? '未着手' :
-                             status === 'IN_PROGRESS' ? '進行中' :
-                             status === 'DONE' ? '完了待ち' :
-                             status === 'CLOSED' ? '完了' : status}
+                            {getStatusLabel(status)}
                           </span>
                           <span className="text-muted-foreground">
-                            平均 {days} 日
+                            平均 {typeof days === 'number' ? days.toFixed(1) : days} 日
                           </span>
                         </div>
                         <Progress 
-                          value={Math.min((days / 10) * 100, 100)} 
+                          value={Math.min((Number(days) / 10) * 100, 100)} 
                           className="h-2"
                         />
                       </div>

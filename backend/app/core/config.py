@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     # CORS設定
     FRONTEND_URL: str = Field(default="http://localhost", env="FRONTEND_URL")
     
+    # メール用のURL設定（Nginxリバースプロキシ経由）
+    EMAIL_FRONTEND_URL: str = Field(default="http://localhost", env="EMAIL_FRONTEND_URL")
+    
     # Email設定
     SMTP_HOST: str = Field(default="", env="SMTP_HOST")
     SMTP_PORT: int = Field(default=587, env="SMTP_PORT")

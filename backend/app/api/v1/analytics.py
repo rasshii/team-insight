@@ -7,7 +7,8 @@
 
 import logging
 from typing import Dict, Any, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi import status as http_status
 from sqlalchemy.orm import Session, joinedload
 from app.api import deps
 from app.models.user import User
@@ -52,7 +53,7 @@ async def get_project_health(
     except Exception as e:
         logger.error(f"Failed to get project health: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="プロジェクト健康度の取得に失敗しました"
         )
 
@@ -84,7 +85,7 @@ async def get_project_bottlenecks(
     except Exception as e:
         logger.error(f"Failed to detect bottlenecks: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="ボトルネック検出に失敗しました"
         )
 
@@ -119,7 +120,7 @@ async def get_project_velocity(
     except Exception as e:
         logger.error(f"Failed to get velocity trend: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="ベロシティデータの取得に失敗しました"
         )
 
@@ -154,7 +155,7 @@ async def get_project_cycle_time(
     except Exception as e:
         logger.error(f"Failed to get cycle time analysis: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="サイクルタイム分析の取得に失敗しました"
         )
 
@@ -182,7 +183,7 @@ async def get_personal_dashboard(
         個人ダッシュボードデータ
     """
     try:
-        from app.models.task import Task, TaskStatus, TaskType
+        from app.models.task import Task, TaskStatus
         from sqlalchemy import func, case, and_
         from datetime import datetime, timedelta
         
@@ -212,9 +213,48 @@ async def get_personal_dashboard(
         ).scalar()
         
         # 各ステータスでの滞留時間（作業フロー分析）
+        # ユーザーのプロジェクトからステータス情報を取得
+        from app.models.project import Project, project_members
+        from app.models.auth import OAuthToken
+        from app.services.backlog_client import backlog_client
+        
+        user_projects = db.query(Project).join(project_members).filter(
+            project_members.c.user_id == current_user.id
+        ).all()
+        
+        # ステータスIDと名前のマッピングを作成
+        status_name_map = {}
+        oauth_token = db.query(OAuthToken).filter(
+            OAuthToken.user_id == current_user.id,
+            OAuthToken.provider == "backlog"
+        ).first()
+        
+        if oauth_token and user_projects:
+            for project in user_projects:
+                try:
+                    statuses = await backlog_client.get_issue_statuses(
+                        project_id=project.backlog_id,
+                        access_token=oauth_token.access_token
+                    )
+                    for status in statuses:
+                        # ステータス名をキーにしてマッピング（大文字小文字を無視）
+                        status_name_map[status['name'].upper()] = status['name']
+                        # IDベースのマッピングも作成
+                        status_name_map[str(status['id'])] = status['name']
+                except Exception as e:
+                    logger.warning(f"Failed to get statuses for project {project.id}: {str(e)}")
+        
+        # デフォルトのステータス名マッピング
+        default_status_names = {
+            'TODO': '未対応',
+            'IN_PROGRESS': '処理中',
+            'RESOLVED': '処理済み',
+            'CLOSED': '完了'
+        }
+        
         workflow_analysis = []
-        for status in TaskStatus:
-            if status == TaskStatus.CLOSED:
+        for task_status in TaskStatus:
+            if task_status == TaskStatus.CLOSED:
                 # 完了タスクは作成から完了までの時間
                 avg_time = db.query(
                     func.avg(
@@ -222,7 +262,7 @@ async def get_personal_dashboard(
                     )
                 ).filter(
                     Task.assignee_id == current_user.id,
-                    Task.status == status,
+                    Task.status == task_status,
                     Task.completed_date.isnot(None)
                 ).scalar()
             else:
@@ -233,11 +273,17 @@ async def get_personal_dashboard(
                     )
                 ).filter(
                     Task.assignee_id == current_user.id,
-                    Task.status == status
+                    Task.status == task_status
                 ).scalar()
             
+            # ステータス名を取得（カスタムステータス名があればそれを使用）
+            status_value = task_status.value
+            status_display_name = status_name_map.get(status_value.upper(), 
+                                                     default_status_names.get(status_value, status_value))
+            
             workflow_analysis.append({
-                "status": status.value,
+                "status": status_value,
+                "status_name": status_display_name,
                 "average_days": round(avg_time, 1) if avg_time else 0
             })
         
@@ -262,7 +308,7 @@ async def get_personal_dashboard(
         
         # スキルマトリックス（タスクタイプ別の処理効率）
         skill_matrix = db.query(
-            Task.task_type,
+            Task.issue_type_name,
             func.count(Task.id).label('count'),
             func.avg(
                 case(
@@ -273,13 +319,13 @@ async def get_personal_dashboard(
             ).label('avg_completion_days')
         ).filter(
             Task.assignee_id == current_user.id
-        ).group_by(Task.task_type).all()
+        ).group_by(Task.issue_type_name).all()
         
         skill_data = []
-        for task_type, count, avg_days in skill_matrix:
-            if task_type:
+        for issue_type_name, count, avg_days in skill_matrix:
+            if issue_type_name:
                 skill_data.append({
-                    "task_type": task_type.value,
+                    "task_type": issue_type_name,
                     "total_count": count,
                     "average_completion_days": round(avg_days, 1) if avg_days else None
                 })
@@ -321,7 +367,7 @@ async def get_personal_dashboard(
     except Exception as e:
         logger.error(f"Failed to get personal dashboard: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="個人ダッシュボードデータの取得に失敗しました"
         )
 
@@ -331,7 +377,7 @@ async def get_personal_dashboard(
 async def get_personal_tasks(
     current_user: User = Depends(deps.get_current_active_user),
     db: Session = Depends(deps.get_db_session),
-    status: Optional[TaskStatus] = None,
+    task_status: Optional[TaskStatus] = None,
     limit: int = 50,
     offset: int = 0
 ) -> Dict[str, Any]:
@@ -362,8 +408,8 @@ async def get_personal_tasks(
         ).filter(Task.assignee_id == current_user.id)
         
         # ステータスフィルタ
-        if status:
-            query = query.filter(Task.status == status)
+        if task_status:
+            query = query.filter(Task.status == task_status)
         
         # 総件数を取得
         total_count = query.count()
@@ -382,7 +428,7 @@ async def get_personal_tasks(
             Task.assignee_id == current_user.id
         ).group_by(Task.status).all()
         
-        status_counts = {status.value: 0 for status in TaskStatus}
+        status_counts = {task_status.value: 0 for task_status in TaskStatus}
         for task_status, count in status_summary:
             status_counts[task_status.value] = count
         
@@ -394,7 +440,7 @@ async def get_personal_tasks(
                     "description": task.description,
                     "status": task.status.value,
                     "priority": task.priority,
-                    "task_type": task.task_type.value if task.task_type else None,
+                    "task_type": task.issue_type_name,
                     "due_date": task.due_date.isoformat() if task.due_date else None,
                     "created_at": task.created_at.isoformat(),
                     "updated_at": task.updated_at.isoformat(),
@@ -422,7 +468,7 @@ async def get_personal_tasks(
     except Exception as e:
         logger.error(f"Failed to get personal tasks: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="個人タスク一覧の取得に失敗しました"
         )
 
@@ -449,7 +495,7 @@ async def get_personal_performance(
         パフォーマンス指標の詳細
     """
     try:
-        from app.models.task import Task, TaskStatus, TaskType
+        from app.models.task import Task, TaskStatus
         from sqlalchemy import func, case, and_, extract
         from datetime import datetime, timedelta
         
@@ -479,7 +525,7 @@ async def get_personal_performance(
         
         # タスクタイプ別効率（期間内）
         type_efficiency = db.query(
-            Task.task_type,
+            Task.issue_type_name,
             func.count(Task.id).label('total_count'),
             func.sum(case((Task.status == TaskStatus.CLOSED, 1), else_=0)).label('completed_count'),
             func.avg(
@@ -492,13 +538,13 @@ async def get_personal_performance(
         ).filter(
             Task.assignee_id == current_user.id,
             Task.created_at >= start_date
-        ).group_by(Task.task_type).all()
+        ).group_by(Task.issue_type_name).all()
         
         type_data = []
-        for task_type, total, completed, avg_days in type_efficiency:
-            if task_type:
+        for issue_type_name, total, completed, avg_days in type_efficiency:
+            if issue_type_name:
                 type_data.append({
-                    "task_type": task_type.value,
+                    "task_type": issue_type_name,
                     "total_count": total,
                     "completed_count": completed,
                     "completion_rate": (completed / total * 100) if total > 0 else 0,
@@ -565,6 +611,6 @@ async def get_personal_performance(
     except Exception as e:
         logger.error(f"Failed to get personal performance: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="個人パフォーマンス指標の取得に失敗しました"
         )

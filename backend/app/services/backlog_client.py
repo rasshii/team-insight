@@ -75,12 +75,16 @@ class BacklogClient:
                 return response.json()
         except httpx.HTTPStatusError as e:
             logger.error(f"Backlog API HTTP error: {e.response.status_code} - {e.response.text}")
+            logger.error(f"Request URL: {url}")
+            logger.error(f"Request method: {method}")
             raise ExternalAPIException(
                 service="Backlog",
-                detail=f"APIリクエストが失敗しました: {e.response.status_code}",
+                detail=f"APIリクエストが失敗しました: {e.response.status_code} - {e.response.text[:200]}",
                 data={
                     "status_code": e.response.status_code,
-                    "response_text": e.response.text[:500]  # レスポンスの最初の500文字のみ
+                    "response_text": e.response.text[:500],  # レスポンスの最初の500文字のみ
+                    "url": url,
+                    "method": method
                 }
             )
         except httpx.RequestError as e:
@@ -227,7 +231,12 @@ class BacklogClient:
             プロジェクト情報のリスト
         """
         params = {"archived": archived}
-        return await self._make_request("GET", "/projects", access_token, params=params)
+        logger.info(f"Getting projects from Backlog API: {self.base_url}/projects")
+        result = await self._make_request("GET", "/projects", access_token, params=params)
+        logger.info(f"Backlog API returned {len(result) if isinstance(result, list) else 'non-list'} projects")
+        if isinstance(result, list) and len(result) > 0:
+            logger.info(f"First project example: {result[0].get('projectKey', 'N/A')} - {result[0].get('name', 'N/A')}")
+        return result
     
     async def get_issue_statuses(
         self,

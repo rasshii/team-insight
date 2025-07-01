@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/react-query'
-import { backlogService } from '@/services/backlog.service'
+import { backlogService, BacklogSpaceKeyUpdateParams } from '@/services/backlog.service'
 import { useToast } from '@/hooks/use-toast'
 import { useApiMutation } from '@/hooks/useApiMutation'
 import { apiClient } from '@/lib/api-client'
@@ -100,4 +100,34 @@ export const useSyncBacklogTasks = () => {
       },
     }
   )
+}
+
+/**
+ * Backlogスペースキーを更新するミューテーションフック
+ */
+export const useUpdateBacklogSpaceKey = () => {
+  const queryClient = useQueryClient()
+  
+  return useApiMutation(
+    (params: BacklogSpaceKeyUpdateParams) => backlogService.updateSpaceKey(params),
+    {
+      successMessage: (data) => data.message,
+      errorMessage: 'スペースキーの更新に失敗しました',
+      onSuccessCallback: () => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.backlog.connection })
+      },
+    }
+  )
+}
+
+/**
+ * プロジェクトのステータス一覧を取得するフック
+ */
+export const useProjectStatuses = (projectId: string | number, enabled = true) => {
+  return useQuery({
+    queryKey: ['backlog', 'project', projectId, 'statuses'],
+    queryFn: () => backlogService.getProjectStatuses(projectId),
+    staleTime: 5 * 60 * 1000, // 5分
+    enabled: enabled && !!projectId,
+  })
 }

@@ -46,6 +46,29 @@ export interface BacklogSyncResponse {
   message: string
 }
 
+export interface BacklogSpaceKeyUpdateParams {
+  space_key: string
+}
+
+export interface BacklogSpaceKeyUpdateResponse {
+  success: boolean
+  message: string
+  space_key: string
+}
+
+export interface BacklogStatus {
+  id: number
+  projectId: number
+  name: string
+  color: string
+  displayOrder: number
+}
+
+export interface BacklogStatusesResponse {
+  statuses: BacklogStatus[]
+  cached: boolean
+}
+
 /**
  * Backlog連携関連のAPIサービス
  */
@@ -55,7 +78,7 @@ export const backlogService = {
    */
   async getConnection(): Promise<BacklogConnectionStatus> {
     const response = await apiClient.get('/api/v1/backlog/connection')
-    return response.data.data
+    return response
   },
 
   /**
@@ -73,7 +96,7 @@ export const backlogService = {
    */
   async testConnection(): Promise<BacklogTestResponse> {
     const response = await apiClient.post('/api/v1/backlog/test')
-    return response.data.data
+    return response.data
   },
 
   /**
@@ -81,7 +104,7 @@ export const backlogService = {
    */
   async disconnect(): Promise<BacklogDisconnectResponse> {
     const response = await apiClient.post('/api/v1/backlog/disconnect')
-    return response.data.data
+    return response.data
   },
 
   /**
@@ -89,7 +112,7 @@ export const backlogService = {
    */
   async syncProjects(): Promise<BacklogSyncResponse> {
     const response = await apiClient.post('/api/v1/sync/projects/all')
-    return response.data.data
+    return response.data
   },
 
   /**
@@ -97,6 +120,38 @@ export const backlogService = {
    */
   async syncTasks(projectId: string | number): Promise<BacklogSyncResponse> {
     const response = await apiClient.post(`/api/v1/sync/tasks/${projectId}`)
-    return response.data.data
+    return response.data
+  },
+
+  /**
+   * スペースキーを更新
+   */
+  async updateSpaceKey(params: BacklogSpaceKeyUpdateParams): Promise<BacklogSpaceKeyUpdateResponse> {
+    const response = await apiClient.put('/api/v1/backlog/connection/space-key', params)
+    return response.data
+  },
+
+  /**
+   * プロジェクトのステータス一覧を取得
+   */
+  async getProjectStatuses(projectId: string | number): Promise<BacklogStatusesResponse> {
+    const response = await apiClient.get(`/api/v1/backlog/projects/${projectId}/statuses`)
+    return response.data
+  },
+
+  /**
+   * ユーザーのプロジェクトのステータス情報を取得
+   */
+  async getUserProjectStatuses(): Promise<{
+    projects: Array<{
+      project_id: number
+      project_name: string
+      backlog_project_id: number
+      statuses: BacklogStatus[]
+    }>
+    all_statuses: BacklogStatus[]
+  }> {
+    const response = await apiClient.get('/api/v1/backlog/user/project-statuses')
+    return response.data
   },
 }

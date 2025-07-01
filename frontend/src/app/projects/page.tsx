@@ -23,12 +23,14 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProjects, useSyncAllProjects } from "@/hooks/queries/useProjects";
 import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/react-query";
 import { syncService } from "@/services/sync.service";
 import { useAuth } from "@/hooks/useAuth";
 import { RefreshCw, AlertCircle, CheckCircle2, Database } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ja } from "date-fns/locale/ja";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function ProjectsPage() {
   const router = useRouter();
@@ -39,7 +41,7 @@ export default function ProjectsPage() {
   
   // 同期状態を取得
   const { data: connectionStatus } = useQuery({
-    queryKey: ['sync', 'connection-status'],
+    queryKey: queryKeys.sync.status,
     queryFn: () => syncService.getConnectionStatus(),
     staleTime: 60 * 1000, // 1分
   });
@@ -51,8 +53,36 @@ export default function ProjectsPage() {
     (role) => role.role.name === "ADMIN" || role.role.name === "PROJECT_LEADER"
   );
 
+  // Monitor projects data changes
+  useEffect(() => {
+    console.log('Projects data updated:', {
+      fullData: projectsData,
+      projectsArray: projectsData?.projects,
+      projectCount: projectsData?.projects?.length || 0,
+      projectKeys: projectsData?.projects?.map((p: any) => p.project_key) || [],
+      sampleProject: projectsData?.projects?.[0] || null
+    });
+  }, [projectsData]);
+
   const handleSyncProjects = () => {
-    syncProjectsMutation.mutate();
+    console.log('Sync button clicked');
+    console.log('Connection status:', connectionStatus);
+    console.log('Is admin or leader:', isAdminOrLeader);
+    console.log('Mutation is pending:', syncProjectsMutation.isPending);
+    
+    syncProjectsMutation.mutate(undefined, {
+      onSuccess: (data) => {
+        console.log('Sync successful:', data);
+        console.log('Projects after sync:', projectsData);
+        // Force a hard refresh of the page after a short delay to bypass any caching
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      },
+      onError: (error) => {
+        console.error('Sync failed:', error);
+      }
+    });
   };
 
   const navigateToProject = (projectId: number) => {
@@ -94,6 +124,11 @@ export default function ProjectsPage() {
   }
 
   const projects = projectsData?.projects || [];
+  
+  // Debug logging
+  console.log('Projects data:', projectsData);
+  console.log('Projects array:', projects);
+  console.log('User roles:', user?.user_roles);
 
   return (
     <PrivateRoute>

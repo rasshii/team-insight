@@ -11,7 +11,7 @@ export const syncService = {
    */
   async getConnectionStatus(): Promise<ConnectionStatus> {
     const response = await apiClient.get('/api/v1/sync/connection/status')
-    return response.data.data
+    return response.data
   },
 
   /**

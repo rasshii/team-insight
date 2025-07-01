@@ -41,8 +41,14 @@ def get_projects(
         プロジェクト一覧
     """
     # ユーザーが参加しているプロジェクトを取得（リレーションシップを含む）
+    logger.info(f"Fetching projects for user {current_user.id}")
     user_with_projects = db.query(User).options(joinedload(User.projects)).filter(User.id == current_user.id).first()
     projects = user_with_projects.projects if user_with_projects else []
+    
+    logger.info(f"Found {len(projects)} projects for user {current_user.id}")
+    if projects:
+        logger.info(f"Project IDs: {[p.id for p in projects]}")
+        logger.info(f"Project keys: {[p.project_key for p in projects]}")
     
     # Pydanticスキーマに変換
     projects_data = [ProjectSchema.model_validate(p).model_dump() for p in projects]

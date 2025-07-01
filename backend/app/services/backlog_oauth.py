@@ -231,8 +231,12 @@ class BacklogOAuthService:
             existing_token.refresh_token = token_data["refresh_token"]
             existing_token.expires_at = token_data["expires_at"]
             existing_token.updated_at = datetime.utcnow()
+            existing_token.last_used_at = datetime.utcnow()
+            
+            # Backlog固有のフィールドを更新（提供されている場合）
             if space_key:
                 existing_token.backlog_space_key = space_key
+            
             db.commit()
             return existing_token
         else:
@@ -243,7 +247,8 @@ class BacklogOAuthService:
                 access_token=token_data["access_token"],
                 refresh_token=token_data["refresh_token"],
                 expires_at=token_data["expires_at"],
-                backlog_space_key=space_key if space_key else self.space_key,
+                backlog_space_key=space_key if space_key else None,
+                last_used_at=datetime.utcnow()
             )
             db.add(new_token)
             db.commit()

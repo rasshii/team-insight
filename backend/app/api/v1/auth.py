@@ -14,6 +14,7 @@ import logging
 from zoneinfo import ZoneInfo
 
 from app.api.deps import get_db_session
+from app.db.session import get_db_with_commit
 from app.services.backlog_oauth import backlog_oauth_service
 from app.services.auth_service import AuthService
 from app.models.auth import OAuthState, OAuthToken
@@ -44,6 +45,7 @@ from app.core.exceptions import (
     NotFoundException,
     AlreadyExistsException,
     ValidationException,
+    DatabaseException,
     handle_database_error
 )
 from app.core.database import transaction
@@ -421,8 +423,8 @@ async def handle_callback(
         # ユーザーの作成または更新
         user = auth_service.find_or_create_user(db, user_info)
 
-        # トークンを保存（space_keyも含めて保存）
-        auth_service.save_oauth_token(db, user.id, token_data, space_key)
+        # トークンを保存（space_keyとユーザー情報も含めて保存）
+        auth_service.save_oauth_token(db, user.id, token_data, space_key, user_info)
 
         # 使用済みのstateを削除
         auth_service.cleanup_oauth_state(db, oauth_state)
@@ -685,29 +687,79 @@ async def request_email_verification(
             detail="このメールアドレスは既に他のユーザーが使用しています"
         )
     
-    # 検証トークンを生成
-    verification_token = secrets.token_urlsafe(32)
-    expires_at = datetime.now(ZoneInfo("Asia/Tokyo")) + timedelta(
-        hours=settings.EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS
-    )
+    # 既存の有効なトークンがあるかチェック
+    now = datetime.now(ZoneInfo("Asia/Tokyo"))
     
-    # ユーザー情報を更新
-    current_user.email = request.email
-    current_user.email_verification_token = verification_token
-    current_user.email_verification_token_expires = expires_at
-    current_user.is_email_verified = False
-    current_user.email_verified_at = None
+    # トークンの有効期限をチェック（タイムゾーン対応）
+    has_valid_token = False
+    if (current_user.email_verification_token and 
+        current_user.email_verification_token_expires and
+        current_user.email == request.email):
+        # email_verification_token_expiresがnaive datetimeの場合、タイムゾーンを付加
+        token_expires = current_user.email_verification_token_expires
+        if token_expires.tzinfo is None:
+            # UTCとして扱い、Asia/Tokyoに変換
+            token_expires = token_expires.replace(tzinfo=timezone.utc).astimezone(ZoneInfo("Asia/Tokyo"))
+        
+        if token_expires > now:
+            has_valid_token = True
     
-    db.commit()
+    if has_valid_token:
+        # 既存のトークンを再利用
+        verification_token = current_user.email_verification_token
+        logger.info(f"既存の検証トークンを再利用 - user_id: {current_user.id}")
+        # メール送信のためのuser変数を設定
+        user = current_user
+    else:
+        # 新しい検証トークンを生成
+        verification_token = secrets.token_urlsafe(32)
+        expires_at = now + timedelta(
+            hours=settings.EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS
+        )
+        
+        # 現在のセッションでユーザーを取得し直す
+        user = db.query(User).filter(User.id == current_user.id).first()
+        if not user:
+            raise NotFoundException(resource="ユーザー")
+            
+        # ユーザー情報を更新
+        user.email = request.email
+        user.email_verification_token = verification_token
+        user.email_verification_token_expires = expires_at
+        user.is_email_verified = False
+        user.email_verified_at = None
+        
+        # 変更をコミットしてデータベースに保存
+        try:
+            db.add(user)  # セッションに追加
+            db.flush()  # まず変更を確定
+            db.commit()
+            
+            # トークンが保存されたことを確認
+            if not user.email_verification_token:
+                raise Exception("トークンが保存されていません")
+                
+            logger.info(f"新しい検証トークンを保存しました - user_id: {user.id}, token_prefix: {verification_token[:20]}...")
+        except Exception as e:
+            db.rollback()
+            logger.error(f"トークン保存エラー - user_id: {user.id}, error: {str(e)}")
+            raise DatabaseException(
+                detail="検証トークンの保存に失敗しました"
+            )
     
-    # 検証URLを作成
-    verification_url = f"{settings.FRONTEND_URL}/auth/verify-email?token={verification_token}"
+    # 検証URLを作成（メール用のURLを使用）
+    verification_url = f"{settings.EMAIL_FRONTEND_URL}/auth/verify-email?token={verification_token}"
+    
+    # トークンが保存されたことを再度確認（新規トークンの場合のみ）
+    if not has_valid_token:
+        saved_user = db.query(User).filter(User.id == user.id).first()
+        logger.info(f"トークン保存確認 - user_id: {saved_user.id}, has_token: {saved_user.email_verification_token is not None}")
     
     # メール送信
     try:
         success = email_service.send_verification_email(
             to_email=request.email,
-            user_name=current_user.name,
+            user_name=user.name,
             verification_url=verification_url
         )
         
@@ -723,11 +775,6 @@ async def request_email_verification(
         
     except Exception as e:
         logger.error(f"検証メール送信エラー - user_id: {current_user.id}, error: {str(e)}")
-        # トークンをクリア
-        current_user.email_verification_token = None
-        current_user.email_verification_token_expires = None
-        db.commit()
-        
         raise ExternalAPIException(
             service="メール送信",
             detail="メールの送信に失敗しました。しばらくしてから再度お試しください。"
@@ -751,7 +798,7 @@ async def confirm_email_verification(
     Raises:
         HTTPException: 無効なトークンまたは期限切れの場合
     """
-    from datetime import datetime
+    from datetime import datetime, timezone
     from zoneinfo import ZoneInfo
     from app.services.email import email_service
     
@@ -768,7 +815,15 @@ async def confirm_email_verification(
         )
     
     # トークンの有効期限を確認
-    if user.email_verification_token_expires < datetime.now(ZoneInfo("Asia/Tokyo")):
+    now = datetime.now(ZoneInfo("Asia/Tokyo"))
+    
+    # email_verification_token_expiresがnaive datetimeの場合、タイムゾーンを付加
+    token_expires = user.email_verification_token_expires
+    if token_expires.tzinfo is None:
+        # UTCとして扱い、Asia/Tokyoに変換
+        token_expires = token_expires.replace(tzinfo=timezone.utc).astimezone(ZoneInfo("Asia/Tokyo"))
+    
+    if token_expires < now:
         # 期限切れのトークンをクリア
         user.email_verification_token = None
         user.email_verification_token_expires = None

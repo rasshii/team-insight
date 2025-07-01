@@ -30,6 +30,9 @@ class User(BaseModel):
     user_roles = relationship(
         "UserRole", back_populates="user", cascade="all, delete-orphan"
     )
+    projects = relationship(
+        "Project", secondary="team_insight.project_members", back_populates="members"
+    )
 
     @property
     def roles(self):
@@ -84,10 +87,6 @@ class User(BaseModel):
                 Role.name == "ADMIN"
             )
         )
-
-    projects = relationship(
-        "Project", secondary="team_insight.project_members", back_populates="members"
-    )
     
     # タスク関連のリレーション
     assigned_tasks = relationship(

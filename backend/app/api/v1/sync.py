@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
+import logging
 
 from app.api.deps import get_db_session, get_current_active_user, get_current_project
 from app.models.user import User
@@ -13,7 +14,12 @@ from app.services.sync_service import sync_service
 from app.core.permissions import PermissionChecker, RoleType
 from app.core.response_builder import ResponseBuilder
 from app.core.response_formatter import ResponseFormatter, get_response_formatter
+from app.core.token_refresh import token_refresh_service
+from app.core.config import settings
+from app.core.exceptions import ExternalAPIException
 # from app.core.utils import get_valid_backlog_token  # TODO: implement this dependency
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -87,60 +93,142 @@ async def get_connection_status(
 
 @router.post("/user/tasks")
 async def sync_user_tasks(
-    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db_session),
-    # token: OAuthToken = Depends(get_valid_backlog_token)  # TODO: implement this dependency
+    formatter: ResponseFormatter = Depends(get_response_formatter)
 ) -> Dict[str, Any]:
     """
     現在のユーザーのタスクを同期
     
-    バックグラウンドでBacklogからタスクデータを取得し、
-    ローカルデータベースと同期します。
+    Backlogからタスクデータを取得し、ローカルデータベースと同期します。
     """
+    logger.info(f"sync_user_tasks called by user {current_user.id}")
     
-    # バックグラウンドタスクとして同期を実行
-    background_tasks.add_task(
-        sync_service.sync_user_tasks,
-        current_user,
-        token.access_token,
-        db
-    )
+    # OAuthトークンを取得
+    oauth_token = db.query(OAuthToken).filter(
+        OAuthToken.user_id == current_user.id,
+        OAuthToken.provider == "backlog"
+    ).first()
     
-    return {
-        "message": "タスクの同期を開始しました",
-        "status": "started"
-    }
+    if not oauth_token:
+        logger.error(f"No Backlog OAuth token found for user {current_user.id}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Backlogとの連携が設定されていません"
+        )
+    
+    # トークンの有効期限確認とリフレッシュ
+    if oauth_token.is_expired() or token_refresh_service._should_refresh_token(oauth_token):
+        logger.info(f"Token needs refresh for user {current_user.id}")
+        space_key = oauth_token.backlog_space_key or settings.BACKLOG_SPACE_KEY
+        try:
+            refreshed_token = await token_refresh_service.refresh_token(oauth_token, db, space_key)
+            if refreshed_token:
+                oauth_token = refreshed_token
+                logger.info(f"Token refreshed successfully for user {current_user.id}")
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="アクセストークンの有効期限が切れており、更新に失敗しました。"
+                )
+        except Exception as e:
+            logger.error(f"Error refreshing token: {str(e)}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="アクセストークンの更新に失敗しました。"
+            )
+    
+    try:
+        # 同期を実行（同期的に実行）
+        result = await sync_service.sync_user_tasks(
+            current_user,
+            oauth_token.access_token,
+            db
+        )
+        
+        logger.info(f"User task sync completed: {result}")
+        
+        return formatter(ResponseBuilder.success(
+            data=result,
+            message=f"タスクの同期が完了しました。新規: {result['created']}件、更新: {result['updated']}件"
+        ))
+    except Exception as e:
+        logger.error(f"Failed to sync user tasks: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"タスクの同期中にエラーが発生しました: {str(e)}"
+        )
 
 
 @router.post("/project/{project_id}/tasks")
 async def sync_project_tasks(
-    background_tasks: BackgroundTasks,
     project: Project = Depends(get_current_project),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db_session),
-    # token: OAuthToken = Depends(get_valid_backlog_token)  # TODO: implement this dependency
+    formatter: ResponseFormatter = Depends(get_response_formatter)
 ) -> Dict[str, Any]:
     """
     指定されたプロジェクトのタスクを同期
     
     プロジェクトメンバーのみがアクセス可能です。
     """
+    logger.info(f"sync_project_tasks called for project {project.id} by user {current_user.id}")
     
-    # バックグラウンドタスクとして同期を実行
-    background_tasks.add_task(
-        sync_service.sync_project_tasks,
-        project,
-        token.access_token,
-        db,
-        current_user
-    )
+    # OAuthトークンを取得
+    oauth_token = db.query(OAuthToken).filter(
+        OAuthToken.user_id == current_user.id,
+        OAuthToken.provider == "backlog"
+    ).first()
     
-    return {
-        "message": f"プロジェクト '{project.name}' のタスク同期を開始しました",
-        "status": "started",
-        "project_id": project.id
-    }
+    if not oauth_token:
+        logger.error(f"No Backlog OAuth token found for user {current_user.id}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Backlogとの連携が設定されていません"
+        )
+    
+    # トークンの有効期限確認とリフレッシュ
+    if oauth_token.is_expired() or token_refresh_service._should_refresh_token(oauth_token):
+        logger.info(f"Token needs refresh for user {current_user.id}")
+        space_key = oauth_token.backlog_space_key or settings.BACKLOG_SPACE_KEY
+        try:
+            refreshed_token = await token_refresh_service.refresh_token(oauth_token, db, space_key)
+            if refreshed_token:
+                oauth_token = refreshed_token
+                logger.info(f"Token refreshed successfully for user {current_user.id}")
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="アクセストークンの有効期限が切れており、更新に失敗しました。"
+                )
+        except Exception as e:
+            logger.error(f"Error refreshing token: {str(e)}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="アクセストークンの更新に失敗しました。"
+            )
+    
+    try:
+        # 同期を実行（同期的に実行）
+        result = await sync_service.sync_project_tasks(
+            project,
+            oauth_token.access_token,
+            db,
+            current_user
+        )
+        
+        logger.info(f"Task sync completed for project {project.id}: {result}")
+        
+        return formatter(ResponseBuilder.success(
+            data=result,
+            message=f"タスクの同期が完了しました。新規: {result['created']}件、更新: {result['updated']}件"
+        ))
+    except Exception as e:
+        logger.error(f"Failed to sync project tasks: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"タスクの同期中にエラーが発生しました: {str(e)}"
+        )
 
 
 @router.get("/project/{project_id}/status")
@@ -164,37 +252,86 @@ async def get_sync_status(
 
 @router.post("/projects/all")
 async def sync_all_projects(
-    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db_session),
-    # token: OAuthToken = Depends(get_valid_backlog_token)  # TODO: implement this dependency
+    formatter: ResponseFormatter = Depends(get_response_formatter)
 ) -> Dict[str, Any]:
     """
     Backlogから全プロジェクトを同期
     
     管理者またはプロジェクトリーダーのみがアクセス可能です。
     """
+    logger.info(f"sync_all_projects called by user {current_user.id} ({current_user.email})")
+    
     # 権限チェック
     permission_checker = PermissionChecker()
     if not (current_user.is_admin or 
             permission_checker.has_role(current_user, RoleType.PROJECT_LEADER)):
+        logger.warning(f"User {current_user.id} ({current_user.email}) does not have permission to sync projects")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="この操作には管理者またはプロジェクトリーダーの権限が必要です"
         )
     
-    # バックグラウンドで全プロジェクトの同期を実行
-    background_tasks.add_task(
-        sync_service.sync_all_projects,
-        current_user,
-        token.access_token,
-        db
-    )
+    # OAuthトークンを取得
+    oauth_token = db.query(OAuthToken).filter(
+        OAuthToken.user_id == current_user.id,
+        OAuthToken.provider == "backlog"
+    ).first()
     
-    return {
-        "message": "全プロジェクトの同期を開始しました",
-        "status": "started"
-    }
+    if not oauth_token:
+        logger.error(f"No Backlog OAuth token found for user {current_user.id}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Backlogとの連携が設定されていません"
+        )
+    
+    logger.info(f"Found OAuth token for user {current_user.id}")
+    
+    # トークンの有効期限確認とリフレッシュ
+    if oauth_token.is_expired() or token_refresh_service._should_refresh_token(oauth_token):
+        logger.info(f"Token needs refresh for user {current_user.id}")
+        space_key = oauth_token.backlog_space_key or settings.BACKLOG_SPACE_KEY
+        try:
+            refreshed_token = await token_refresh_service.refresh_token(oauth_token, db, space_key)
+            if refreshed_token:
+                oauth_token = refreshed_token
+                logger.info(f"Token refreshed successfully for user {current_user.id}")
+            else:
+                logger.error(f"Failed to refresh token for user {current_user.id}")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="アクセストークンの有効期限が切れており、更新に失敗しました。再度ログインしてください。"
+                )
+        except Exception as e:
+            logger.error(f"Error refreshing token: {str(e)}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="アクセストークンの更新に失敗しました。再度ログインしてください。"
+            )
+    
+    logger.info(f"Starting sync with valid token...")
+    
+    try:
+        # 同期を実行（非同期で実行）
+        result = await sync_service.sync_all_projects(
+            current_user,
+            oauth_token.access_token,
+            db
+        )
+        
+        logger.info(f"Sync completed successfully for user {current_user.id}: {result}")
+        
+        return formatter(ResponseBuilder.success(
+            data=result,
+            message="プロジェクトの同期が完了しました"
+        ))
+    except Exception as e:
+        logger.error(f"Failed to sync projects for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"プロジェクトの同期中にエラーが発生しました: {str(e)}"
+        )
 
 
 @router.post("/issue/{issue_id}")

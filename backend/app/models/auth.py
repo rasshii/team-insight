@@ -29,8 +29,15 @@ class OAuthToken(Base):
     access_token = Column(Text, nullable=False)  # アクセストークン
     refresh_token = Column(Text, nullable=True)  # リフレッシュトークン
     expires_at = Column(DateTime, nullable=True)  # トークンの有効期限
+    
+    # Backlog固有のフィールド
+    backlog_space_key = Column(String(100), nullable=True)  # Backlogスペースキー
+    backlog_user_id = Column(String(100), nullable=True)  # BacklogユーザーID
+    backlog_user_email = Column(String(255), nullable=True)  # Backlogメールアドレス
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_used_at = Column(DateTime, nullable=True)  # 最終使用日時
 
     # リレーション
     user = relationship("User", back_populates="oauth_tokens")

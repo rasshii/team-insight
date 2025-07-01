@@ -8,11 +8,13 @@ from app.models.user import User
 from app.models.project import Project
 from app.models.task import Task, TaskStatus
 from app.schemas.task import TaskResponse, TaskListResponse, TaskFilters
+from app.core.response_formatter import ResponseFormatter, get_response_formatter
+from app.core.response_builder import ResponseBuilder
 
 router = APIRouter()
 
 
-@router.get("/", response_model=TaskListResponse)
+@router.get("/")
 async def get_tasks(
     project_id: Optional[int] = Query(None, description="プロジェクトIDでフィルタ"),
     status: Optional[TaskStatus] = Query(None, description="ステータスでフィルタ"),
@@ -22,8 +24,9 @@ async def get_tasks(
     limit: int = Query(100, ge=1, le=500, description="取得件数"),
     offset: int = Query(0, ge=0, description="オフセット"),
     current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db_session)
-) -> TaskListResponse:
+    db: Session = Depends(get_db_session),
+    formatter: ResponseFormatter = Depends(get_response_formatter)
+) -> Dict[str, Any]:
     """
     タスク一覧を取得
     
@@ -66,12 +69,72 @@ async def get_tasks(
     # ページネーション
     tasks = query.order_by(Task.updated_at.desc()).offset(offset).limit(limit).all()
     
-    return TaskListResponse(
-        total=total,
-        limit=limit,
-        offset=offset,
-        tasks=[TaskResponse.from_orm(task) for task in tasks]
-    )
+    task_list = []
+    for task in tasks:
+        task_data = {
+            'id': task.id,
+            'backlog_id': task.backlog_id,
+            'backlog_key': task.backlog_key,
+            'title': task.title,
+            'description': task.description,
+            'status': task.status.value if task.status else None,
+            'priority': task.priority,
+            'issue_type_id': task.issue_type_id,
+            'issue_type_name': task.issue_type_name,
+            'estimated_hours': task.estimated_hours,
+            'actual_hours': task.actual_hours,
+            'start_date': task.start_date.isoformat() if task.start_date else None,
+            'due_date': task.due_date.isoformat() if task.due_date else None,
+            'completed_date': task.completed_date.isoformat() if task.completed_date else None,
+            'milestone_id': task.milestone_id,
+            'milestone_name': task.milestone_name,
+            'category_names': task.category_names,
+            'version_names': task.version_names,
+            'created_at': task.created_at.isoformat() if task.created_at else None,
+            'updated_at': task.updated_at.isoformat() if task.updated_at else None,
+        }
+        
+        if task.project:
+            task_data['project'] = {
+                'id': task.project.id,
+                'name': task.project.name,
+                'project_key': task.project.project_key,
+                'backlog_id': task.project.backlog_id
+            }
+        else:
+            task_data['project'] = None
+            
+        if task.assignee:
+            task_data['assignee'] = {
+                'id': task.assignee.id,
+                'name': task.assignee.name,
+                'email': task.assignee.email,
+                'backlog_id': task.assignee.backlog_id
+            }
+        else:
+            task_data['assignee'] = None
+            
+        if task.reporter:
+            task_data['reporter'] = {
+                'id': task.reporter.id,
+                'name': task.reporter.name,
+                'email': task.reporter.email,
+                'backlog_id': task.reporter.backlog_id
+            }
+        else:
+            task_data['reporter'] = None
+            
+        task_list.append(task_data)
+    
+    return formatter(ResponseBuilder.success(
+        data={
+            'total': total,
+            'limit': limit,
+            'offset': offset,
+            'tasks': task_list
+        },
+        message=f"{len(tasks)}件のタスクを取得しました"
+    ))
 
 
 @router.get("/my", response_model=TaskListResponse)

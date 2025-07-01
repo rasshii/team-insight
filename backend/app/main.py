@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from contextlib import asynccontextmanager
 from app.core.config import settings, validate_settings
 from app.api.v1 import api_router
@@ -137,7 +138,7 @@ async def health_check(db: Session = Depends(get_db_session)) -> HealthResponse:
     # データベース接続チェック
     try:
         # シンプルなクエリを実行してDBの応答を確認
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         health_status["database"] = "healthy"
     except Exception as e:
         logger.error(f"データベース健全性チェックエラー: {e}")

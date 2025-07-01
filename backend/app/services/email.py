@@ -296,7 +296,7 @@ Team Insight
                 <p>メールアドレスの確認が正常に完了しました。</p>
                 <p>これでTeam Insightのすべての機能をご利用いただけます。</p>
                 <p style="text-align: center;">
-                    <a href="{{ frontend_url }}/dashboard" class="button">ダッシュボードへ</a>
+                    <a href="{{ email_frontend_url }}/dashboard" class="button">ダッシュボードへ</a>
                 </p>
                 <div class="footer">
                     <p>&copy; 2025 Team Insight. All rights reserved.</p>
@@ -312,18 +312,18 @@ Team Insight
 メールアドレスの確認が正常に完了しました。
 これでTeam Insightのすべての機能をご利用いただけます。
 
-ダッシュボードへアクセス: {{ frontend_url }}/dashboard
+ダッシュボードへアクセス: {{ email_frontend_url }}/dashboard
 
 Team Insight
         """
         
         html_content = Template(html_template).render(
             user_name=user_name,
-            frontend_url=settings.FRONTEND_URL
+            email_frontend_url=settings.EMAIL_FRONTEND_URL
         )
         text_content = Template(text_template).render(
             user_name=user_name,
-            frontend_url=settings.FRONTEND_URL
+            email_frontend_url=settings.EMAIL_FRONTEND_URL
         )
         
         return self.send_email(

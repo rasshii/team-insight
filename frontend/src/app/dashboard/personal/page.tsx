@@ -12,23 +12,58 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { 
   Activity, 
   AlertCircle, 
   CheckCircle2, 
   Clock,
   TrendingUp,
-  CalendarDays 
+  CalendarDays,
+  RefreshCw,
+  BarChart3,
+  Workflow 
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ja } from "date-fns/locale/ja";
 import { usePersonalDashboard } from "@/hooks/queries/useAnalytics";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ThroughputChart } from "@/components/charts/ThroughputChart";
-import { BarChart3, Workflow } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { syncService } from "@/services/sync.service";
+import { toast } from "@/components/ui/use-toast";
+import { queryKeys } from "@/lib/react-query";
+import { getTaskStatusLabel } from "@/lib/task-utils";
 
 export default function PersonalDashboardPage() {
   const { data: dashboard, isLoading, error } = usePersonalDashboard();
+  const queryClient = useQueryClient();
+  
+  // タスク同期ミューテーション
+  const syncTasksMutation = useMutation({
+    mutationFn: () => syncService.syncUserTasks(),
+    onSuccess: () => {
+      // 関連するクエリを無効化して再取得
+      queryClient.invalidateQueries({ queryKey: queryKeys.analytics.personalDashboard });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+      toast({
+        title: "同期完了",
+        description: "タスクデータを最新の状態に更新しました。",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "同期エラー",
+        description: "タスクの同期に失敗しました。",
+        variant: "destructive",
+      });
+      console.error('Sync error:', error);
+    }
+  });
+  
+  console.log('Dashboard data:', dashboard);
+  console.log('Loading state:', isLoading);
+  console.log('Error state:', error);
 
   if (isLoading) {
     return (
@@ -77,10 +112,23 @@ export default function PersonalDashboardPage() {
   }
 
   if (!dashboard) {
-    return null;
+    return (
+      <PrivateRoute>
+        <Layout>
+          <div className="container mx-auto p-6">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                ダッシュボードデータの読み込みに失敗しました。
+              </AlertDescription>
+            </Alert>
+          </div>
+        </Layout>
+      </PrivateRoute>
+    );
   }
 
-  const statistics = dashboard.kpi_summary || dashboard.statistics || {
+  const statistics = dashboard?.kpi_summary || {
     total_tasks: 0,
     completed_tasks: 0,
     in_progress_tasks: 0,
@@ -99,13 +147,34 @@ export default function PersonalDashboardPage() {
                 個人ダッシュボード
               </h1>
               <p className="text-muted-foreground mt-1">
-                {dashboard.user_name}さんの生産性指標
+                {dashboard?.user_name || 'ユーザー'}さんの生産性指標
               </p>
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Activity className="h-4 w-4" />
-              <span>リアルタイム更新</span>
-            </div>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => {
+                syncTasksMutation.mutate(undefined, {
+                  onSuccess: (data) => {
+                    toast({
+                      title: "同期完了",
+                      description: `タスクを同期しました。新規: ${data.created || 0}件、更新: ${data.updated || 0}件`,
+                    });
+                  },
+                  onError: (error) => {
+                    toast({
+                      title: "同期エラー",
+                      description: error instanceof Error ? error.message : "タスクの同期に失敗しました。",
+                      variant: "destructive",
+                    });
+                  }
+                });
+              }}
+              disabled={syncTasksMutation.isPending}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${syncTasksMutation.isPending ? 'animate-spin' : ''}`} />
+              {syncTasksMutation.isPending ? '同期中...' : 'タスクを同期'}
+            </Button>
           </div>
 
           {/* KPIカード */}
@@ -233,9 +302,9 @@ export default function PersonalDashboardPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {dashboard.recent_completed_tasks.length > 0 ? (
+                {(dashboard.recent_completed_tasks || []).length > 0 ? (
                   <div className="space-y-3">
-                    {dashboard.recent_completed_tasks.map((task) => (
+                    {(dashboard.recent_completed_tasks || []).map((task) => (
                       <div
                         key={task.id}
                         className="flex items-center justify-between border-b pb-2 last:border-0"
@@ -260,9 +329,16 @@ export default function PersonalDashboardPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    最近完了したタスクはありません
-                  </p>
+                  <div className="text-center py-8">
+                    <p className="text-sm text-muted-foreground mb-4">
+                      最近完了したタスクはありません
+                    </p>
+                    {statistics.total_tasks === 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        「タスクを同期」ボタンをクリックして、Backlogから最新のタスクデータを取得してください
+                      </p>
+                    )}
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -284,14 +360,11 @@ export default function PersonalDashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {dashboard.workflow_analysis.map((item) => (
+                    {(dashboard.workflow_analysis || []).map((item) => (
                       <div key={item.status} className="space-y-1">
                         <div className="flex items-center justify-between text-sm">
                           <span className="font-medium">
-                            {item.status === 'TODO' ? '未着手' :
-                             item.status === 'IN_PROGRESS' ? '進行中' :
-                             item.status === 'DONE' ? '完了待ち' :
-                             item.status === 'CLOSED' ? '完了' : item.status}
+                            {item.status_name || getTaskStatusLabel(item.status)}
                           </span>
                           <span className="text-muted-foreground">
                             平均 {item.average_days} 日
@@ -373,7 +446,8 @@ export default function PersonalDashboardPage() {
                 <ThroughputChart
                   data={dashboard.productivity_trend.map(item => ({
                     date: item.date,
-                    value: item.completed_count
+                    completed_tasks: item.completed_count,
+                    story_points: 0 // 個人ダッシュボードではストーリーポイントは表示しない
                   }))}
                 />
               </CardContent>

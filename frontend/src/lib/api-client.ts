@@ -19,7 +19,7 @@ class ApiClient {
   constructor() {
     this.axiosInstance = axios.create({
       baseURL: env.get('NEXT_PUBLIC_API_URL'),
-      timeout: 30000,
+      timeout: 10000, // 10秒に短縮
       headers: {
         'Content-Type': 'application/json',
       },
@@ -46,8 +46,11 @@ class ApiClient {
     this.axiosInstance.interceptors.request.use(
       (config: InternalAxiosRequestConfig) => {
         // デバッグ用ログ（本番環境では無効化）
-        if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_API_DEBUG === 'true') {
+        if (process.env.NODE_ENV === 'development') {
           console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`)
+          if (config.data) {
+            console.log('[API Request Data]', config.data)
+          }
         }
         
         return config
@@ -61,8 +64,9 @@ class ApiClient {
     this.axiosInstance.interceptors.response.use(
       (response) => {
         // デバッグ用ログ
-        if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_API_DEBUG === 'true') {
+        if (process.env.NODE_ENV === 'development') {
           console.log(`[API Response] ${response.config.method?.toUpperCase()} ${response.config.url} - ${response.status}`)
+          console.log('[API Response Data]', response.data)
         }
         
         return response
