@@ -64,10 +64,13 @@ class BacklogOAuthService:
             "state": state,
         }
         
-        # アカウント選択を強制する場合はpromptパラメータを追加
+        # アカウント選択を強制する場合
         if force_account_selection:
-            params["prompt"] = "select_account"
-
+            # セッションをクリアするためのパラメータを追加
+            params["prompt"] = "login"  # 再ログインを強制
+            params["max_age"] = "0"     # セッションの最大有効期限を0に
+        
+        # OAuth認証URLを生成
         auth_url = f"{base_url}/OAuth2AccessRequest.action?{urlencode(params)}"
         return auth_url, state
 

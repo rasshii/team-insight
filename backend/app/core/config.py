@@ -8,12 +8,16 @@ class Settings(BaseSettings):
     APP_NAME: str = "Team Insight"
     DEBUG: bool = Field(default=False, env="DEBUG")
     API_V1_STR: str = "/api/v1"
+    ENVIRONMENT: str = Field(default="development", env="ENVIRONMENT")
 
 
     # セキュリティ設定
     SECRET_KEY: str = Field(default="your-secret-key-here", env="SECRET_KEY")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
         default=10080, env="ACCESS_TOKEN_EXPIRE_MINUTES"  # 7 days in minutes
+    )
+    REFRESH_TOKEN_EXPIRE_DAYS: int = Field(
+        default=30, env="REFRESH_TOKEN_EXPIRE_DAYS"  # 30 days
     )
     
     # データベース設定
@@ -33,13 +37,6 @@ class Settings(BaseSettings):
         default=30, env="CACHE_HEALTH_CHECK_INTERVAL"
     )
 
-    # パスワードポリシー
-    PASSWORD_MIN_LENGTH: int = Field(default=8, ge=6)
-    PASSWORD_REQUIRE_UPPERCASE: bool = True
-    PASSWORD_REQUIRE_LOWERCASE: bool = True
-    PASSWORD_REQUIRE_NUMBERS: bool = True
-    PASSWORD_REQUIRE_SPECIAL: bool = True
-
     # Backlog OAuth2.0設定
     BACKLOG_CLIENT_ID: str = Field(default="", env="BACKLOG_CLIENT_ID")
     BACKLOG_CLIENT_SECRET: str = Field(default="", env="BACKLOG_CLIENT_SECRET")
@@ -48,22 +45,22 @@ class Settings(BaseSettings):
     )
     BACKLOG_SPACE_KEY: str = Field(default="", env="BACKLOG_SPACE_KEY")
     
+    # Backlogアクセス制御設定
+    ALLOWED_BACKLOG_SPACES: str = Field(default="", env="ALLOWED_BACKLOG_SPACES")  # カンマ区切りのスペースリスト
+    ALLOWED_EMAIL_DOMAINS: str = Field(default="", env="ALLOWED_EMAIL_DOMAINS")    # カンマ区切りのドメインリスト
+    
     # CORS設定
     FRONTEND_URL: str = Field(default="http://localhost", env="FRONTEND_URL")
     
-    # メール用のURL設定（Nginxリバースプロキシ経由）
-    EMAIL_FRONTEND_URL: str = Field(default="http://localhost", env="EMAIL_FRONTEND_URL")
-    
-    # Email設定
+    # Email設定（レポート配信用）
     SMTP_HOST: str = Field(default="", env="SMTP_HOST")
     SMTP_PORT: int = Field(default=587, env="SMTP_PORT")
     SMTP_USER: str = Field(default="", env="SMTP_USER")
     SMTP_PASSWORD: str = Field(default="", env="SMTP_PASSWORD")
     SMTP_FROM_EMAIL: str = Field(default="noreply@teaminsight.dev", env="SMTP_FROM_EMAIL")
-    SMTP_FROM_NAME: str = Field(default="Team Insight", env="SMTP_FROM_NAME")
+    SMTP_FROM_NAME: str = Field(default="Team Insight Report", env="SMTP_FROM_NAME")
     SMTP_TLS: bool = Field(default=True, env="SMTP_TLS")
     SMTP_SSL: bool = Field(default=False, env="SMTP_SSL")
-    EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS: int = Field(default=24, env="EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS")
     
     # 初期管理者設定
     INITIAL_ADMIN_EMAILS: str = Field(default="", env="INITIAL_ADMIN_EMAILS")

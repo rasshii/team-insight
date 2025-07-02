@@ -19,6 +19,7 @@ from app.core.security import create_access_token, create_refresh_token
 from app.services.backlog_oauth import BacklogOAuthService
 from app.core.utils import QueryBuilder
 from app.core.config import settings
+from app.services.auth_validator import BacklogAuthValidator
 
 logger = logging.getLogger(__name__)
 
@@ -112,9 +113,18 @@ class AuthService:
             
         Raises:
             ExternalAPIException: ユーザー情報の取得に失敗した場合
+            ValidationException: アクセスが許可されていない場合
         """
+        # スペースのアクセス権限を検証
+        BacklogAuthValidator.validate_space_access(space_key)
+        
         logger.info("ユーザー情報を取得中...")
-        return await self.backlog_oauth_service.get_user_info(access_token, space_key=space_key)
+        user_info = await self.backlog_oauth_service.get_user_info(access_token, space_key=space_key)
+        
+        # ユーザー情報の追加検証（必要に応じて）
+        BacklogAuthValidator.validate_user_status(user_info, space_key)
+        
+        return user_info
     
     def find_or_create_user(self, db: Session, user_info: dict) -> User:
         """

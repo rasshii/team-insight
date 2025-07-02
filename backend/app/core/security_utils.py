@@ -9,83 +9,9 @@ from typing import Optional, Tuple
 from datetime import datetime, timedelta, timezone
 import logging
 
-from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-
-class PasswordValidator:
-    """パスワード検証クラス"""
-    
-    @staticmethod
-    def validate(password: str) -> Tuple[bool, Optional[str]]:
-        """
-        パスワードの検証
-        
-        Args:
-            password: 検証するパスワード
-            
-        Returns:
-            (有効性, エラーメッセージ)のタプル
-        """
-        # 長さチェック
-        if len(password) < settings.PASSWORD_MIN_LENGTH:
-            return False, f"パスワードは{settings.PASSWORD_MIN_LENGTH}文字以上である必要があります"
-        
-        # 大文字チェック
-        if settings.PASSWORD_REQUIRE_UPPERCASE and not re.search(r'[A-Z]', password):
-            return False, "パスワードには大文字を含める必要があります"
-        
-        # 小文字チェック
-        if settings.PASSWORD_REQUIRE_LOWERCASE and not re.search(r'[a-z]', password):
-            return False, "パスワードには小文字を含める必要があります"
-        
-        # 数字チェック
-        if settings.PASSWORD_REQUIRE_NUMBERS and not re.search(r'\d', password):
-            return False, "パスワードには数字を含める必要があります"
-        
-        # 特殊文字チェック
-        if settings.PASSWORD_REQUIRE_SPECIAL and not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
-            return False, "パスワードには特殊文字を含める必要があります"
-        
-        return True, None
-    
-    @staticmethod
-    def generate_strong_password(length: int = 16) -> str:
-        """
-        強力なパスワードを生成
-        
-        Args:
-            length: パスワードの長さ
-            
-        Returns:
-            生成されたパスワード
-        """
-        # 各種文字セットを定義
-        lowercase = string.ascii_lowercase
-        uppercase = string.ascii_uppercase
-        digits = string.digits
-        special = "!@#$%^&*(),.?\":{}|<>"
-        
-        # 必須文字を含める
-        password_chars = []
-        if settings.PASSWORD_REQUIRE_LOWERCASE:
-            password_chars.append(secrets.choice(lowercase))
-        if settings.PASSWORD_REQUIRE_UPPERCASE:
-            password_chars.append(secrets.choice(uppercase))
-        if settings.PASSWORD_REQUIRE_NUMBERS:
-            password_chars.append(secrets.choice(digits))
-        if settings.PASSWORD_REQUIRE_SPECIAL:
-            password_chars.append(secrets.choice(special))
-        
-        # 残りの文字をランダムに生成
-        all_chars = lowercase + uppercase + digits + special
-        for _ in range(length - len(password_chars)):
-            password_chars.append(secrets.choice(all_chars))
-        
-        # シャッフルして返す
-        secrets.SystemRandom().shuffle(password_chars)
-        return ''.join(password_chars)
 
 
 class TokenGenerator:
@@ -135,8 +61,6 @@ class RateLimiter:
     
     ATTEMPT_LIMITS = {
         'login': (5, 300),  # 5回/5分
-        'email_verification': (3, 3600),  # 3回/1時間
-        'password_reset': (3, 3600),  # 3回/1時間
         'api_key_generation': (10, 86400),  # 10回/1日
     }
     

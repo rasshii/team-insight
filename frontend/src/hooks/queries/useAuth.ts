@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { queryKeys } from '@/lib/react-query'
 import { authService, type UserInfoResponse } from '@/services/auth.service'
 import { useAppDispatch } from '@/store/hooks'
@@ -116,128 +116,52 @@ export const useHandleAuthCallback = () => {
         description: `ようこそ、${data.user.name}さん`,
       })
     },
-    onError: (error) => {
+    onError: (error: any) => {
       // OAuth stateをクリア
       authService.clearOAuthState()
       
-      toast({
-        title: 'エラー',
-        description: getApiErrorMessage(error),
-        variant: 'destructive',
-      })
+      // エラーの詳細を解析
+      const errorDetail = error.response?.data?.error?.detail || error.response?.data?.detail || ''
+      const errorField = error.response?.data?.error?.field || ''
+      let errorType = 'auth_failed'
+      let errorMessage = getApiErrorMessage(error)
       
-      // ログインページへリダイレクト
-      router.push('/auth/login')
-    },
-  })
-}
-
-/**
- * メール認証リクエストのミューテーションフック
- */
-export const useRequestEmailVerification = () => {
-  const { toast } = useToast()
-
-  return useMutation({
-    mutationFn: authService.requestEmailVerification,
-    onSuccess: (data) => {
-      toast({
-        title: '確認メールを送信しました',
-        description: data.message,
-      })
-    },
-    onError: (error) => {
-      toast({
-        title: 'エラー',
-        description: getApiErrorMessage(error),
-        variant: 'destructive',
-      })
-    },
-  })
-}
-
-/**
- * メール認証確認のミューテーションフック
- */
-export const useConfirmEmailVerification = () => {
-  const queryClient = useQueryClient()
-  const dispatch = useAppDispatch()
-  const router = useRouter()
-  const { toast } = useToast()
-
-  return useMutation({
-    mutationFn: authService.confirmEmailVerification,
-    onSuccess: (data) => {
-      // ユーザー情報を更新
-      if (data.user) {
-        queryClient.setQueryData(queryKeys.auth.me, data.user)
-        dispatch(setUser(data.user))
+      // スペースアクセスエラーの判定
+      if (errorField === 'space' || errorDetail.includes('スペース') || errorDetail.includes('space')) {
+        errorType = 'space_not_allowed'
+        errorMessage = 'このBacklogスペースへのアクセス権限がありません。nulab-examスペースのメンバーアカウントでログインしてください。'
+      }
+      // ドメイン制限エラーの判定
+      else if (errorField === 'email' || errorDetail.includes('ドメイン') || errorDetail.includes('domain')) {
+        errorType = 'domain_not_allowed'
+        errorMessage = errorDetail || '組織外のメールアドレスではアクセスできません。'
       }
       
       toast({
-        title: 'メールアドレスが確認されました',
-        description: data.message,
+        title: '認証エラー',
+        description: errorMessage,
+        variant: 'destructive',
       })
       
-      // ダッシュボードへリダイレクト
-      router.push('/dashboard/personal')
-    },
-    onError: (error) => {
-      toast({
-        title: 'エラー',
-        description: getApiErrorMessage(error),
-        variant: 'destructive',
-      })
-    },
-  })
-}
-
-/**
- * 検証メール再送信のミューテーションフック
- */
-export const useResendVerificationEmail = () => {
-  const { toast } = useToast()
-
-  return useMutation({
-    mutationFn: authService.resendVerificationEmail,
-    onSuccess: (data) => {
-      toast({
-        title: '検証メールを再送信しました',
-        description: data.message,
-      })
-    },
-    onError: (error) => {
-      toast({
-        title: 'エラー',
-        description: getApiErrorMessage(error),
-        variant: 'destructive',
-      })
+      // エラータイプを含めてログインページへリダイレクト
+      router.push(`/auth/login?error=${errorType}`)
     },
   })
 }
 
 /**
  * トークンリフレッシュのミューテーションフック
- * （通常は自動的に処理されるため、手動での使用は稀）
  */
 export const useRefreshToken = () => {
   const queryClient = useQueryClient()
   const dispatch = useAppDispatch()
-  const { toast } = useToast()
 
   return useMutation({
-    mutationFn: () => authService.refreshToken(),
+    mutationFn: authService.refreshJwtToken,
     onSuccess: (data) => {
       // ユーザー情報を更新
       queryClient.setQueryData(queryKeys.auth.me, data.user)
       dispatch(setUser(data.user))
-    },
-    onError: (error) => {
-      toast({
-        title: 'エラー',
-        description: getApiErrorMessage(error),
-        variant: 'destructive',
-      })
     },
   })
 }

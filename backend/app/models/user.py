@@ -9,16 +9,9 @@ class User(BaseModel):
     __table_args__ = {"schema": "team_insight"}
 
     email = Column(String, unique=True, index=True, nullable=True)
-    hashed_password = Column(String, nullable=True)
     full_name = Column(String)
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
-    
-    # Email verification fields
-    is_email_verified = Column(Boolean, default=False, nullable=False)
-    email_verification_token = Column(String, nullable=True)
-    email_verification_token_expires = Column(DateTime, nullable=True)
-    email_verified_at = Column(DateTime, nullable=True)
 
     backlog_id = Column(Integer, unique=True, index=True, nullable=True)
     user_id = Column(String, unique=True, index=True, nullable=True)
@@ -32,6 +25,9 @@ class User(BaseModel):
     )
     projects = relationship(
         "Project", secondary="team_insight.project_members", back_populates="members"
+    )
+    report_schedules = relationship(
+        "ReportSchedule", back_populates="user", cascade="all, delete-orphan"
     )
 
     @property

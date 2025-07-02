@@ -116,9 +116,8 @@ function useCurrentUser() {
         dispatch(setUser(user));
         return user;
       } catch (error: any) {
-        // 401エラーの場合は正常な未認証状態として扱う（ログレベルをinfoに）
+        // 401エラーの場合は正常な未認証状態として扱う
         if (error?.response?.status === 401 || error?.status === 401) {
-          console.info('[AuthInitializer] User is not authenticated (401)');
           dispatch(initializeAuth());
           return null;
         }

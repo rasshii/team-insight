@@ -95,11 +95,3 @@ class ErrorMessages:
     INTERNAL_SERVER_ERROR = "システムエラーが発生しました。"
     DATABASE_CONNECTION_ERROR = "データベース接続エラーが発生しました。"
 
-
-class EmailConstants:
-    """メール関連の定数"""
-    VERIFICATION_TOKEN_LENGTH = 32
-    VERIFICATION_TOKEN_EXPIRY_HOURS = 24
-    FROM_NAME = "Team Insight"
-    VERIFICATION_SUBJECT = "[メールアドレスの確認] Team Insight"
-    VERIFICATION_SUCCESS_SUBJECT = "[メールアドレスの確認完了] Team Insight"

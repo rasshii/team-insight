@@ -1,7 +1,7 @@
 """
 認証関連のAPIエンドポイント
 
-このモジュールは、OAuth2.0認証フローのためのAPIエンドポイントを提供します。
+このモジュールは、Backlog OAuth2.0認証フローのためのAPIエンドポイントを提供します。
 認証URLの生成、コールバック処理、トークンのリフレッシュなどを処理します。
 """
 
@@ -16,7 +16,7 @@ from zoneinfo import ZoneInfo
 from app.api.deps import get_db_session
 from app.db.session import get_db_with_commit
 from app.services.backlog_oauth import backlog_oauth_service
-from app.services.auth_service import AuthService
+from app.services.auth_service import AuthService as BacklogAuthService
 from app.models.auth import OAuthState, OAuthToken
 from app.schemas.auth import (
     AuthorizationResponse,
@@ -24,16 +24,10 @@ from app.schemas.auth import (
     TokenRefreshResponse,
     CallbackRequest,
     UserInfoResponse,
-    EmailVerificationRequest,
-    EmailVerificationConfirmRequest,
-    EmailVerificationResponse,
     UserRoleResponse,
     RoleResponse,
-    SignupRequest,
-    SignupResponse,
-    LoginRequest,
 )
-from app.core.security import get_current_user, get_current_active_user, create_access_token, create_refresh_token, get_password_hash, verify_password, get_current_user_with_refresh_token
+from app.core.security import get_current_user, get_current_active_user, create_access_token, create_refresh_token, get_current_user_with_refresh_token
 from app.core.exceptions import ExternalAPIException
 from app.models.user import User
 from app.models.rbac import UserRole, Role
@@ -48,9 +42,13 @@ from app.core.exceptions import (
     DatabaseException,
     handle_database_error
 )
+
+# 依存関係関数
+def get_auth_service() -> BacklogAuthService:
+    """AuthServiceのインスタンスを提供する依存関数"""
+    return BacklogAuthService(backlog_oauth_service)
+
 from app.core.database import transaction
-from app.services.email import email_service
-from app.core.utils import normalize_email, generate_hash
 from app.core.deps import get_response_formatter
 from app.core.response_builder import ResponseBuilder, ResponseFormatter
 from app.core.config import settings
@@ -59,7 +57,7 @@ from app.core.auth_base import (
     AuthResponseBuilder,
     CookieManager,
     TokenManager,
-    AuthService
+    AuthService as AuthBaseService
 )
 
 router = APIRouter()
@@ -67,13 +65,14 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-def _build_user_response(user: User, access_token: str = None) -> Dict[str, Any]:
+def _build_user_response(user: User, access_token: str = None, db: Session = None) -> Dict[str, Any]:
     """
     統一的なユーザーレスポンスを構築
     
     Args:
         user: ユーザーオブジェクト（user_rolesがロード済みであること）
         access_token: アクセストークン（オプション）
+        db: データベースセッション（backlog_space_key取得用）
         
     Returns:
         レスポンス辞書
@@ -82,16 +81,27 @@ def _build_user_response(user: User, access_token: str = None) -> Dict[str, Any]
     # 新しいコードでは AuthResponseBuilder を使用してください
     user_roles = build_user_role_responses(user.user_roles)
     
+    # OAuthTokenからbacklog_space_keyを取得
+    backlog_space_key = None
+    if db and user.id:
+        from app.models.auth import OAuthToken
+        oauth_token = db.query(OAuthToken).filter(
+            OAuthToken.user_id == user.id
+        ).order_by(OAuthToken.created_at.desc()).first()
+        if oauth_token:
+            backlog_space_key = oauth_token.backlog_space_key
+            logger.info(f"Found backlog_space_key for user {user.id}: {backlog_space_key}")
+        else:
+            logger.warning(f"No OAuth token found for user {user.id}")
+    
     user_info = UserInfoResponse(
         id=user.id,
         backlog_id=user.backlog_id,
         email=user.email,
         name=user.name,
         user_id=user.user_id,
-        is_email_verified=user.is_email_verified,
-        is_active=user.is_active,
-        created_at=user.created_at,
-        updated_at=user.updated_at,
+        is_email_verified=True,  # Backlog OAuth認証のみなので常にTrue
+        backlog_space_key=backlog_space_key,
         user_roles=user_roles
     )
     
@@ -122,169 +132,6 @@ def _cleanup_oauth_state(db: Session, oauth_state: Optional[OAuthState]) -> None
         except Exception as e:
             logger.warning(f"OAuthStateのクリーンアップに失敗しました: {str(e)}")
             db.rollback()
-
-
-@router.post("/signup", response_model=SignupResponse)
-async def signup(
-    signup_data: SignupRequest,
-    db: Session = Depends(get_db_session),
-    formatter: ResponseFormatter = Depends(get_response_formatter)
-) -> Dict[str, Any]:
-    """
-    メール/パスワードでの新規ユーザー登録
-    
-    Args:
-        signup_data: サインアップ情報
-        db: データベースセッション
-        formatter: レスポンスフォーマッター
-        
-    Returns:
-        サインアップレスポンス
-        
-    Raises:
-        AlreadyExistsException: メールアドレスが既に使用されている場合
-    """
-    # メールアドレスを正規化
-    email = normalize_email(signup_data.email)
-    
-    # 既存ユーザーのチェック
-    existing_user = db.query(User).filter(
-        User.email == email
-    ).first()
-    
-    if existing_user:
-        raise AlreadyExistsException(
-            resource="メールアドレス",
-            detail=f"{email}は既に登録されています"
-        )
-    
-    # パスワードのハッシュ化
-    hashed_password = get_password_hash(signup_data.password)
-    
-    # メール確認トークンの生成
-    verification_token = secrets.token_urlsafe(32)
-    verification_expires = datetime.now(timezone.utc) + timedelta(hours=24)
-    
-    # 新規ユーザーの作成
-    new_user = User(
-        email=email,
-        name=signup_data.name,
-        hashed_password=hashed_password,
-        is_active=True,
-        is_email_verified=False,
-        email_verification_token=verification_token,
-        email_verification_token_expires=verification_expires,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc)
-    )
-    
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    
-    # デフォルトロール（MEMBER）の割り当て
-    member_role = db.query(Role).filter(Role.name == "MEMBER").first()
-    if member_role:
-        user_role = UserRole(
-            user_id=new_user.id,
-            role_id=member_role.id,
-            created_at=datetime.now(timezone.utc)
-        )
-        db.add(user_role)
-        db.commit()
-    
-    # メール確認メールの送信
-    try:
-        await email_service.send_verification_email(
-            email=new_user.email,
-            name=new_user.name,
-            token=verification_token
-        )
-    except Exception as e:
-        logger.error(f"メール送信エラー: {str(e)}")
-        # メール送信に失敗してもユーザー登録は成功とする
-    
-    # ユーザー情報の構築
-    user_info = UserInfoResponse(
-        id=new_user.id,
-        email=new_user.email,
-        name=new_user.name,
-        is_email_verified=new_user.is_email_verified,
-        is_active=new_user.is_active,
-        created_at=new_user.created_at,
-        updated_at=new_user.updated_at,
-        user_roles=[],
-        backlog_id=None,
-        user_id=None
-    )
-    
-    return formatter.created(
-        data={
-            "user": user_info.model_dump(),
-            "requires_verification": True
-        },
-        message="アカウントが作成されました。メールアドレスの確認をお願いします。"
-    )
-
-
-@router.post("/login")
-async def login(
-    login_data: LoginRequest,
-    response: Response,
-    db: Session = Depends(get_db_session),
-    formatter: ResponseFormatter = Depends(get_response_formatter)
-) -> Dict[str, Any]:
-    """
-    メール/パスワードでのログイン
-    
-    Args:
-        login_data: ログイン情報
-        response: FastAPIレスポンスオブジェクト
-        db: データベースセッション
-        formatter: レスポンスフォーマッター
-        
-    Returns:
-        ログイン成功レスポンス
-        
-    Raises:
-        AuthenticationException: 認証に失敗した場合
-    """
-    # メールアドレスを正規化
-    email = normalize_email(login_data.email)
-    
-    # ユーザーの取得（ロール情報も含む）
-    user = QueryBuilder.with_user_roles(
-        db.query(User).filter(User.email == email)
-    ).first()
-    
-    if not user or not user.hashed_password:
-        raise AuthenticationException(
-            detail="メールアドレスまたはパスワードが正しくありません"
-        )
-    
-    # パスワードの検証
-    if not verify_password(login_data.password, user.hashed_password):
-        raise AuthenticationException(
-            detail="メールアドレスまたはパスワードが正しくありません"
-        )
-    
-    # アクティブユーザーかチェック
-    AuthService.validate_user_active(user)
-    
-    # JWTトークンの生成
-    access_token, refresh_token = TokenManager.generate_tokens(user.id)
-    
-    # 統一的なユーザーレスポンスを構築
-    response_data = _build_user_response(user, access_token)
-    response_data["refresh_token"] = refresh_token
-    
-    # Cookieの設定
-    CookieManager.set_auth_cookies(response, access_token, refresh_token)
-    
-    return formatter.success(
-        data=response_data,
-        message="ログインに成功しました"
-    )
 
 
 @router.get("/backlog/authorize", response_model=AuthorizationResponse)
@@ -343,7 +190,11 @@ async def get_authorization_url(
         db.add(oauth_state)
         db.commit()
 
-        return AuthorizationResponse(authorization_url=auth_url, state=state)
+        # クライアントに認証URLと共に期待されるスペース情報も返す
+        response = AuthorizationResponse(authorization_url=auth_url, state=state)
+        # レスポンスに追加情報を含める（クライアントでの検証用）
+        response.expected_space = space_key
+        return response
     except Exception as e:
         logger.error(f"認証URL生成エラー: {str(e)}", exc_info=True)
         raise ExternalAPIException(
@@ -351,12 +202,11 @@ async def get_authorization_url(
             detail="認証URLの生成に失敗しました"
         )
 
-
 @router.post("/backlog/callback", response_model=TokenResponse)
 async def handle_callback(
     request: CallbackRequest, 
     db: Session = Depends(get_db_session),
-    auth_service: AuthService = Depends(lambda: AuthService(backlog_oauth_service))
+    auth_service: BacklogAuthService = Depends(get_auth_service)
 ):
     """
     Backlog OAuth2.0認証のコールバックを処理します
@@ -416,7 +266,7 @@ async def handle_callback(
         user = auth_service.assign_default_role_if_needed(db, user)
         
         # 統一的なユーザーレスポンスを構築
-        response_data = _build_user_response(user, access_token)
+        response_data = _build_user_response(user, access_token, db=db)
         response_data["refresh_token"] = refresh_token
         
         # レスポンスを作成
@@ -478,7 +328,6 @@ async def handle_callback(
             service="Backlog OAuth",
             detail="認証処理中にエラーが発生しました。しばらく時間をおいて再度お試しください。"
         )
-
 
 @router.post("/backlog/refresh", response_model=TokenResponse)
 async def refresh_token(
@@ -587,7 +436,7 @@ async def verify_token(
     ).first()
     
     # 統一的なユーザーレスポンスを構築
-    response_data = _build_user_response(user)
+    response_data = _build_user_response(user, db=db)
     
     return response_data["user"]
 
@@ -615,258 +464,9 @@ async def get_current_user_info(
         raise NotFoundException(resource="ユーザー")
     
     # 統一的なユーザーレスポンスを構築
-    response_data = _build_user_response(user)
+    response_data = _build_user_response(user, db=db)
     
     return response_data["user"]
-
-
-@router.post("/email/verify", response_model=EmailVerificationResponse)
-async def request_email_verification(
-    request: EmailVerificationRequest,
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db_session),
-):
-    """
-    メールアドレス検証用のメールを送信します
-    
-    Args:
-        request: メールアドレスを含むリクエスト
-        
-    Returns:
-        検証メール送信結果
-        
-    Raises:
-        HTTPException: メールアドレスが既に使用されている、またはメール送信失敗時
-    """
-    import secrets
-    from datetime import datetime, timedelta
-    from zoneinfo import ZoneInfo
-    from app.services.email import email_service
-    from app.core.config import settings
-    
-    logger = logging.getLogger(__name__)
-    
-    # 既に検証済みの場合
-    if current_user.is_email_verified and current_user.email == request.email:
-        raise ValidationException(
-            detail="このメールアドレスは既に検証済みです"
-        )
-    
-    # 他のユーザーが使用しているメールアドレスかチェック
-    existing_user = db.query(User).filter(
-        User.email == request.email,
-        User.id != current_user.id,
-        User.is_email_verified == True
-    ).first()
-    
-    if existing_user:
-        raise AlreadyExistsException(
-            resource="メールアドレス",
-            detail="このメールアドレスは既に他のユーザーが使用しています"
-        )
-    
-    # 既存の有効なトークンがあるかチェック
-    now = datetime.now(ZoneInfo("Asia/Tokyo"))
-    
-    # トークンの有効期限をチェック（タイムゾーン対応）
-    has_valid_token = False
-    if (current_user.email_verification_token and 
-        current_user.email_verification_token_expires and
-        current_user.email == request.email):
-        # email_verification_token_expiresがnaive datetimeの場合、タイムゾーンを付加
-        token_expires = current_user.email_verification_token_expires
-        if token_expires.tzinfo is None:
-            # UTCとして扱い、Asia/Tokyoに変換
-            token_expires = token_expires.replace(tzinfo=timezone.utc).astimezone(ZoneInfo("Asia/Tokyo"))
-        
-        if token_expires > now:
-            has_valid_token = True
-    
-    if has_valid_token:
-        # 既存のトークンを再利用
-        verification_token = current_user.email_verification_token
-        logger.info(f"既存の検証トークンを再利用 - user_id: {current_user.id}")
-        # メール送信のためのuser変数を設定
-        user = current_user
-    else:
-        # 新しい検証トークンを生成
-        verification_token = secrets.token_urlsafe(32)
-        expires_at = now + timedelta(
-            hours=settings.EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS
-        )
-        
-        # 現在のセッションでユーザーを取得し直す
-        user = db.query(User).filter(User.id == current_user.id).first()
-        if not user:
-            raise NotFoundException(resource="ユーザー")
-            
-        # ユーザー情報を更新
-        user.email = request.email
-        user.email_verification_token = verification_token
-        user.email_verification_token_expires = expires_at
-        user.is_email_verified = False
-        user.email_verified_at = None
-        
-        # 変更をコミットしてデータベースに保存
-        try:
-            db.add(user)  # セッションに追加
-            db.flush()  # まず変更を確定
-            db.commit()
-            
-            # トークンが保存されたことを確認
-            if not user.email_verification_token:
-                raise Exception("トークンが保存されていません")
-                
-            logger.info(f"新しい検証トークンを保存しました - user_id: {user.id}, token_prefix: {verification_token[:20]}...")
-        except Exception as e:
-            db.rollback()
-            logger.error(f"トークン保存エラー - user_id: {user.id}, error: {str(e)}")
-            raise DatabaseException(
-                detail="検証トークンの保存に失敗しました"
-            )
-    
-    # 検証URLを作成（メール用のURLを使用）
-    verification_url = f"{settings.EMAIL_FRONTEND_URL}/auth/verify-email?token={verification_token}"
-    
-    # トークンが保存されたことを再度確認（新規トークンの場合のみ）
-    if not has_valid_token:
-        saved_user = db.query(User).filter(User.id == user.id).first()
-        logger.info(f"トークン保存確認 - user_id: {saved_user.id}, has_token: {saved_user.email_verification_token is not None}")
-    
-    # メール送信
-    try:
-        success = email_service.send_verification_email(
-            to_email=request.email,
-            user_name=user.name,
-            verification_url=verification_url
-        )
-        
-        if not success:
-            raise Exception("メール送信に失敗しました")
-            
-        logger.info(f"検証メール送信成功 - user_id: {current_user.id}, email: {request.email}")
-        
-        return EmailVerificationResponse(
-            message="検証メールを送信しました。メールを確認してください。",
-            email=request.email
-        )
-        
-    except Exception as e:
-        logger.error(f"検証メール送信エラー - user_id: {current_user.id}, error: {str(e)}")
-        raise ExternalAPIException(
-            service="メール送信",
-            detail="メールの送信に失敗しました。しばらくしてから再度お試しください。"
-        )
-
-
-@router.post("/email/verify/confirm", response_model=EmailVerificationResponse)
-async def confirm_email_verification(
-    request: EmailVerificationConfirmRequest,
-    db: Session = Depends(get_db_session),
-):
-    """
-    メールアドレスの検証を確認します
-    
-    Args:
-        request: 検証トークンを含むリクエスト
-        
-    Returns:
-        検証結果
-        
-    Raises:
-        HTTPException: 無効なトークンまたは期限切れの場合
-    """
-    from datetime import datetime, timezone
-    from zoneinfo import ZoneInfo
-    from app.services.email import email_service
-    
-    logger = logging.getLogger(__name__)
-    
-    # トークンでユーザーを検索
-    user = db.query(User).filter(
-        User.email_verification_token == request.token
-    ).first()
-    
-    if not user:
-        raise ValidationException(
-            detail="無効な検証トークンです"
-        )
-    
-    # トークンの有効期限を確認
-    now = datetime.now(ZoneInfo("Asia/Tokyo"))
-    
-    # email_verification_token_expiresがnaive datetimeの場合、タイムゾーンを付加
-    token_expires = user.email_verification_token_expires
-    if token_expires.tzinfo is None:
-        # UTCとして扱い、Asia/Tokyoに変換
-        token_expires = token_expires.replace(tzinfo=timezone.utc).astimezone(ZoneInfo("Asia/Tokyo"))
-    
-    if token_expires < now:
-        # 期限切れのトークンをクリア
-        user.email_verification_token = None
-        user.email_verification_token_expires = None
-        db.commit()
-        
-        raise TokenExpiredException(
-            detail="検証トークンの有効期限が切れています。再度検証メールをリクエストしてください。"
-        )
-    
-    # メールアドレスを検証済みに更新
-    user.is_email_verified = True
-    user.email_verified_at = datetime.now(ZoneInfo("Asia/Tokyo"))
-    user.email_verification_token = None
-    user.email_verification_token_expires = None
-    
-    db.commit()
-    
-    # 検証成功通知メールを送信
-    try:
-        email_service.send_verification_success_email(
-            to_email=user.email,
-            user_name=user.name
-        )
-    except Exception as e:
-        # メール送信に失敗してもエラーにはしない
-        logger.error(f"検証成功通知メール送信エラー - user_id: {user.id}, error: {str(e)}")
-    
-    logger.info(f"メールアドレス検証成功 - user_id: {user.id}, email: {user.email}")
-    
-    return EmailVerificationResponse(
-        message="メールアドレスの検証が完了しました",
-        email=user.email
-    )
-
-
-@router.post("/email/verify/resend", response_model=EmailVerificationResponse)
-async def resend_verification_email(
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db_session),
-):
-    """
-    検証メールを再送信します
-    
-    Returns:
-        再送信結果
-        
-    Raises:
-        HTTPException: 既に検証済み、またはメールアドレスが設定されていない場合
-    """
-    if current_user.is_email_verified:
-        raise ValidationException(
-            detail="メールアドレスは既に検証済みです"
-        )
-    
-    if not current_user.email:
-        raise ValidationException(
-            detail="メールアドレスが設定されていません"
-        )
-    
-    # 検証メールをリクエスト
-    return await request_email_verification(
-        EmailVerificationRequest(email=current_user.email),
-        current_user,
-        db
-    )
 
 
 @router.post("/refresh")
@@ -910,7 +510,7 @@ async def refresh_jwt_token(
     ).first()
     
     # 統一的なユーザーレスポンスを構築
-    response_data = _build_user_response(user, access_token)
+    response_data = _build_user_response(user, access_token, db=db)
     response_data["refresh_token"] = refresh_token
     
     # Cookieの設定（アクセストークン）

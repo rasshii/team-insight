@@ -21,6 +21,7 @@ from app.schemas.health import HealthResponse, ServiceStatus
 from app.core.error_handler import register_error_handlers
 from app.core.request_id_middleware import RequestIDMiddleware
 from app.core.logging_config import setup_logging, get_logger
+from app.services.report_scheduler import report_scheduler
 
 # ログ設定を初期化
 setup_logging()
@@ -48,11 +49,26 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Redis接続エラー: {e}")
         # Redis接続エラーでもアプリケーションは起動を続行
+    
+    # レポートスケジューラーの起動
+    try:
+        report_scheduler.start()
+        logger.info("レポートスケジューラーが起動されました")
+    except Exception as e:
+        logger.error(f"レポートスケジューラー起動エラー: {e}")
+        # スケジューラーエラーでもアプリケーションは起動を続行
 
     yield
 
     # シャットダウン時の処理
     logger.info("アプリケーションをシャットダウンしています...")
+    
+    # レポートスケジューラーの停止
+    try:
+        report_scheduler.stop()
+        logger.info("レポートスケジューラーを停止しました")
+    except Exception as e:
+        logger.error(f"レポートスケジューラー停止エラー: {e}")
 
     # Redis接続の閉じる
     try:

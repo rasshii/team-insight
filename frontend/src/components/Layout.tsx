@@ -14,7 +14,6 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { PrivateRoute } from "./PrivateRoute";
-import { EmailVerificationBanner } from "@/components/auth/EmailVerificationBanner";
 import { usePermissions } from "@/hooks/usePermissions";
 
 interface LayoutProps {
@@ -189,10 +188,6 @@ export function Layout({ children }: LayoutProps) {
           )}
         </nav>
 
-        {/* Email Verification Banner */}
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-4">
-          <EmailVerificationBanner />
-        </div>
 
         <main className="flex-1">{children}</main>
       </div>

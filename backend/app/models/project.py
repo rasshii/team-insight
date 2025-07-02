@@ -29,3 +29,4 @@ class Project(BaseModel):
     # リレーション
     members = relationship("User", secondary=project_members, back_populates="projects")
     tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
+    report_schedules = relationship("ReportSchedule", back_populates="project", cascade="all, delete-orphan")

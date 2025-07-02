@@ -39,6 +39,7 @@ export interface UserInfoResponse {
   name: string
   user_id: string
   is_email_verified: boolean
+  backlog_space_key?: string
   user_roles: UserRole[]
 }
 
@@ -47,59 +48,14 @@ export interface CallbackRequest {
   state: string
 }
 
-export interface EmailVerificationRequest {
-  email: string
-}
-
-export interface EmailVerificationConfirmRequest {
-  token: string
-}
-
-export interface EmailVerificationResponse {
-  message: string
-  email?: string
-  user?: UserInfoResponse
-}
-
-export interface SignupRequest {
-  email: string
-  password: string
-  name: string
-}
-
-export interface LoginRequest {
-  email: string
-  password: string
-}
-
-export interface SignupResponse {
-  message: string
-  user: UserInfoResponse
-  requires_verification: boolean
-}
-
 /**
  * 認証関連のAPIサービス
  * 
- * React Queryと組み合わせて使用するためのシンプルな関数群
+ * Backlog OAuth2.0認証フローのためのシンプルな関数群
  * JWTトークンはHttpOnlyクッキーで管理されるため、
  * フロントエンドでのトークン管理は不要
  */
 export const authService = {
-  /**
-   * メール/パスワードでサインアップ
-   */
-  async signup(data: SignupRequest): Promise<SignupResponse> {
-    return await apiClient.post('/api/v1/auth/signup', data)
-  },
-
-  /**
-   * メール/パスワードでログイン
-   */
-  async login(data: LoginRequest): Promise<TokenResponse> {
-    return await apiClient.post('/api/v1/auth/login', data)
-  },
-
   /**
    * 認証URLを取得
    * @param forceAccountSelection - アカウント選択を強制するかどうか
@@ -142,27 +98,6 @@ export const authService = {
    */
   async refreshJwtToken(): Promise<TokenResponse> {
     return await apiClient.post('/api/v1/auth/refresh')
-  },
-
-  /**
-   * メール認証リクエスト
-   */
-  async requestEmailVerification(data: EmailVerificationRequest): Promise<EmailVerificationResponse> {
-    return await apiClient.post('/api/v1/auth/email/verify', data)
-  },
-
-  /**
-   * メール認証確認
-   */
-  async confirmEmailVerification(data: EmailVerificationConfirmRequest): Promise<EmailVerificationResponse> {
-    return await apiClient.post('/api/v1/auth/email/verify/confirm', data)
-  },
-
-  /**
-   * 検証メールを再送信
-   */
-  async resendVerificationEmail(): Promise<EmailVerificationResponse> {
-    return await apiClient.post('/api/v1/auth/email/verify/resend')
   },
 
   /**
