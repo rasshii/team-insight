@@ -55,6 +55,12 @@ from app.core.deps import get_response_formatter
 from app.core.response_builder import ResponseBuilder, ResponseFormatter
 from app.core.config import settings
 import secrets
+from app.core.auth_base import (
+    AuthResponseBuilder,
+    CookieManager,
+    TokenManager,
+    AuthService
+)
 
 router = APIRouter()
 
@@ -72,10 +78,10 @@ def _build_user_response(user: User, access_token: str = None) -> Dict[str, Any]
     Returns:
         レスポンス辞書
     """
-    # UserRoleResponseのリストを作成
+    # NOTE: この関数は既存のAPIとの互換性のために残しています
+    # 新しいコードでは AuthResponseBuilder を使用してください
     user_roles = build_user_role_responses(user.user_roles)
     
-    # ユーザー情報の構築
     user_info = UserInfoResponse(
         id=user.id,
         backlog_id=user.backlog_id,
@@ -89,7 +95,6 @@ def _build_user_response(user: User, access_token: str = None) -> Dict[str, Any]
         user_roles=user_roles
     )
     
-    # レスポンスの構築
     response_data = {"user": user_info.model_dump()}
     
     if access_token:
@@ -264,49 +269,17 @@ async def login(
         )
     
     # アクティブユーザーかチェック
-    if not user.is_active:
-        raise AuthenticationException(
-            detail="アカウントが無効化されています"
-        )
+    AuthService.validate_user_active(user)
     
     # JWTトークンの生成
-    access_token = create_access_token(
-        data={"sub": str(user.id)},
-        expires_delta=timedelta(minutes=AuthConstants.TOKEN_MAX_AGE // 60)
-    )
-    
-    # リフレッシュトークンの生成
-    refresh_token = create_refresh_token(
-        data={"sub": str(user.id)}
-    )
+    access_token, refresh_token = TokenManager.generate_tokens(user.id)
     
     # 統一的なユーザーレスポンスを構築
     response_data = _build_user_response(user, access_token)
     response_data["refresh_token"] = refresh_token
     
-    # Cookieの設定（アクセストークン）
-    response.set_cookie(
-        key=AuthConstants.COOKIE_NAME,
-        value=access_token,
-        max_age=AuthConstants.TOKEN_MAX_AGE,
-        path=AuthConstants.COOKIE_PATH,
-        domain="localhost",  # 開発環境用に明示的にドメインを設定
-        httponly=True,
-        samesite=AuthConstants.COOKIE_SAMESITE,
-        secure=False  # HTTPSの場合はTrue
-    )
-    
-    # Cookieの設定（リフレッシュトークン）
-    response.set_cookie(
-        key="refresh_token",
-        value=refresh_token,
-        max_age=30 * 24 * 60 * 60,  # 30日間
-        path=AuthConstants.COOKIE_PATH,
-        domain="localhost",
-        httponly=True,
-        samesite=AuthConstants.COOKIE_SAMESITE,
-        secure=False  # HTTPSの場合はTrue
-    )
+    # Cookieの設定
+    CookieManager.set_auth_cookies(response, access_token, refresh_token)
     
     return formatter.success(
         data=response_data,
@@ -317,6 +290,7 @@ async def login(
 @router.get("/backlog/authorize", response_model=AuthorizationResponse)
 async def get_authorization_url(
     space_key: Optional[str] = Query(None, description="BacklogのスペースキーOptional）環境変数がデフォルト"),
+    force_account_selection: bool = Query(False, description="アカウント選択を強制するかどうか"),
     db: Session = Depends(get_db_session),
     current_user: Optional[User] = Depends(get_current_user),
 ):
@@ -353,7 +327,11 @@ async def get_authorization_url(
         state = base64.urlsafe_b64encode(json.dumps(state_data).encode()).decode()
         
         # 認証URLを生成（space_keyを含める）
-        auth_url, _ = backlog_oauth_service.get_authorization_url(space_key=space_key, state=state)
+        auth_url, _ = backlog_oauth_service.get_authorization_url(
+            space_key=space_key, 
+            state=state,
+            force_account_selection=force_account_selection
+        )
 
         # stateをデータベースに保存（10分間有効）
         expires_at = datetime.now(ZoneInfo("Asia/Tokyo")) + timedelta(minutes=10)

@@ -74,11 +74,20 @@ class ApiClient {
       async (error: AxiosError) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
         
-        // エラーログ
+        // エラーログ（401エラーは特別扱い）
         if (process.env.NODE_ENV === 'development') {
-          console.error(`[API Error] ${error.config?.method?.toUpperCase()} ${error.config?.url} - ${error.response?.status}`)
-          if (error.response?.data) {
-            console.error('[API Error Details]', error.response.data)
+          const isAuthEndpoint = error.config?.url?.includes('/auth/me')
+          const is401Error = error.response?.status === 401
+          
+          if (is401Error && isAuthEndpoint) {
+            // /auth/meの401エラーは正常な未認証状態なのでinfoレベル
+            console.info(`[API Info] ${error.config?.method?.toUpperCase()} ${error.config?.url} - 401 (Not authenticated)`)
+          } else {
+            // その他のエラーは通常通りエラーログ
+            console.error(`[API Error] ${error.config?.method?.toUpperCase()} ${error.config?.url} - ${error.response?.status}`)
+            if (error.response?.data) {
+              console.error('[API Error Details]', error.response.data)
+            }
           }
         }
 
@@ -95,6 +104,18 @@ class ApiClient {
             isRootPage,
             isAuthPage
           })
+          
+          // 認証が不要なエンドポイントの場合は、リフレッシュを試みない
+          const publicEndpoints = [
+            '/auth/login',
+            '/auth/signup',
+            '/auth/forgot-password',
+            '/auth/reset-password'
+          ]
+          if (publicEndpoints.some(endpoint => originalRequest.url?.includes(endpoint))) {
+            console.log('[API Client] Public endpoint 401 error - no refresh attempt')
+            return Promise.reject(error)
+          }
           
           // リフレッシュエンドポイント自体の401エラーの場合は、リトライしない
           if (originalRequest.url?.includes('/auth/refresh') || originalRequest.url?.includes('/auth/backlog/refresh')) {

@@ -35,13 +35,14 @@ class BacklogOAuthService:
         # BacklogのベースURL（スペースキーに基づいて構築）
         self.base_url = f"https://{self.space_key}.backlog.jp"
 
-    def get_authorization_url(self, space_key: Optional[str] = None, state: Optional[str] = None) -> str:
+    def get_authorization_url(self, space_key: Optional[str] = None, state: Optional[str] = None, force_account_selection: bool = False) -> str:
         """
         認証URLを生成します
 
         Args:
             space_key: BacklogのスペースキーOptional）インスタンスのデフォルト値を使用
             state: CSRF攻撃を防ぐためのランダムな文字列（オプション）
+            force_account_selection: アカウント選択を強制するかどうか
 
         Returns:
             認証URL
@@ -62,6 +63,10 @@ class BacklogOAuthService:
             "redirect_uri": self.redirect_uri,
             "state": state,
         }
+        
+        # アカウント選択を強制する場合はpromptパラメータを追加
+        if force_account_selection:
+            params["prompt"] = "select_account"
 
         auth_url = f"{base_url}/OAuth2AccessRequest.action?{urlencode(params)}"
         return auth_url, state

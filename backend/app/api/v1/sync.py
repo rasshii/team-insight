@@ -5,7 +5,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 import logging
 
-from app.api.deps import get_db_session, get_current_active_user, get_current_project
+from app.api.deps import get_db_session, get_current_active_user, get_current_project, get_valid_backlog_token
 from app.models.user import User
 from app.models.project import Project
 from app.models.auth import OAuthToken
@@ -28,44 +28,45 @@ router = APIRouter()
 async def get_connection_status(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db_session),
-    formatter: ResponseFormatter = Depends(get_response_formatter)
+    formatter: ResponseFormatter = Depends(get_response_formatter),
+    oauth_token: Optional[OAuthToken] = Depends(get_valid_backlog_token)
 ) -> Dict[str, Any]:
     """
-    Backlog接続状態を取得する
+    Backlog接続状態を取得する（トークン自動リフレッシュ付き）
     """
-    # OAuthトークンの存在確認
-    oauth_token = db.query(OAuthToken).filter(
-        OAuthToken.user_id == current_user.id,
-        OAuthToken.provider == "backlog"
-    ).first()
-    
     if not oauth_token:
-        return formatter(ResponseBuilder.success(
-            data={
-                "connected": False,
-                "message": "Backlogアクセストークンが設定されていません",
-                "status": "no_token",
-                "last_project_sync": None,
-                "last_task_sync": None,
-                "expires_at": None
-            }
-        ))
+        # トークンが存在しないか、リフレッシュに失敗した場合
+        # 元のトークンを確認して適切なメッセージを返す
+        existing_token = db.query(OAuthToken).filter(
+            OAuthToken.user_id == current_user.id,
+            OAuthToken.provider == "backlog"
+        ).first()
+        
+        if not existing_token:
+            return formatter(ResponseBuilder.success(
+                data={
+                    "connected": False,
+                    "message": "Backlogアクセストークンが設定されていません",
+                    "status": "no_token",
+                    "last_project_sync": None,
+                    "last_task_sync": None,
+                    "expires_at": None
+                }
+            ))
+        else:
+            # トークンは存在するがリフレッシュに失敗した
+            return formatter(ResponseBuilder.success(
+                data={
+                    "connected": False,
+                    "message": "Backlogアクセストークンの再認証が必要です",
+                    "status": "refresh_failed",
+                    "last_project_sync": None,
+                    "last_task_sync": None,
+                    "expires_at": existing_token.expires_at.isoformat() if existing_token.expires_at else None
+                }
+            ))
     
-    # トークンの有効性確認
-    is_expired = oauth_token.expires_at and oauth_token.expires_at < datetime.utcnow()
-    
-    if is_expired:
-        return formatter(ResponseBuilder.success(
-            data={
-                "connected": False,
-                "message": "Backlogアクセストークンの有効期限が切れています",
-                "status": "expired",
-                "last_project_sync": None,
-                "last_task_sync": None,
-                "expires_at": oauth_token.expires_at.isoformat() if oauth_token.expires_at else None
-            }
-        ))
-    
+    # トークンが有効な場合（自動リフレッシュ済みの場合も含む）
     # 最終同期時刻を取得
     last_project_sync = db.query(SyncHistory).filter(
         SyncHistory.user_id == current_user.id,
@@ -95,7 +96,8 @@ async def get_connection_status(
 async def sync_user_tasks(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db_session),
-    formatter: ResponseFormatter = Depends(get_response_formatter)
+    formatter: ResponseFormatter = Depends(get_response_formatter),
+    oauth_token: Optional[OAuthToken] = Depends(get_valid_backlog_token)
 ) -> Dict[str, Any]:
     """
     現在のユーザーのタスクを同期
@@ -104,39 +106,12 @@ async def sync_user_tasks(
     """
     logger.info(f"sync_user_tasks called by user {current_user.id}")
     
-    # OAuthトークンを取得
-    oauth_token = db.query(OAuthToken).filter(
-        OAuthToken.user_id == current_user.id,
-        OAuthToken.provider == "backlog"
-    ).first()
-    
     if not oauth_token:
-        logger.error(f"No Backlog OAuth token found for user {current_user.id}")
+        logger.error(f"No valid Backlog OAuth token for user {current_user.id}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Backlogとの連携が設定されていません"
+            detail="Backlogとの連携が設定されていないか、認証が必要です"
         )
-    
-    # トークンの有効期限確認とリフレッシュ
-    if oauth_token.is_expired() or token_refresh_service._should_refresh_token(oauth_token):
-        logger.info(f"Token needs refresh for user {current_user.id}")
-        space_key = oauth_token.backlog_space_key or settings.BACKLOG_SPACE_KEY
-        try:
-            refreshed_token = await token_refresh_service.refresh_token(oauth_token, db, space_key)
-            if refreshed_token:
-                oauth_token = refreshed_token
-                logger.info(f"Token refreshed successfully for user {current_user.id}")
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="アクセストークンの有効期限が切れており、更新に失敗しました。"
-                )
-        except Exception as e:
-            logger.error(f"Error refreshing token: {str(e)}", exc_info=True)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="アクセストークンの更新に失敗しました。"
-            )
     
     try:
         # 同期を実行（同期的に実行）
@@ -165,7 +140,8 @@ async def sync_project_tasks(
     project: Project = Depends(get_current_project),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db_session),
-    formatter: ResponseFormatter = Depends(get_response_formatter)
+    formatter: ResponseFormatter = Depends(get_response_formatter),
+    oauth_token: Optional[OAuthToken] = Depends(get_valid_backlog_token)
 ) -> Dict[str, Any]:
     """
     指定されたプロジェクトのタスクを同期
@@ -174,39 +150,12 @@ async def sync_project_tasks(
     """
     logger.info(f"sync_project_tasks called for project {project.id} by user {current_user.id}")
     
-    # OAuthトークンを取得
-    oauth_token = db.query(OAuthToken).filter(
-        OAuthToken.user_id == current_user.id,
-        OAuthToken.provider == "backlog"
-    ).first()
-    
     if not oauth_token:
-        logger.error(f"No Backlog OAuth token found for user {current_user.id}")
+        logger.error(f"No valid Backlog OAuth token for user {current_user.id}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Backlogとの連携が設定されていません"
+            detail="Backlogとの連携が設定されていないか、認証が必要です"
         )
-    
-    # トークンの有効期限確認とリフレッシュ
-    if oauth_token.is_expired() or token_refresh_service._should_refresh_token(oauth_token):
-        logger.info(f"Token needs refresh for user {current_user.id}")
-        space_key = oauth_token.backlog_space_key or settings.BACKLOG_SPACE_KEY
-        try:
-            refreshed_token = await token_refresh_service.refresh_token(oauth_token, db, space_key)
-            if refreshed_token:
-                oauth_token = refreshed_token
-                logger.info(f"Token refreshed successfully for user {current_user.id}")
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="アクセストークンの有効期限が切れており、更新に失敗しました。"
-                )
-        except Exception as e:
-            logger.error(f"Error refreshing token: {str(e)}", exc_info=True)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="アクセストークンの更新に失敗しました。"
-            )
     
     try:
         # 同期を実行（同期的に実行）
@@ -254,7 +203,8 @@ async def get_sync_status(
 async def sync_all_projects(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db_session),
-    formatter: ResponseFormatter = Depends(get_response_formatter)
+    formatter: ResponseFormatter = Depends(get_response_formatter),
+    oauth_token: Optional[OAuthToken] = Depends(get_valid_backlog_token)
 ) -> Dict[str, Any]:
     """
     Backlogから全プロジェクトを同期
@@ -273,41 +223,11 @@ async def sync_all_projects(
             detail="この操作には管理者またはプロジェクトリーダーの権限が必要です"
         )
     
-    # OAuthトークンを取得
-    oauth_token = db.query(OAuthToken).filter(
-        OAuthToken.user_id == current_user.id,
-        OAuthToken.provider == "backlog"
-    ).first()
-    
     if not oauth_token:
-        logger.error(f"No Backlog OAuth token found for user {current_user.id}")
+        logger.error(f"No valid Backlog OAuth token for user {current_user.id}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Backlogとの連携が設定されていません"
-        )
-    
-    logger.info(f"Found OAuth token for user {current_user.id}")
-    
-    # トークンの有効期限確認とリフレッシュ
-    if oauth_token.is_expired() or token_refresh_service._should_refresh_token(oauth_token):
-        logger.info(f"Token needs refresh for user {current_user.id}")
-        space_key = oauth_token.backlog_space_key or settings.BACKLOG_SPACE_KEY
-        try:
-            refreshed_token = await token_refresh_service.refresh_token(oauth_token, db, space_key)
-            if refreshed_token:
-                oauth_token = refreshed_token
-                logger.info(f"Token refreshed successfully for user {current_user.id}")
-            else:
-                logger.error(f"Failed to refresh token for user {current_user.id}")
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="アクセストークンの有効期限が切れており、更新に失敗しました。再度ログインしてください。"
-                )
-        except Exception as e:
-            logger.error(f"Error refreshing token: {str(e)}", exc_info=True)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="アクセストークンの更新に失敗しました。再度ログインしてください。"
+            detail="Backlogとの連携が設定されていないか、認証が必要です"
             )
     
     logger.info(f"Starting sync with valid token...")
@@ -369,20 +289,6 @@ async def sync_single_issue(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"課題の同期中にエラーが発生しました: {str(e)}"
         )
-
-
-@router.get("/connection/status")
-async def get_connection_status(
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db_session)
-) -> Dict[str, Any]:
-    """
-    Backlog接続状態を取得
-    
-    現在の接続状態と最終同期時刻を返します。
-    """
-    status = await sync_service.get_connection_status(current_user, db)
-    return status
 
 
 @router.get("/history")

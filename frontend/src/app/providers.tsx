@@ -116,14 +116,14 @@ function useCurrentUser() {
         dispatch(setUser(user));
         return user;
       } catch (error: any) {
-        console.error('[AuthInitializer] Error fetching user:', error);
-        // 401エラーの場合は正常な未認証状態として扱う
+        // 401エラーの場合は正常な未認証状態として扱う（ログレベルをinfoに）
         if (error?.response?.status === 401 || error?.status === 401) {
-          console.log('[AuthInitializer] 401 error - user is not authenticated');
+          console.info('[AuthInitializer] User is not authenticated (401)');
           dispatch(initializeAuth());
           return null;
         }
-        // その他のエラーの場合も初期化してnullを返す
+        // その他のエラーの場合のみエラーログを出力
+        console.error('[AuthInitializer] Error fetching user:', error);
         dispatch(initializeAuth());
         return null;
       }

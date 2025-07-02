@@ -19,7 +19,6 @@ from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
 from app.models.user import User
 from app.models.rbac import Role, UserRole
-from app.core.rbac import assign_role_to_user
 from app.core.config import settings
 
 
@@ -63,7 +62,19 @@ def init_admin_users():
             
             # ADMINロールを付与
             try:
-                assign_role_to_user(db, user.id, "ADMIN")
+                # ADMINロールを取得
+                admin_role = db.query(Role).filter(Role.name == "ADMIN").first()
+                if not admin_role:
+                    print(f"❌ ADMINロールが見つかりません。マイグレーションを実行してください。")
+                    continue
+                
+                # UserRoleを作成
+                user_role = UserRole(
+                    user_id=user.id,
+                    role_id=admin_role.id
+                )
+                db.add(user_role)
+                db.commit()
                 print(f"✅ {email} を管理者に設定しました")
             except Exception as e:
                 print(f"❌ {email} の管理者設定に失敗: {str(e)}")

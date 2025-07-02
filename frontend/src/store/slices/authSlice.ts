@@ -68,5 +68,10 @@ const authSlice = createSlice({
 // アクションのエクスポート
 export const { setUser, initializeAuth, logout } = authSlice.actions;
 
+// セレクターのエクスポート
+export const selectCurrentUser = (state: { auth: AuthState }) => state.auth.user;
+export const selectIsAuthenticated = (state: { auth: AuthState }) => state.auth.isAuthenticated;
+export const selectIsInitialized = (state: { auth: AuthState }) => state.auth.isInitialized;
+
 // リデューサーのエクスポート
 export default authSlice.reducer;

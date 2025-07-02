@@ -36,6 +36,8 @@ async def list_users(
     search: Optional[str] = Query(None, description="検索キーワード（名前、メールアドレス）"),
     role_id: Optional[int] = Query(None, description="ロールIDでフィルタ"),
     is_active: Optional[bool] = Query(None, description="アクティブ状態でフィルタ"),
+    sort_by: Optional[str] = Query("created_at", description="ソートフィールド"),
+    sort_order: Optional[str] = Query("desc", description="ソート順序（asc/desc）"),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db_session),
 ):
@@ -70,6 +72,17 @@ async def list_users(
     # アクティブ状態フィルタ
     if is_active is not None:
         query = query.filter(User.is_active == is_active)
+    
+    # ソート処理
+    if sort_by and hasattr(User, sort_by):
+        order_column = getattr(User, sort_by)
+        if sort_order == "desc":
+            query = query.order_by(order_column.desc())
+        else:
+            query = query.order_by(order_column.asc())
+    else:
+        # デフォルトはcreated_atの降順
+        query = query.order_by(User.created_at.desc())
     
     # 総数を取得
     total = query.count()

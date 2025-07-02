@@ -38,8 +38,8 @@ class UserResponse(UserBase):
     ユーザー情報レスポンススキーマ
     """
     id: int = Field(..., description="ユーザーID")
-    backlog_id: int = Field(..., description="BacklogユーザーID")
-    user_id: str = Field(..., description="BacklogユーザーID（文字列）")
+    backlog_id: Optional[int] = Field(None, description="BacklogユーザーID")
+    user_id: Optional[str] = Field(None, description="BacklogユーザーID（文字列）")
     is_email_verified: bool = Field(..., description="メールアドレス検証済みかどうか")
     user_roles: List[UserRoleResponse] = Field(default_factory=list, description="ユーザーのロール一覧")
     created_at: datetime = Field(..., description="作成日時")

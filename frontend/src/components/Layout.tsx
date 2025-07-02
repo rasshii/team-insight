@@ -8,13 +8,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FolderOpen, Home, LogOut, Menu, Settings, Users, UserCircle } from "lucide-react";
+import { FolderOpen, Home, LogOut, Menu, Settings, Users, UserCircle, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { PrivateRoute } from "./PrivateRoute";
 import { EmailVerificationBanner } from "@/components/auth/EmailVerificationBanner";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -22,6 +23,7 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const { user, logout, isAuthenticated, isInitialized } = useAuth();
+  const permissions = usePermissions();
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -117,6 +119,17 @@ export function Layout({ children }: LayoutProps) {
                           <span>設定</span>
                         </Link>
                       </DropdownMenuItem>
+                      {permissions.isAdmin() && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem asChild>
+                            <Link href="/admin/users">
+                              <ShieldCheck className="mr-2 h-4 w-4" />
+                              <span>管理者メニュー</span>
+                            </Link>
+                          </DropdownMenuItem>
+                        </>
+                      )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleLogout}>
                         <LogOut className="mr-2 h-4 w-4" />
@@ -158,6 +171,19 @@ export function Layout({ children }: LayoutProps) {
                     </Link>
                   );
                 })}
+                {permissions.isAdmin() && (
+                  <>
+                    <div className="my-2 border-t border-border" />
+                    <Link
+                      href="/admin/users"
+                      className="flex items-center space-x-2 rounded-md px-3 py-2 text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <ShieldCheck className="h-4 w-4" />
+                      <span>管理者メニュー</span>
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           )}

@@ -102,9 +102,11 @@ export const authService = {
 
   /**
    * 認証URLを取得
+   * @param forceAccountSelection - アカウント選択を強制するかどうか
    */
-  async getAuthorizationUrl(): Promise<AuthorizationResponse> {
-    return await apiClient.get('/api/v1/auth/backlog/authorize')
+  async getAuthorizationUrl(forceAccountSelection: boolean = false): Promise<AuthorizationResponse> {
+    const params = forceAccountSelection ? { force_account_selection: true } : {}
+    return await apiClient.get('/api/v1/auth/backlog/authorize', { params })
   },
 
   /**

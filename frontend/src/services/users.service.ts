@@ -1,4 +1,4 @@
-import api from '@/services/api';
+import { apiClient as api } from '@/lib/api-client';
 import {
   User,
   UserListResponse,
@@ -24,7 +24,7 @@ export const usersService = {
     const queryParams = new URLSearchParams();
     
     if (params.page) queryParams.append('page', params.page.toString());
-    if (params.page_size) queryParams.append('page_size', params.page_size.toString());
+    if (params.page_size) queryParams.append('per_page', params.page_size.toString());
     
     if (params.filters) {
       if (params.filters.is_active !== undefined) {
@@ -46,55 +46,48 @@ export const usersService = {
       if (params.sort.sort_order) queryParams.append('sort_order', params.sort.sort_order);
     }
     
-    const response = await api.get<UserListResponse>(`/users/?${queryParams.toString()}`);
-    return response.data;
+    return await api.get<UserListResponse>(`/api/v1/users/?${queryParams.toString()}`);
   },
 
   /**
    * 特定のユーザー詳細を取得
    */
   async getUser(userId: number): Promise<User> {
-    const response = await api.get<User>(`/users/${userId}`);
-    return response.data;
+    return await api.get<User>(`/api/v1/users/${userId}`);
   },
 
   /**
    * ユーザー情報を更新
    */
   async updateUser(userId: number, data: UserUpdate): Promise<User> {
-    const response = await api.patch<User>(`/users/${userId}`, data);
-    return response.data;
+    return await api.patch<User>(`/api/v1/users/${userId}`, data);
   },
 
   /**
    * ユーザーにロールを割り当て
    */
   async assignRole(userId: number, data: UserRoleAssignmentRequest): Promise<User> {
-    const response = await api.post<User>(`/users/${userId}/roles`, data);
-    return response.data;
+    return await api.post<User>(`/api/v1/users/${userId}/roles`, data);
   },
 
   /**
    * ユーザーからロールを削除
    */
   async removeRole(userId: number, data: UserRoleRemovalRequest): Promise<User> {
-    const response = await api.delete<User>(`/users/${userId}/roles`, { data });
-    return response.data;
+    return await api.delete<User>(`/api/v1/users/${userId}/roles`, { data });
   },
 
   /**
    * ユーザーのロールを更新（一括設定）
    */
   async updateRoles(userId: number, data: UserRoleUpdateRequest): Promise<User> {
-    const response = await api.put<User>(`/users/${userId}/roles`, data);
-    return response.data;
+    return await api.put<User>(`/api/v1/users/${userId}/roles`, data);
   },
 
   /**
    * 利用可能なロール一覧を取得
    */
   async getAvailableRoles(): Promise<AvailableRole[]> {
-    const response = await api.get<AvailableRole[]>('/users/roles/available');
-    return response.data;
+    return await api.get<AvailableRole[]>('/api/v1/users/roles/available');
   }
 };

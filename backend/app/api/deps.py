@@ -201,3 +201,49 @@ class ProjectAccessChecker:
 get_current_project = ProjectAccessChecker()
 get_current_project_as_leader = ProjectAccessChecker(RoleType.PROJECT_LEADER)
 get_current_project_as_admin = ProjectAccessChecker(RoleType.ADMIN)
+
+
+async def get_valid_backlog_token(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db_session)
+) -> Optional["OAuthToken"]:
+    """
+    有効なBacklogトークンを取得（期限切れの場合は自動リフレッシュ）
+    
+    Args:
+        current_user: 現在のユーザー
+        db: データベースセッション
+        
+    Returns:
+        Optional[OAuthToken]: 有効なBacklogトークン（存在しない場合はNone）
+    """
+    from app.models.auth import OAuthToken
+    from app.core.token_refresh import token_refresh_service
+    from app.core.config import settings
+    from datetime import datetime, timezone
+    
+    # OAuthトークンを取得
+    token = db.query(OAuthToken).filter(
+        OAuthToken.user_id == current_user.id,
+        OAuthToken.provider == "backlog"
+    ).first()
+    
+    if not token:
+        return None
+    
+    # トークンの有効期限をチェック
+    if token.expires_at:
+        # タイムゾーン情報がない場合はUTCとして扱う
+        expires_at = token.expires_at.replace(tzinfo=timezone.utc) if token.expires_at.tzinfo is None else token.expires_at
+        if expires_at < datetime.now(timezone.utc):
+            # トークンが期限切れの場合、リフレッシュを試みる
+            space_key = token.backlog_space_key or settings.BACKLOG_SPACE_KEY
+            refreshed_token = await token_refresh_service.refresh_token(token, db, space_key)
+            
+            if refreshed_token:
+                return refreshed_token
+            else:
+                # リフレッシュに失敗した場合
+                return None
+    
+    return token

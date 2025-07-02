@@ -9,6 +9,7 @@ import logging
 from typing import List, Dict, Any
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session, joinedload
+from app.core.query_optimizer import QueryOptimizer
 from app.api import deps
 from datetime import timedelta
 from app.models.project import Project
@@ -42,7 +43,11 @@ def get_projects(
     """
     # ユーザーが参加しているプロジェクトを取得（リレーションシップを含む）
     logger.info(f"Fetching projects for user {current_user.id}")
-    user_with_projects = db.query(User).options(joinedload(User.projects)).filter(User.id == current_user.id).first()
+    
+    # 最適化されたクエリを使用
+    user_with_projects = db.query(User).options(
+        joinedload(User.projects).joinedload(Project.members)
+    ).filter(User.id == current_user.id).first()
     projects = user_with_projects.projects if user_with_projects else []
     
     logger.info(f"Found {len(projects)} projects for user {current_user.id}")

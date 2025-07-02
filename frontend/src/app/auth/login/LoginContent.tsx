@@ -42,6 +42,7 @@ export function LoginContent() {
   const [isLoading, setIsLoading] = useState(false)
   const [isBacklogLoading, setIsBacklogLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [loginError, setLoginError] = useState<string | null>(null)
 
   // 開発時のテスト用: testパラメータがある場合は/settings/backlogへリダイレクト
   const testMode = searchParams?.get('test') === 'backlog'
@@ -59,6 +60,7 @@ export function LoginContent() {
   // メール/パスワードでのログイン
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true)
+    setLoginError(null) // エラーをクリア
     try {
       const response = await authService.login(data)
       
@@ -80,8 +82,12 @@ export function LoginContent() {
                           error.response?.data?.detail || 
                           'ログインに失敗しました'
       
+      // フォーム上部にエラーを表示
+      setLoginError(errorMessage)
+      
+      // トーストも表示（より目立つように）
       toast({
-        title: 'エラー',
+        title: 'ログインエラー',
         description: errorMessage,
         variant: 'destructive',
       })
@@ -91,10 +97,10 @@ export function LoginContent() {
   }
 
   // Backlog OAuth認証の開始
-  const handleBacklogLogin = async () => {
+  const handleBacklogLogin = async (forceAccountSelection: boolean = false) => {
     setIsBacklogLoading(true)
     try {
-      const { authorization_url, state } = await authService.getAuthorizationUrl()
+      const { authorization_url, state } = await authService.getAuthorizationUrl(forceAccountSelection)
       authService.saveOAuthState(state)
       window.location.href = authorization_url
     } catch (error) {
@@ -135,12 +141,12 @@ export function LoginContent() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {error && (
+              {(error || loginError) && (
                 <Alert variant="destructive">
                   <AlertDescription>
-                    {error === 'auth_failed'
+                    {loginError || (error === 'auth_failed'
                       ? '認証に失敗しました。もう一度お試しください。'
-                      : 'エラーが発生しました。'}
+                      : 'エラーが発生しました。')}
                   </AlertDescription>
                 </Alert>
               )}
@@ -148,7 +154,7 @@ export function LoginContent() {
               <div className="grid gap-2">
                 <Button
                   variant="outline"
-                  onClick={handleBacklogLogin}
+                  onClick={() => handleBacklogLogin(false)}
                   disabled={isLoading || isBacklogLoading}
                   className="w-full"
                 >
@@ -177,6 +183,30 @@ export function LoginContent() {
                       Backlogアカウントでログイン
                     </>
                   )}
+                </Button>
+                
+                <Button
+                  variant="ghost"
+                  onClick={() => handleBacklogLogin(true)}
+                  disabled={isLoading || isBacklogLoading}
+                  className="w-full text-sm text-muted-foreground hover:text-foreground"
+                >
+                  <svg
+                    className="mr-2 h-4 w-4"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                  別のBacklogアカウントでログイン
                 </Button>
               </div>
 
