@@ -22,6 +22,7 @@ from app.core.error_handler import register_error_handlers
 from app.core.request_id_middleware import RequestIDMiddleware
 from app.core.logging_config import setup_logging, get_logger
 from app.services.report_scheduler import report_scheduler
+from app.services.sync_scheduler import sync_scheduler
 
 # ログ設定を初期化
 setup_logging()
@@ -57,11 +58,26 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"レポートスケジューラー起動エラー: {e}")
         # スケジューラーエラーでもアプリケーションは起動を続行
+    
+    # 同期スケジューラーの起動
+    try:
+        sync_scheduler.start()
+        logger.info("同期スケジューラーが起動されました")
+    except Exception as e:
+        logger.error(f"同期スケジューラー起動エラー: {e}")
+        # スケジューラーエラーでもアプリケーションは起動を続行
 
     yield
 
     # シャットダウン時の処理
     logger.info("アプリケーションをシャットダウンしています...")
+    
+    # 同期スケジューラーの停止
+    try:
+        sync_scheduler.stop()
+        logger.info("同期スケジューラーを停止しました")
+    except Exception as e:
+        logger.error(f"同期スケジューラー停止エラー: {e}")
     
     # レポートスケジューラーの停止
     try:

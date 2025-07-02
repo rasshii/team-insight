@@ -78,7 +78,6 @@ class UserInfoResponse(BaseModel):
     email: Optional[str] = Field(None, description="メールアドレス")
     name: str = Field(..., description="ユーザー名")
     user_id: Optional[str] = Field(None, description="BacklogのユーザーID（文字列）")
-    is_email_verified: bool = Field(..., description="メールアドレス検証済みかどうか")
     backlog_space_key: Optional[str] = Field(None, description="BacklogスペースキーID")
     user_roles: List[UserRoleResponse] = Field(default_factory=list, description="ユーザーのロール一覧")
 
@@ -90,7 +89,6 @@ class UserInfoResponse(BaseModel):
                 "email": "user@example.com",
                 "name": "山田太郎",
                 "user_id": "yamada",
-                "is_email_verified": False,
                 "user_roles": [
                     {
                         "id": 1,

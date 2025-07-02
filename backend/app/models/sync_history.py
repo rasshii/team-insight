@@ -17,6 +17,7 @@ class SyncType(str, enum.Enum):
     ALL_PROJECTS = "all_projects"
     SINGLE_ISSUE = "single_issue"
     PROJECT_MEMBERS = "project_members"
+    ALL_USERS = "all_users"
 
 
 class SyncStatus(str, enum.Enum):

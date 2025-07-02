@@ -19,7 +19,7 @@ class ApiClient {
   constructor() {
     this.axiosInstance = axios.create({
       baseURL: env.get('NEXT_PUBLIC_API_URL'),
-      timeout: 10000, // 10秒に短縮
+      timeout: 30000, // 30秒に増やす（デバッグ用）
       headers: {
         'Content-Type': 'application/json',
       },

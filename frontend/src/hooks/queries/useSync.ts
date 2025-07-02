@@ -155,3 +155,37 @@ export const useSyncSingleIssue = () => {
     },
   })
 }
+
+/**
+ * Backlogユーザーをインポートするミューテーションフック
+ */
+export const useImportBacklogUsers = () => {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+
+  return useMutation({
+    mutationFn: (params?: { mode?: 'all' | 'active_only'; assignDefaultRole?: boolean }) => 
+      syncService.importBacklogUsers(params),
+    onSuccess: (data) => {
+      // ユーザー一覧を再取得
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all })
+      
+      // 同期履歴を再取得
+      queryClient.invalidateQueries({ queryKey: queryKeys.sync.history() })
+      
+      const message = `${data.created}名の新規ユーザーを作成、${data.updated}名のユーザー情報を更新しました`
+      
+      toast({
+        title: 'インポート完了',
+        description: message,
+      })
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'エラー',
+        description: error.response?.data?.detail || 'ユーザーのインポートに失敗しました',
+        variant: 'destructive',
+      })
+    },
+  })
+}

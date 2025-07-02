@@ -148,7 +148,6 @@ class AuthService:
                 name=user_info["name"],
                 user_id=user_info["userId"],
                 is_active=True,
-                is_email_verified=True,  # Backlog OAuth認証済みユーザーは検証済みとする
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc)
             )

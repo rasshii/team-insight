@@ -18,6 +18,9 @@ export interface paths {
          *     このエンドポイントは、ユーザーをBacklogの認証ページにリダイレクトするための
          *     URLを生成します。CSRF攻撃を防ぐため、stateパラメータも生成して保存します。
          *
+         *     Args:
+         *         space_key: BacklogのスペースキーOptional）環境変数がデフォルト
+         *
          *     Returns:
          *         認証URLとstateを含むレスポンス
          */
@@ -48,12 +51,15 @@ export interface paths {
          *
          *     Args:
          *         request: 認証コードとstateを含むリクエスト
+         *         db: データベースセッション
+         *         auth_service: 認証サービス
          *
          *     Returns:
          *         アクセストークンとユーザー情報を含むレスポンス
          *
          *     Raises:
-         *         HTTPException: state検証失敗またはトークン取得失敗時
+         *         ValidationException: state検証失敗時
+         *         ExternalAPIException: トークン取得失敗時
          */
         post: operations["handle_callback_api_v1_auth_backlog_callback_post"];
         delete?: never;
@@ -137,7 +143,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/auth/email/verify": {
+    "/api/v1/auth/refresh": {
         parameters: {
             query?: never;
             header?: never;
@@ -147,26 +153,31 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Request Email Verification
-         * @description メールアドレス検証用のメールを送信します
+         * Refresh Jwt Token
+         * @description JWTトークンをリフレッシュします
+         *
+         *     リフレッシュトークンを使用して新しいアクセストークンとリフレッシュトークンを生成します。
          *
          *     Args:
-         *         request: メールアドレスを含むリクエスト
+         *         response: FastAPIレスポンスオブジェクト
+         *         current_user: リフレッシュトークンから取得したユーザー
+         *         db: データベースセッション
+         *         formatter: レスポンスフォーマッター
          *
          *     Returns:
-         *         検証メール送信結果
+         *         新しいトークンとユーザー情報を含むレスポンス
          *
          *     Raises:
-         *         HTTPException: メールアドレスが既に使用されている、またはメール送信失敗時
+         *         HTTPException: リフレッシュトークンが無効な場合
          */
-        post: operations["request_email_verification_api_v1_auth_email_verify_post"];
+        post: operations["refresh_jwt_token_api_v1_auth_refresh_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/auth/email/verify/confirm": {
+    "/api/v1/auth/logout": {
         parameters: {
             query?: never;
             header?: never;
@@ -176,45 +187,12 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Confirm Email Verification
-         * @description メールアドレスの検証を確認します
+         * Logout
+         * @description ログアウト処理
          *
-         *     Args:
-         *         request: 検証トークンを含むリクエスト
-         *
-         *     Returns:
-         *         検証結果
-         *
-         *     Raises:
-         *         HTTPException: 無効なトークンまたは期限切れの場合
+         *     HttpOnlyクッキーからアクセストークンを削除します。
          */
-        post: operations["confirm_email_verification_api_v1_auth_email_verify_confirm_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/email/verify/resend": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Resend Verification Email
-         * @description 検証メールを再送信します
-         *
-         *     Returns:
-         *         再送信結果
-         *
-         *     Raises:
-         *         HTTPException: 既に検証済み、またはメールアドレスが設定されていない場合
-         */
-        post: operations["resend_verification_email_api_v1_auth_email_verify_resend_post"];
+        post: operations["logout_api_v1_auth_logout_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -701,6 +679,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sync/connection/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Connection Status
+         * @description Backlog接続状態を取得する（トークン自動リフレッシュ付き）
+         */
+        get: operations["get_connection_status_api_v1_sync_connection_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sync/user/tasks": {
         parameters: {
             query?: never;
@@ -714,8 +712,7 @@ export interface paths {
          * Sync User Tasks
          * @description 現在のユーザーのタスクを同期
          *
-         *     バックグラウンドでBacklogからタスクデータを取得し、
-         *     ローカルデータベースと同期します。
+         *     Backlogからタスクデータを取得し、ローカルデータベースと同期します。
          */
         post: operations["sync_user_tasks_api_v1_sync_user_tasks_post"];
         delete?: never;
@@ -806,28 +803,6 @@ export interface paths {
          *     特定の課題のみを即座に同期します。
          */
         post: operations["sync_single_issue_api_v1_sync_issue__issue_id__post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/sync/connection/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Connection Status
-         * @description Backlog接続状態を取得
-         *
-         *     現在の接続状態と最終同期時刻を返します。
-         */
-        get: operations["get_connection_status_api_v1_sync_connection_status_get"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -950,46 +925,6 @@ export interface paths {
          * @description タスクの統計情報を取得
          */
         get: operations["get_task_statistics_api_v1_tasks_statistics_summary_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/test-sync/create-sample-tasks": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create Sample Tasks
-         * @description テスト用のサンプルタスクを作成
-         */
-        post: operations["create_sample_tasks_api_v1_test_sync_create_sample_tasks_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/test-sync/sample-sync-status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Sample Sync Status
-         * @description サンプルデータの同期状況を取得
-         */
-        get: operations["get_sample_sync_status_api_v1_test_sync_sample_sync_status_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1133,10 +1068,13 @@ export interface paths {
          * @description 個人ダッシュボードデータを取得
          *
          *     現在のユーザーの個人的な生産性指標を取得します。
+         *     完了タスク数、平均処理時間、進行中タスク数、作業フロー分析、
+         *     生産性トレンド、スキルマトリックスを含みます。
          *
          *     Args:
          *         current_user: 現在のユーザー
          *         db: データベースセッション
+         *         period_days: 分析期間（デフォルト30日）
          *
          *     Returns:
          *         個人ダッシュボードデータ
@@ -1145,6 +1083,296 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/personal/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Personal Tasks
+         * @description 個人のタスク一覧を取得
+         *
+         *     現在のユーザーに割り当てられているタスクの一覧を取得します。
+         *     ステータスによるフィルタリング、ページネーションに対応。
+         *
+         *     Args:
+         *         current_user: 現在のユーザー
+         *         db: データベースセッション
+         *         status: フィルタリングするタスクステータス（オプション）
+         *         limit: 取得件数の上限
+         *         offset: オフセット
+         *
+         *     Returns:
+         *         タスク一覧と関連情報
+         */
+        get: operations["get_personal_tasks_api_v1_analytics_personal_tasks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/personal/performance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Personal Performance
+         * @description 個人のパフォーマンス指標を取得
+         *
+         *     指定期間の個人パフォーマンス詳細データを取得します。
+         *     週別・月別の完了率、タスクタイプ別効率、時間帯別生産性など。
+         *
+         *     Args:
+         *         current_user: 現在のユーザー
+         *         db: データベースセッション
+         *         period_days: 分析期間（デフォルト90日）
+         *
+         *     Returns:
+         *         パフォーマンス指標の詳細
+         */
+        get: operations["get_personal_performance_api_v1_analytics_personal_performance_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/backlog/connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Connection Status
+         * @description Backlog連携状態を取得する
+         */
+        get: operations["get_connection_status_api_v1_backlog_connection_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/backlog/connect/oauth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Connect With Oauth
+         * @description OAuthでBacklogと連携を開始する（認証URLを返す）
+         */
+        post: operations["connect_with_oauth_api_v1_backlog_connect_oauth_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/backlog/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Connection
+         * @description Backlog接続をテストする
+         */
+        post: operations["test_connection_api_v1_backlog_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/backlog/disconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Disconnect Backlog
+         * @description Backlog連携を解除する
+         */
+        post: operations["disconnect_backlog_api_v1_backlog_disconnect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/backlog/connection/space-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update Space Key
+         * @description Backlogスペースキーを更新する
+         *
+         *     既存のOAuthトークンに紐づくスペースキーを更新します。
+         */
+        put: operations["update_space_key_api_v1_backlog_connection_space_key_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/backlog/projects/{project_id}/statuses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Project Statuses
+         * @description プロジェクトのステータス一覧を取得する
+         *
+         *     Backlog APIからプロジェクト固有のステータス一覧を取得します。
+         *     結果は5分間キャッシュされます。
+         */
+        get: operations["get_project_statuses_api_v1_backlog_projects__project_id__statuses_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/backlog/user/project-statuses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get User Project Statuses
+         * @description ユーザーが関わっているプロジェクトのステータス情報を取得
+         *
+         *     ユーザーがメンバーとして参加している全プロジェクトの
+         *     ステータス情報を集約して返します。
+         */
+        get: operations["get_user_project_statuses_api_v1_backlog_user_project_statuses_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send Test Report
+         * @description テストレポートを送信
+         *
+         *     指定された設定でテストレポートを即座に送信します。
+         */
+        post: operations["send_test_report_api_v1_reports_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/schedules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Report Schedules
+         * @description レポート配信スケジュール一覧を取得
+         *
+         *     現在のユーザーのレポート配信スケジュール設定を取得します。
+         */
+        get: operations["get_report_schedules_api_v1_reports_schedules_get"];
+        put?: never;
+        /**
+         * Create Report Schedule
+         * @description レポート配信スケジュールを作成
+         *
+         *     新しいレポート配信スケジュールを設定します。
+         */
+        post: operations["create_report_schedule_api_v1_reports_schedules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/schedules/{schedule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update Report Schedule
+         * @description レポート配信スケジュールを更新
+         *
+         *     既存のレポート配信スケジュールを更新します。
+         */
+        put: operations["update_report_schedule_api_v1_reports_schedules__schedule_id__put"];
+        post?: never;
+        /**
+         * Delete Report Schedule
+         * @description レポート配信スケジュールを削除
+         *
+         *     指定されたレポート配信スケジュールを削除します。
+         */
+        delete: operations["delete_report_schedule_api_v1_reports_schedules__schedule_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1198,6 +1426,7 @@ export interface components {
          * @description 認証URL生成のレスポンススキーマ
          * @example {
          *       "authorization_url": "https://example.backlog.jp/OAuth2AccessRequest.action?response_type=code&client_id=xxx&redirect_uri=xxx&state=xxx",
+         *       "expected_space": "example-space",
          *       "state": "random_state_string"
          *     }
          */
@@ -1212,6 +1441,66 @@ export interface components {
              * @description CSRF対策用のランダムな文字列
              */
             state: string;
+            /**
+             * Expected Space
+             * @description 期待されるBacklogスペースキー
+             */
+            expected_space?: string | null;
+        };
+        /**
+         * BacklogConnectionStatus
+         * @description Backlog連携状態のレスポンススキーマ
+         */
+        BacklogConnectionStatus: {
+            /**
+             * Space Key
+             * @description Backlogスペースキー
+             */
+            space_key?: string | null;
+            /**
+             * Connection Type
+             * @description 連携方法
+             */
+            connection_type?: "oauth" | null;
+            /**
+             * Is Connected
+             * @description 連携済みかどうか
+             */
+            is_connected: boolean;
+            /**
+             * Connected At
+             * @description 連携日時
+             */
+            connected_at?: string | null;
+            /**
+             * Last Sync At
+             * @description 最終同期日時
+             */
+            last_sync_at?: string | null;
+            /**
+             * Expires At
+             * @description OAuth トークンの有効期限
+             */
+            expires_at?: string | null;
+            /**
+             * User Email
+             * @description 連携されたBacklogユーザーのメール
+             */
+            user_email?: string | null;
+        };
+        /**
+         * BacklogSpaceKeyUpdate
+         * @description スペースキー更新のリクエストスキーマ
+         * @example {
+         *       "space_key": "example-space"
+         *     }
+         */
+        BacklogSpaceKeyUpdate: {
+            /**
+             * Space Key
+             * @description Backlogスペースキー
+             */
+            space_key: string;
         };
         /**
          * CallbackRequest
@@ -1232,54 +1521,6 @@ export interface components {
              * @description 認証開始時に生成したstate
              */
             state: string;
-        };
-        /**
-         * EmailVerificationConfirmRequest
-         * @description メール検証確認リクエストスキーマ
-         * @example {
-         *       "token": "verification_token_string"
-         *     }
-         */
-        EmailVerificationConfirmRequest: {
-            /**
-             * Token
-             * @description メール検証トークン
-             */
-            token: string;
-        };
-        /**
-         * EmailVerificationRequest
-         * @description メール検証リクエストスキーマ
-         * @example {
-         *       "email": "user@example.com"
-         *     }
-         */
-        EmailVerificationRequest: {
-            /**
-             * Email
-             * @description 検証用メールを送信するメールアドレス
-             */
-            email: string;
-        };
-        /**
-         * EmailVerificationResponse
-         * @description メール検証レスポンススキーマ
-         * @example {
-         *       "email": "user@example.com",
-         *       "message": "検証メールを送信しました"
-         *     }
-         */
-        EmailVerificationResponse: {
-            /**
-             * Message
-             * @description 処理結果メッセージ
-             */
-            message: string;
-            /**
-             * Email
-             * @description 検証されたメールアドレス
-             */
-            email?: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1322,32 +1563,6 @@ export interface components {
             timestamp: string;
         };
         /**
-         * Project
-         * @description APIレスポンス用
-         */
-        Project: {
-            /** Name */
-            name: string;
-            /** Description */
-            description?: string | null;
-            /** Project Key */
-            project_key: string;
-            /** Id */
-            id: number;
-            /** Backlog Id */
-            backlog_id: number;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /**
          * ProjectBrief
          * @description プロジェクト簡易情報
          */
@@ -1371,6 +1586,126 @@ export interface components {
             project_key?: string | null;
         };
         /**
+         * ReportRecipientType
+         * @description レポート受信者タイプ
+         * @enum {string}
+         */
+        ReportRecipientType: "personal" | "project" | "team";
+        /**
+         * ReportScheduleListResponse
+         * @description レポート配信スケジュール一覧レスポンス
+         * @example {
+         *       "schedules": [
+         *         {
+         *           "created_at": "2025-01-01T00:00:00",
+         *           "enabled": true,
+         *           "id": 1,
+         *           "recipient_type": "personal",
+         *           "report_type": "weekly",
+         *           "send_time": "09:00",
+         *           "updated_at": "2025-01-01T00:00:00",
+         *           "user_id": 1
+         *         }
+         *       ],
+         *       "total": 1
+         *     }
+         */
+        ReportScheduleListResponse: {
+            /**
+             * Schedules
+             * @description スケジュール一覧
+             */
+            schedules: components["schemas"]["ReportScheduleResponse"][];
+            /**
+             * Total
+             * @description 総件数
+             */
+            total: number;
+        };
+        /**
+         * ReportScheduleRequest
+         * @description レポート配信スケジュール設定リクエスト
+         * @example {
+         *       "enabled": true,
+         *       "recipient_type": "personal",
+         *       "report_type": "weekly",
+         *       "send_time": "09:00"
+         *     }
+         */
+        ReportScheduleRequest: {
+            report_type: components["schemas"]["ReportType"];
+            /** @description 受信者タイプ */
+            recipient_type: components["schemas"]["ReportRecipientType"];
+            /**
+             * Project Id
+             * @description プロジェクトID（PROJECT受信者タイプの場合必須）
+             */
+            project_id?: number | null;
+            /**
+             * Enabled
+             * @description 配信有効/無効
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Send Time
+             * @description 送信時刻（HH:MM形式）
+             */
+            send_time?: string | null;
+        };
+        /**
+         * ReportScheduleResponse
+         * @description レポート配信スケジュール設定レスポンス
+         */
+        ReportScheduleResponse: {
+            /**
+             * Id
+             * @description スケジュールID
+             */
+            id: number;
+            /**
+             * User Id
+             * @description ユーザーID
+             */
+            user_id: number;
+            report_type: components["schemas"]["ReportType"];
+            /** @description 受信者タイプ */
+            recipient_type: components["schemas"]["ReportRecipientType"];
+            /**
+             * Project Id
+             * @description プロジェクトID
+             */
+            project_id?: number | null;
+            /**
+             * Enabled
+             * @description 配信有効/無効
+             */
+            enabled: boolean;
+            /**
+             * Send Time
+             * @description 送信時刻
+             */
+            send_time?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             * @description 作成日時
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description 更新日時
+             */
+            updated_at: string;
+        };
+        /**
+         * ReportType
+         * @description レポートタイプ
+         * @enum {string}
+         */
+        ReportType: "daily" | "weekly" | "monthly";
+        /**
          * RoleResponse
          * @description ロール情報のレスポンススキーマ
          */
@@ -1389,7 +1724,7 @@ export interface components {
              * Description
              * @description ロールの説明
              */
-            description: string;
+            description?: string | null;
         };
         /**
          * ServiceStatus
@@ -1502,10 +1837,34 @@ export interface components {
          */
         TaskStatus: "TODO" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
         /**
+         * TestReportRequest
+         * @description テストレポート送信リクエスト
+         * @example {
+         *       "recipient_type": "personal",
+         *       "report_type": "weekly"
+         *     }
+         */
+        TestReportRequest: {
+            report_type: components["schemas"]["ReportType"];
+            /** @description 受信者タイプ */
+            recipient_type: components["schemas"]["ReportRecipientType"];
+            /**
+             * Project Id
+             * @description プロジェクトID（PROJECT受信者タイプの場合必須）
+             */
+            project_id?: number | null;
+            /**
+             * Email
+             * @description 送信先メールアドレス（指定しない場合は登録メールアドレス）
+             */
+            email?: string | null;
+        };
+        /**
          * TokenResponse
          * @description トークンレスポンススキーマ
          * @example {
          *       "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+         *       "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
          *       "token_type": "bearer",
          *       "user": {
          *         "backlog_id": 12345,
@@ -1522,6 +1881,11 @@ export interface components {
              * @description アプリケーション用のJWTアクセストークン
              */
             access_token: string;
+            /**
+             * Refresh Token
+             * @description JWTリフレッシュトークン
+             */
+            refresh_token: string;
             /**
              * Token Type
              * @description トークンタイプ
@@ -1552,7 +1916,6 @@ export interface components {
          *       "backlog_id": 12345,
          *       "email": "user@example.com",
          *       "id": 1,
-         *       "is_email_verified": false,
          *       "name": "山田太郎",
          *       "user_id": "yamada",
          *       "user_roles": [
@@ -1578,7 +1941,7 @@ export interface components {
              * Backlog Id
              * @description BacklogのユーザーID
              */
-            backlog_id: number;
+            backlog_id?: number | null;
             /**
              * Email
              * @description メールアドレス
@@ -1593,12 +1956,12 @@ export interface components {
              * User Id
              * @description BacklogのユーザーID（文字列）
              */
-            user_id: string;
+            user_id?: string | null;
             /**
-             * Is Email Verified
-             * @description メールアドレス検証済みかどうか
+             * Backlog Space Key
+             * @description BacklogスペースキーID
              */
-            is_email_verified: boolean;
+            backlog_space_key?: string | null;
             /**
              * User Roles
              * @description ユーザーのロール一覧
@@ -1661,17 +2024,12 @@ export interface components {
              * Backlog Id
              * @description BacklogユーザーID
              */
-            backlog_id: number;
+            backlog_id?: number | null;
             /**
              * User Id
              * @description BacklogユーザーID（文字列）
              */
-            user_id: string;
-            /**
-             * Is Email Verified
-             * @description メールアドレス検証済みかどうか
-             */
-            is_email_verified: boolean;
+            user_id?: string | null;
             /**
              * User Roles
              * @description ユーザーのロール一覧
@@ -1808,7 +2166,12 @@ export type $defs = Record<string, never>;
 export interface operations {
     get_authorization_url_api_v1_auth_backlog_authorize_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description BacklogのスペースキーOptional）環境変数がデフォルト */
+                space_key?: string | null;
+                /** @description アカウント選択を強制するかどうか */
+                force_account_selection?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1822,6 +2185,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuthorizationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -1919,73 +2291,7 @@ export interface operations {
             };
         };
     };
-    request_email_verification_api_v1_auth_email_verify_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EmailVerificationRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EmailVerificationResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    confirm_email_verification_api_v1_auth_email_verify_confirm_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EmailVerificationConfirmRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EmailVerificationResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    resend_verification_email_api_v1_auth_email_verify_resend_post: {
+    refresh_jwt_token_api_v1_auth_refresh_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -2000,7 +2306,27 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmailVerificationResponse"];
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    logout_api_v1_auth_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
                 };
             };
         };
@@ -2020,7 +2346,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Project"][];
+                    "application/json": Record<string, never>;
                 };
             };
         };
@@ -2043,7 +2369,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Project"];
+                    "application/json": Record<string, never>;
                 };
             };
             /** @description Validation Error */
@@ -2079,7 +2405,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Project"];
+                    "application/json": Record<string, never>;
                 };
             };
             /** @description Validation Error */
@@ -2111,9 +2437,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
+                    "application/json": Record<string, never>;
                 };
             };
             /** @description Validation Error */
@@ -2174,6 +2498,10 @@ export interface operations {
                 role_id?: number | null;
                 /** @description アクティブ状態でフィルタ */
                 is_active?: boolean | null;
+                /** @description ソートフィールド */
+                sort_by?: string | null;
+                /** @description ソート順序（asc/desc） */
+                sort_order?: string | null;
             };
             header?: never;
             path?: never;
@@ -2627,6 +2955,26 @@ export interface operations {
             };
         };
     };
+    get_connection_status_api_v1_sync_connection_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
     sync_user_tasks_api_v1_sync_user_tasks_post: {
         parameters: {
             query?: never;
@@ -2762,26 +3110,6 @@ export interface operations {
             };
         };
     };
-    get_connection_status_api_v1_sync_connection_status_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
-        };
-    };
     get_sync_history_api_v1_sync_history_get: {
         parameters: {
             query?: {
@@ -2852,7 +3180,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskListResponse"];
+                    "application/json": Record<string, never>;
                 };
             };
             /** @description Validation Error */
@@ -2998,58 +3326,6 @@ export interface operations {
             };
         };
     };
-    create_sample_tasks_api_v1_test_sync_create_sample_tasks_post: {
-        parameters: {
-            query: {
-                project_id: number;
-                count?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_sample_sync_status_api_v1_test_sync_sample_sync_status_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
     get_project_health_api_v1_analytics_project__project_id__health_get: {
         parameters: {
             query?: never;
@@ -3182,6 +3458,121 @@ export interface operations {
     };
     get_personal_dashboard_api_v1_analytics_personal_dashboard_get: {
         parameters: {
+            query?: {
+                period_days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_personal_tasks_api_v1_analytics_personal_tasks_get: {
+        parameters: {
+            query?: {
+                task_status?: components["schemas"]["TaskStatus"] | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_personal_performance_api_v1_analytics_personal_performance_get: {
+        parameters: {
+            query?: {
+                period_days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_connection_status_api_v1_backlog_connection_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BacklogConnectionStatus"];
+                };
+            };
+        };
+    };
+    connect_with_oauth_api_v1_backlog_connect_oauth_post: {
+        parameters: {
             query?: never;
             header?: never;
             path?: never;
@@ -3196,6 +3587,282 @@ export interface operations {
                 };
                 content: {
                     "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    test_connection_api_v1_backlog_test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    disconnect_backlog_api_v1_backlog_disconnect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    update_space_key_api_v1_backlog_connection_space_key_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BacklogSpaceKeyUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_project_statuses_api_v1_backlog_projects__project_id__statuses_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_user_project_statuses_api_v1_backlog_user_project_statuses_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    send_test_report_api_v1_reports_test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TestReportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_report_schedules_api_v1_reports_schedules_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportScheduleListResponse"];
+                };
+            };
+        };
+    };
+    create_report_schedule_api_v1_reports_schedules_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportScheduleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportScheduleResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_report_schedule_api_v1_reports_schedules__schedule_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportScheduleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportScheduleResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_report_schedule_api_v1_reports_schedules__schedule_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

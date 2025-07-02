@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Literal
 from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
@@ -8,6 +8,8 @@ from app.models.user import User
 from app.models.project import Project
 from app.models.auth import OAuthToken
 from app.models.sync_history import SyncHistory, SyncType, SyncStatus
+from app.models.rbac import Role, UserRole
+from app.core.permissions import RoleType
 from app.core.exceptions import ExternalAPIException, DatabaseException
 from app.core.token_refresh import token_refresh_service
 from app.schemas.backlog_types import BacklogIssue
@@ -624,6 +626,165 @@ class SyncService:
             "last_project_sync": last_sync_project[0] if last_sync_project else None,
             "last_task_sync": last_sync_task[0] if last_sync_task else None
         }
+    
+    async def import_users_from_backlog(
+        self,
+        user: User,
+        access_token: str,
+        db: Session,
+        mode: Literal["all", "active_only"] = "active_only",
+        assign_default_role: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Backlogから全プロジェクトのユーザーをインポート
+        
+        Args:
+            user: 実行ユーザー（管理者権限が必要）
+            access_token: Backlog APIアクセストークン
+            db: データベースセッション
+            mode: インポートモード（"all" または "active_only"）
+            assign_default_role: Trueの場合、新規ユーザーにMEMBERロールを自動付与
+            
+        Returns:
+            インポート結果の辞書
+        """
+        logger.info(f"Starting Backlog user import for user {user.id} with mode: {mode}")
+        
+        # 同期履歴を作成
+        sync_history = SyncHistory(
+            user_id=user.id,
+            sync_type=SyncType.ALL_USERS,
+            status=SyncStatus.STARTED,
+            target_name=f"Import Users ({mode})"
+        )
+        db.add(sync_history)
+        db.flush()
+        
+        try:
+            # まず全プロジェクトを取得
+            projects_data = await backlog_client.get_projects(access_token)
+            logger.info(f"Found {len(projects_data)} projects")
+            
+            created_users = 0
+            updated_users = 0
+            skipped_users = 0
+            unique_users = {}  # backlog_id -> user_data のマップ
+            
+            # 各プロジェクトからユーザーを収集
+            for project_data in projects_data:
+                try:
+                    # プロジェクトのユーザーを取得
+                    project_users = await backlog_client.get_project_users(
+                        project_data["id"],
+                        access_token
+                    )
+                    
+                    # ユニークなユーザーを収集（重複排除）
+                    for user_data in project_users:
+                        backlog_id = user_data["id"]
+                        if backlog_id not in unique_users:
+                            unique_users[backlog_id] = user_data
+                            
+                except Exception as e:
+                    logger.warning(f"Failed to get users for project {project_data['name']}: {str(e)}")
+                    continue
+            
+            logger.info(f"Found {len(unique_users)} unique users across all projects")
+            
+            # MEMBERロールを取得（デフォルトロール付与用）
+            member_role = None
+            if assign_default_role:
+                member_role = db.query(Role).filter(
+                    Role.name == RoleType.MEMBER
+                ).first()
+                logger.info(f"assign_default_role={assign_default_role}, member_role found: {member_role is not None}")
+            
+            # ユーザーをインポート
+            for backlog_id, user_data in unique_users.items():
+                # 既存ユーザーを確認
+                existing_user = db.query(User).filter(
+                    User.backlog_id == backlog_id
+                ).first()
+                
+                if existing_user:
+                    # 既存ユーザーの情報を更新
+                    existing_user.name = user_data["name"]
+                    if user_data.get("mailAddress"):
+                        existing_user.email = user_data.get("mailAddress")
+                    
+                    # active_onlyモードの場合、is_activeをTrueに設定
+                    if mode == "active_only":
+                        existing_user.is_active = True
+                    
+                    # 既存ユーザーでもロールを持っていない場合はデフォルトロールを付与
+                    if member_role and assign_default_role:
+                        # ユーザーがグローバルロールを持っているか確認
+                        has_global_role = db.query(UserRole).filter(
+                            UserRole.user_id == existing_user.id,
+                            UserRole.project_id.is_(None)
+                        ).first()
+                        
+                        logger.info(f"User {existing_user.name} (ID: {existing_user.id}): has_global_role={has_global_role is not None}, member_role_id={member_role.id if member_role else 'None'}")
+                        
+                        if not has_global_role:
+                            user_role = UserRole(
+                                user_id=existing_user.id,
+                                role_id=member_role.id,
+                                project_id=None  # グローバルロール
+                            )
+                            db.add(user_role)
+                            logger.info(f"Added MEMBER role to user {existing_user.name} (ID: {existing_user.id})")
+                    
+                    updated_users += 1
+                else:
+                    # 新規ユーザーを作成
+                    new_user = User(
+                        backlog_id=backlog_id,
+                        user_id=user_data.get("userId"),
+                        name=user_data["name"],
+                        email=user_data.get("mailAddress"),
+                        is_active=True
+                    )
+                    db.add(new_user)
+                    db.flush()  # IDを取得
+                    
+                    # デフォルトロールを付与
+                    if member_role and assign_default_role:
+                        user_role = UserRole(
+                            user_id=new_user.id,
+                            role_id=member_role.id,
+                            project_id=None  # グローバルロール
+                        )
+                        db.add(user_role)
+                    
+                    created_users += 1
+            
+            # 同期履歴を完了としてマーク
+            sync_history.complete(
+                items_created=created_users,
+                items_updated=updated_users,
+                total_items=len(unique_users)
+            )
+            
+            db.commit()
+            
+            logger.info(f"User import completed: created={created_users}, updated={updated_users}")
+            
+            return {
+                "success": True,
+                "created": created_users,
+                "updated": updated_users,
+                "skipped": skipped_users,
+                "total": len(unique_users),
+                "projects_scanned": len(projects_data),
+                "default_role_assigned": assign_default_role and member_role is not None
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to import users: {str(e)}", exc_info=True)
+            sync_history.fail(str(e))
+            db.rollback()
+            raise
 
 
 sync_service = SyncService()

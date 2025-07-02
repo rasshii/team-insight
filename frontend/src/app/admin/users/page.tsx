@@ -51,13 +51,25 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  Download,
 } from "lucide-react";
 import { useUsers } from '@/hooks/queries/useUsers';
+import { useImportBacklogUsers } from '@/hooks/queries/useSync';
 import { UserEditDialog } from '@/components/admin/UserEditDialog';
 import { User, UserFilters, UserSortOptions } from '@/types/users';
 import { formatDistanceToNow } from 'date-fns';
 import { ja } from 'date-fns/locale/ja';
 import { useDebounce } from '@/hooks/useDebounce';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export default function AdminUsersPage() {
   const [page, setPage] = useState(1);
@@ -69,8 +81,12 @@ export default function AdminUsersPage() {
   const [sortOrder, setSortOrder] = useState<UserSortOptions['sort_order']>('desc');
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importMode, setImportMode] = useState<'all' | 'active_only'>('active_only');
+  const [assignDefaultRole, setAssignDefaultRole] = useState(true);
 
   const debouncedSearch = useDebounce(search, 300);
+  const importUsersMutation = useImportBacklogUsers();
 
   // フィルター構築
   const filters = useMemo<UserFilters>(() => {
@@ -99,24 +115,55 @@ export default function AdminUsersPage() {
   };
 
   const getRoleBadges = (user: User) => {
-    return user.user_roles.map((ur) => (
-      <Badge key={ur.id} variant="secondary" className="text-xs">
-        {ur.role.name === 'ADMIN' ? '管理者' :
-         ur.role.name === 'PROJECT_LEADER' ? 'プロジェクトリーダー' :
-         ur.role.name === 'MEMBER' ? 'メンバー' :
-         ur.role.name}
-      </Badge>
-    ));
+    // グローバルロールとプロジェクトロールを分けて整理
+    const globalRoles = user.user_roles.filter(ur => !ur.project_id);
+    const projectRoles = user.user_roles.filter(ur => ur.project_id);
+
+    return (
+      <div className="space-y-1">
+        {/* グローバルロール */}
+        {globalRoles.length > 0 && (
+          <div className="flex gap-1 flex-wrap items-center">
+            <span className="text-xs text-muted-foreground">全体:</span>
+            {globalRoles.map((ur) => (
+              <Badge key={ur.id} variant="default" className="text-xs">
+                {ur.role.name === 'ADMIN' ? '管理者' :
+                 ur.role.name === 'PROJECT_LEADER' ? 'プロジェクトリーダー' :
+                 ur.role.name === 'MEMBER' ? 'メンバー' :
+                 ur.role.name}
+              </Badge>
+            ))}
+          </div>
+        )}
+        
+        {/* プロジェクトロール */}
+        {projectRoles.length > 0 && (
+          <div className="flex gap-1 flex-wrap items-center">
+            <span className="text-xs text-muted-foreground">プロジェクト:</span>
+            {projectRoles.map((ur) => (
+              <Badge key={ur.id} variant="secondary" className="text-xs">
+                {ur.role.name === 'PROJECT_LEADER' ? 'リーダー' :
+                 ur.role.name === 'MEMBER' ? 'メンバー' :
+                 ur.role.name}
+                {ur.project_id && <span className="ml-1 opacity-70">(P{ur.project_id})</span>}
+              </Badge>
+            ))}
+          </div>
+        )}
+        
+        {/* ロールがない場合 */}
+        {user.user_roles.length === 0 && (
+          <span className="text-xs text-muted-foreground">ロールなし</span>
+        )}
+      </div>
+    );
   };
 
   const getStatusBadge = (user: User) => {
     if (!user.is_active) {
-      return <Badge variant="destructive">無効</Badge>;
+      return <Badge variant="destructive">ログイン不可</Badge>;
     }
-    if (!user.is_email_verified) {
-      return <Badge variant="outline">メール未確認</Badge>;
-    }
-    return <Badge variant="default">有効</Badge>;
+    return <Badge variant="default">ログイン可</Badge>;
   };
 
   return (
@@ -162,8 +209,8 @@ export default function AdminUsersPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">すべて</SelectItem>
-                      <SelectItem value="active">有効</SelectItem>
-                      <SelectItem value="inactive">無効</SelectItem>
+                      <SelectItem value="active">ログイン可</SelectItem>
+                      <SelectItem value="inactive">ログイン不可</SelectItem>
                     </SelectContent>
                   </Select>
                   <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
@@ -193,10 +240,30 @@ export default function AdminUsersPage() {
             {/* ユーザーテーブル */}
             <Card>
               <CardHeader>
-                <CardTitle>ユーザー一覧</CardTitle>
-                <CardDescription>
-                  {data ? `${data.total}人のユーザーが登録されています` : 'ユーザーを読み込んでいます...'}
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>ユーザー一覧</CardTitle>
+                    <CardDescription>
+                      {data ? `${data.total}人のユーザーが登録されています` : 'ユーザーを読み込んでいます...'}
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={() => setImportDialogOpen(true)}
+                    disabled={importUsersMutation.isPending}
+                  >
+                    {importUsersMutation.isPending ? (
+                      <>
+                        <span className="animate-spin mr-2">⏳</span>
+                        インポート中...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="mr-2 h-4 w-4" />
+                        Backlogから一括インポート
+                      </>
+                    )}
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {isLoading ? (
@@ -228,9 +295,7 @@ export default function AdminUsersPage() {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <div className="flex gap-1 flex-wrap">
-                                {getRoleBadges(user)}
-                              </div>
+                              {getRoleBadges(user)}
                             </TableCell>
                             <TableCell>{getStatusBadge(user)}</TableCell>
                             <TableCell>
@@ -331,6 +396,78 @@ export default function AdminUsersPage() {
               open={editDialogOpen}
               onOpenChange={setEditDialogOpen}
             />
+
+            {/* インポートダイアログ */}
+            <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Backlogユーザーの一括インポート</DialogTitle>
+                  <DialogDescription>
+                    Backlogの全プロジェクトからユーザー情報を収集し、Team Insightに登録します。
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>インポートモード</Label>
+                    <Select
+                      value={importMode}
+                      onValueChange={(value: 'all' | 'active_only') => setImportMode(value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active_only">アクティブユーザーのみ</SelectItem>
+                        <SelectItem value="all">全ユーザー（非アクティブ含む）</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="assignDefaultRole"
+                      checked={assignDefaultRole}
+                      onCheckedChange={(checked) => setAssignDefaultRole(checked as boolean)}
+                    />
+                    <Label
+                      htmlFor="assignDefaultRole"
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      新規ユーザーにMEMBERロールを自動付与
+                    </Label>
+                  </div>
+                  <div className="rounded-lg bg-muted p-3">
+                    <p className="text-sm text-muted-foreground">
+                      注意: この操作により、Backlogの全プロジェクトメンバーがインポートされます。
+                      処理には時間がかかる場合があります。
+                    </p>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setImportDialogOpen(false)}
+                    disabled={importUsersMutation.isPending}
+                  >
+                    キャンセル
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      importUsersMutation.mutate({
+                        mode: importMode,
+                        assignDefaultRole: assignDefaultRole,
+                      }, {
+                        onSuccess: () => {
+                          setImportDialogOpen(false);
+                        }
+                      });
+                    }}
+                    disabled={importUsersMutation.isPending}
+                  >
+                    {importUsersMutation.isPending ? 'インポート中...' : 'インポート開始'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </Layout>
       </AdminOnly>

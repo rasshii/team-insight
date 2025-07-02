@@ -100,7 +100,6 @@ def _build_user_response(user: User, access_token: str = None, db: Session = Non
         email=user.email,
         name=user.name,
         user_id=user.user_id,
-        is_email_verified=True,  # Backlog OAuth認証のみなので常にTrue
         backlog_space_key=backlog_space_key,
         user_roles=user_roles
     )

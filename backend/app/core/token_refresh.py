@@ -163,6 +163,36 @@ class TokenRefreshService:
         except Exception as e:
             logger.error(f"Failed to refresh Backlog token: {str(e)}", exc_info=True)
             return None
+    
+    def refresh_token_sync(self, token: OAuthToken, db: Session, space_key: Optional[str] = None) -> Optional[OAuthToken]:
+        """
+        トークンをリフレッシュ（同期版）
+        
+        スケジューラーなど同期コンテキストから呼び出すための同期版メソッド
+        
+        Args:
+            token: リフレッシュするトークン
+            db: データベースセッション
+            space_key: Backlogスペースキー（オプション）
+            
+        Returns:
+            リフレッシュされたトークン、失敗時はNone
+        """
+        import asyncio
+        
+        try:
+            # 現在のイベントループを取得、なければ新規作成
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            # 非同期メソッドを同期的に実行
+            return loop.run_until_complete(self.refresh_token(token, db, space_key))
+        except Exception as e:
+            logger.error(f"Failed to refresh token synchronously: {str(e)}", exc_info=True)
+            return None
 
 
 # シングルトンインスタンス

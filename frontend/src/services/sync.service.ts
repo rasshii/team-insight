@@ -86,4 +86,23 @@ export const syncService = {
     const response = await apiClient.get('/api/v1/sync/history', { params })
     return response.data
   },
+
+  /**
+   * Backlogユーザーをインポート
+   */
+  async importBacklogUsers(params?: {
+    mode?: 'all' | 'active_only'
+    assignDefaultRole?: boolean
+  }): Promise<{
+    success: boolean
+    created: number
+    updated: number
+    skipped: number
+    total: number
+    projects_scanned: number
+    default_role_assigned: boolean
+  }> {
+    const response = await apiClient.post('/api/v1/sync/users/import-from-backlog', null, { params })
+    return response.data
+  },
 }

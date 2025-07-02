@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Literal
 from datetime import datetime, timedelta
 import logging
 
@@ -354,3 +354,76 @@ async def get_sync_history(
             for h in histories
         ]
     }
+
+
+@router.post("/users/import-from-backlog")
+async def import_backlog_users(
+    mode: Literal["all", "active_only"] = Query(
+        "active_only", 
+        description="インポートモード: 'all' - 全ユーザー, 'active_only' - アクティブユーザーのみ"
+    ),
+    assign_default_role: bool = Query(
+        True, 
+        description="新規ユーザーにMEMBERロールを自動付与するか"
+    ),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db_session),
+    formatter: ResponseFormatter = Depends(get_response_formatter),
+    oauth_token: Optional[OAuthToken] = Depends(get_valid_backlog_token)
+) -> Dict[str, Any]:
+    """
+    Backlogから全プロジェクトのユーザーをインポート
+    
+    管理者権限が必要です。
+    Backlogの全プロジェクトからユーザー情報を収集し、
+    Team Insightのユーザーとして登録します。
+    
+    Parameters:
+    - mode: "all" - 全ユーザー, "active_only" - アクティブユーザーのみ
+    - assign_default_role: Trueの場合、新規ユーザーにMEMBERロールを自動付与
+    """
+    logger.info(f"import_backlog_users called by user {current_user.id} ({current_user.email})")
+    
+    # 権限チェック（管理者のみ）
+    permission_checker = PermissionChecker()
+    if not current_user.is_admin:
+        logger.warning(f"User {current_user.id} ({current_user.email}) does not have permission to import users")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="この操作には管理者権限が必要です"
+        )
+    
+    if not oauth_token:
+        logger.error(f"No valid Backlog OAuth token for user {current_user.id}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Backlogとの連携が設定されていないか、認証が必要です"
+        )
+    
+    try:
+        # ユーザーインポートを実行
+        result = await sync_service.import_users_from_backlog(
+            current_user,
+            oauth_token.access_token,
+            db,
+            mode=mode,
+            assign_default_role=assign_default_role
+        )
+        
+        logger.info(f"User import completed successfully: {result}")
+        
+        message = f"ユーザーのインポートが完了しました。"
+        message += f" 新規: {result['created']}名、更新: {result['updated']}名"
+        if result['default_role_assigned']:
+            message += " (新規ユーザーにMEMBERロールを付与)"
+        
+        return formatter(ResponseBuilder.success(
+            data=result,
+            message=message
+        ))
+    except Exception as e:
+        logger.error(f"Failed to import users: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"ユーザーのインポート中にエラーが発生しました: {str(e)}"
+        )

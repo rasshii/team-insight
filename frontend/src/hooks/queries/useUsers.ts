@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usersService } from '@/services/users.service';
-import { toast } from '@/components/ui/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import {
   UserUpdate,
   UserRoleAssignmentRequest,
@@ -62,6 +62,7 @@ export function useAvailableRoles() {
  */
 export function useUpdateUser() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   
   return useMutation({
     mutationFn: ({ userId, data }: { userId: number; data: UserUpdate }) =>
@@ -89,6 +90,7 @@ export function useUpdateUser() {
  */
 export function useAssignRole() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   
   return useMutation({
     mutationFn: ({ userId, data }: { userId: number; data: UserRoleAssignmentRequest }) =>
@@ -116,6 +118,7 @@ export function useAssignRole() {
  */
 export function useRemoveRole() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   
   return useMutation({
     mutationFn: ({ userId, data }: { userId: number; data: UserRoleRemovalRequest }) =>
@@ -143,6 +146,7 @@ export function useRemoveRole() {
  */
 export function useUpdateRoles() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   
   return useMutation({
     mutationFn: ({ userId, data }: { userId: number; data: UserRoleUpdateRequest }) =>

@@ -17,7 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { User, AvailableRole } from '@/types/users';
-import { useUpdateUser, useUpdateRoles, useAvailableRoles } from '@/hooks/queries/useUsers';
+import { useUpdateUser, useAssignRole, useRemoveRole, useAvailableRoles } from '@/hooks/queries/useUsers';
 
 interface UserEditDialogProps {
   user: User | null;
@@ -31,16 +31,22 @@ export function UserEditDialog({ user, open, onOpenChange }: UserEditDialogProps
   const [selectedRoles, setSelectedRoles] = useState<number[]>([]);
   
   const updateUserMutation = useUpdateUser();
-  const updateRolesMutation = useUpdateRoles();
+  const assignRoleMutation = useAssignRole();
+  const removeRoleMutation = useRemoveRole();
   const { data: availableRoles, isLoading: rolesLoading } = useAvailableRoles();
   
-  const isLoading = updateUserMutation.isPending || updateRolesMutation.isPending;
+  const isLoading = updateUserMutation.isPending || assignRoleMutation.isPending || removeRoleMutation.isPending;
 
   useEffect(() => {
     if (user) {
-      setName(user.name);
+      setName(user.name || '');
       setIsActive(user.is_active);
       setSelectedRoles(user.user_roles.map(ur => ur.role_id));
+    } else {
+      // ダイアログが閉じられたときに状態をリセット
+      setName('');
+      setIsActive(true);
+      setSelectedRoles([]);
     }
   }, [user]);
 
@@ -54,15 +60,39 @@ export function UserEditDialog({ user, open, onOpenChange }: UserEditDialogProps
         data: { name, is_active: isActive }
       });
 
-      // ロールを更新
-      await updateRolesMutation.mutateAsync({
-        userId: user.id,
-        data: { roles: selectedRoles }
-      });
+      // 現在のロールと新しいロールを比較
+      const currentRoleIds = user.user_roles.map(ur => ur.role_id);
+      const rolesToAdd = selectedRoles.filter(id => !currentRoleIds.includes(id));
+      const rolesToRemove = user.user_roles.filter(ur => !selectedRoles.includes(ur.role_id));
 
+      // ロールを追加
+      if (rolesToAdd.length > 0) {
+        await assignRoleMutation.mutateAsync({
+          userId: user.id,
+          data: {
+            assignments: rolesToAdd.map(roleId => ({
+              role_id: roleId,
+              project_id: null
+            }))
+          }
+        });
+      }
+
+      // ロールを削除
+      if (rolesToRemove.length > 0) {
+        await removeRoleMutation.mutateAsync({
+          userId: user.id,
+          data: {
+            user_role_ids: rolesToRemove.map(ur => ur.id)
+          }
+        });
+      }
+
+      // 成功時のみダイアログを閉じる
       onOpenChange(false);
     } catch (error) {
       // エラーはuseMutationのonErrorで処理
+      console.error('Failed to update user:', error);
     }
   };
 
@@ -88,7 +118,7 @@ export function UserEditDialog({ user, open, onOpenChange }: UserEditDialogProps
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>メールアドレス</Label>
-              <Input value={user.email} disabled />
+              <Input value={user.email || ''} disabled />
             </div>
             
             <div className="space-y-2">
@@ -110,7 +140,7 @@ export function UserEditDialog({ user, open, onOpenChange }: UserEditDialogProps
                   onCheckedChange={setIsActive}
                 />
                 <span className="text-sm text-muted-foreground">
-                  {isActive ? '有効' : '無効'}
+                  {isActive ? 'ログイン可' : 'ログイン不可'}
                 </span>
               </div>
             </div>
@@ -150,8 +180,7 @@ export function UserEditDialog({ user, open, onOpenChange }: UserEditDialogProps
             <div className="space-y-2">
               <Label>その他の情報</Label>
               <div className="space-y-1 text-sm text-muted-foreground">
-                <div>認証プロバイダー: {user.auth_provider}</div>
-                <div>メール認証: {user.is_email_verified ? '完了' : '未完了'}</div>
+                <div>Backlog ID: {user.backlog_id || 'なし'}</div>
                 <div>登録日: {new Date(user.created_at).toLocaleDateString('ja-JP')}</div>
                 {user.last_login_at && (
                   <div>最終ログイン: {new Date(user.last_login_at).toLocaleDateString('ja-JP')}</div>

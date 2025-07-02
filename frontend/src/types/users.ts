@@ -2,16 +2,14 @@ import { Role } from './rbac';
 
 export interface User {
   id: number;
-  email: string;
+  email: string | null;
   name: string;
-  backlog_user_id: string | null;
+  backlog_id: number | null;
+  user_id: string | null;
   is_active: boolean;
-  is_email_verified: boolean;
-  email_verified_at: string | null;
-  auth_provider: 'email' | 'backlog';
   created_at: string;
   updated_at: string;
-  last_login_at: string | null;
+  last_login_at?: string | null;
   user_roles: UserRole[];
 }
 
@@ -37,12 +35,17 @@ export interface UserUpdate {
   is_active?: boolean;
 }
 
-export interface UserRoleAssignmentRequest {
+export interface UserRoleAssignment {
   role_id: number;
+  project_id: number | null;
+}
+
+export interface UserRoleAssignmentRequest {
+  assignments: UserRoleAssignment[];
 }
 
 export interface UserRoleRemovalRequest {
-  role_id: number;
+  user_role_ids: number[];
 }
 
 export interface UserRoleUpdateRequest {
@@ -57,7 +60,6 @@ export interface AvailableRole {
 
 export interface UserFilters {
   is_active?: boolean;
-  is_email_verified?: boolean;
   role_ids?: number[];
   search?: string;
 }
