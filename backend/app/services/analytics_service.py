@@ -51,17 +51,19 @@ class AnalyticsService:
             completed_tasks = stats.completed or 0
             overdue_tasks = stats.overdue or 0
             
-            # ステータス別分布を単一クエリで取得
+            # ステータスID別分布を単一クエリで取得
             status_counts = db.query(
-                Task.status,
+                Task.status_id,
                 func.count(Task.id).label('count')
             ).filter(
-                Task.project_id == project_id
-            ).group_by(Task.status).all()
+                Task.project_id == project_id,
+                Task.status_id.isnot(None)  # status_idがNULLでないものだけ集計
+            ).group_by(Task.status_id).all()
             
-            status_distribution = {status.value: 0 for status in TaskStatus}
-            for row in status_counts:
-                status_distribution[row.status.value] = row.count
+            # status_idベースの分布を作成
+            status_distribution = {}
+            for status_id, count in status_counts:
+                status_distribution[str(status_id)] = count
             
             # 健康度スコアを計算（0-100）
             health_score = self._calculate_health_score(

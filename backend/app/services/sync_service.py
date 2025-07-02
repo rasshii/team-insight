@@ -246,6 +246,8 @@ class SyncService:
         # ステータスのマッピング
         status_name = issue_data["status"]["name"]
         task.status = self.status_mapping.get(status_name, TaskStatus.TODO)
+        # BacklogのステータスIDも保存
+        task.status_id = issue_data["status"]["id"]
         
         # 優先度
         if issue_data.get("priority"):
@@ -497,6 +499,18 @@ class SyncService:
             all_users = []
             
             for member_data in members_data:
+                # ユーザーの詳細情報を取得（メールアドレスを含む）
+                try:
+                    user_id_str = member_data.get("userId") or str(member_data["id"])
+                    detailed_member_data = await backlog_client.get_user_by_id(
+                        user_id_str,
+                        access_token
+                    )
+                    # 詳細情報で上書き
+                    member_data.update(detailed_member_data)
+                except Exception as e:
+                    logger.debug(f"Failed to get detailed info for member {member_data.get('name', 'Unknown')}: {str(e)}")
+                
                 # 既存ユーザーを検索
                 user = db.query(User).filter(
                     User.backlog_id == member_data["id"]
@@ -701,6 +715,21 @@ class SyncService:
             
             # ユーザーをインポート
             for backlog_id, user_data in unique_users.items():
+                # ユーザーの詳細情報を取得（メールアドレスを含む）
+                try:
+                    # user_idまたはbacklog_idを使用してユーザー詳細を取得
+                    user_id_str = user_data.get("userId") or str(backlog_id)
+                    detailed_user_data = await backlog_client.get_user_by_id(
+                        user_id_str,
+                        access_token
+                    )
+                    # 詳細情報で上書き
+                    user_data.update(detailed_user_data)
+                    logger.debug(f"Got detailed info for user {user_data['name']}: email={user_data.get('mailAddress')}")
+                except Exception as e:
+                    logger.warning(f"Failed to get detailed info for user {user_data['name']} (ID: {backlog_id}): {str(e)}")
+                    # 詳細情報の取得に失敗しても、基本情報でインポートを続行
+                
                 # 既存ユーザーを確認
                 existing_user = db.query(User).filter(
                     User.backlog_id == backlog_id
@@ -785,6 +814,74 @@ class SyncService:
             sync_history.fail(str(e))
             db.rollback()
             raise
+
+
+    async def update_users_email_addresses(
+        self,
+        user: User,
+        access_token: str,
+        db: Session
+    ) -> Dict[str, Any]:
+        """
+        既存ユーザーのメールアドレスを更新
+        
+        メールアドレスが未設定のユーザーに対して、
+        Backlog APIから詳細情報を取得してメールアドレスを更新します。
+        
+        Args:
+            user: 実行ユーザー
+            access_token: Backlog APIアクセストークン
+            db: データベースセッション
+            
+        Returns:
+            更新結果の辞書
+        """
+        logger.info("Starting email address update for users without email")
+        
+        # メールアドレスが未設定のユーザーを取得
+        users_without_email = db.query(User).filter(
+            User.email.is_(None),
+            User.backlog_id.isnot(None),
+            User.user_id.isnot(None)
+        ).all()
+        
+        logger.info(f"Found {len(users_without_email)} users without email address")
+        
+        updated_count = 0
+        failed_count = 0
+        
+        for user_record in users_without_email:
+            try:
+                # ユーザーの詳細情報を取得
+                user_id_str = user_record.user_id or str(user_record.backlog_id)
+                detailed_user_data = await backlog_client.get_user_by_id(
+                    user_id_str,
+                    access_token
+                )
+                
+                # メールアドレスを更新
+                if detailed_user_data.get("mailAddress"):
+                    user_record.email = detailed_user_data["mailAddress"]
+                    updated_count += 1
+                    logger.info(f"Updated email for user {user_record.name}: {user_record.email}")
+                else:
+                    logger.debug(f"No email address found for user {user_record.name}")
+                    
+            except Exception as e:
+                logger.warning(f"Failed to update email for user {user_record.name}: {str(e)}")
+                failed_count += 1
+                continue
+        
+        db.commit()
+        
+        logger.info(f"Email address update completed: updated={updated_count}, failed={failed_count}")
+        
+        return {
+            "success": True,
+            "updated": updated_count,
+            "failed": failed_count,
+            "total_without_email": len(users_without_email)
+        }
 
 
 sync_service = SyncService()

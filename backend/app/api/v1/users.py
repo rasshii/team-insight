@@ -13,6 +13,7 @@ from sqlalchemy import or_
 from app.api.deps import get_db_session
 from app.models.user import User
 from app.models.rbac import Role, UserRole
+from app.models.team import TeamMember
 from app.schemas.users import (
     UserListResponse,
     UserResponse,
@@ -36,6 +37,8 @@ async def list_users(
     search: Optional[str] = Query(None, description="検索キーワード（名前、メールアドレス）"),
     role_id: Optional[int] = Query(None, description="ロールIDでフィルタ"),
     is_active: Optional[bool] = Query(None, description="アクティブ状態でフィルタ"),
+    project_id: Optional[int] = Query(None, description="プロジェクトIDでフィルタ"),
+    team_id: Optional[int] = Query(None, description="チームIDでフィルタ"),
     sort_by: Optional[str] = Query("created_at", description="ソートフィールド"),
     sort_order: Optional[str] = Query("desc", description="ソート順序（asc/desc）"),
     current_user: User = Depends(get_current_active_user),
@@ -49,6 +52,8 @@ async def list_users(
     - **search**: 名前またはメールアドレスで部分一致検索
     - **role_id**: 特定のロールを持つユーザーのみ取得
     - **is_active**: アクティブ/非アクティブでフィルタ
+    - **project_id**: 特定のプロジェクトに所属するユーザーのみ取得
+    - **team_id**: 特定のチームに所属するユーザーのみ取得
     """
     # クエリの構築
     query = db.query(User).options(
@@ -72,6 +77,14 @@ async def list_users(
     # アクティブ状態フィルタ
     if is_active is not None:
         query = query.filter(User.is_active == is_active)
+    
+    # プロジェクトフィルタ
+    if project_id is not None:
+        query = query.join(User.projects).filter(User.projects.any(id=project_id))
+    
+    # チームフィルタ
+    if team_id is not None:
+        query = query.join(User.team_memberships).filter(TeamMember.team_id == team_id)
     
     # ソート処理
     if sort_by and hasattr(User, sort_by):

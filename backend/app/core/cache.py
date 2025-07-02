@@ -129,6 +129,9 @@ class CacheMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # GETリクエストのみキャッシュ対象
         if request.method != "GET":
+            # POST/PUT/DELETEリクエストの場合、関連するキャッシュをクリア
+            if request.method in ["POST", "PUT", "DELETE", "PATCH"]:
+                await self._invalidate_related_cache(request)
             return await call_next(request)
 
         # パスチェック
@@ -226,6 +229,50 @@ class CacheMiddleware(BaseHTTPMiddleware):
 
         key_string = "|".join(key_parts)
         return f"cache:http:{hashlib.md5(key_string.encode()).hexdigest()}"
+    
+    async def _invalidate_related_cache(self, request: Request):
+        """
+        変更操作時に関連するキャッシュを無効化
+        """
+        path = request.url.path
+        logger.info(f"キャッシュ無効化開始: {request.method} {path}")
+        
+        # パスベースで関連するすべてのHTTPキャッシュをクリア
+        # ハッシュ化されたキーのため、すべてのHTTPキャッシュを削除する
+        try:
+            # すべてのHTTPキャッシュキーを取得
+            pattern = "cache:http:*"
+            keys = await redis_client.redis.keys(pattern)
+            logger.info(f"検出されたキャッシュキー数: {len(keys) if keys else 0}")
+            
+            if keys:
+                # パスに基づいて削除するキーをフィルタリング
+                keys_to_delete = []
+                
+                for key in keys:
+                    # バイト文字列をデコード
+                    if isinstance(key, bytes):
+                        key = key.decode('utf-8')
+                    
+                    # キーの値を取得して、関連するURLかチェック
+                    # ただし、パフォーマンスの観点から、特定のパスに関連する変更の場合は
+                    # すべてのHTTPキャッシュをクリアする
+                    if any(keyword in path for keyword in ["/teams", "/users", "/projects", "/tasks"]):
+                        keys_to_delete.append(key)
+                
+                logger.info(f"削除対象キー数: {len(keys_to_delete)}")
+                
+                if keys_to_delete:
+                    # バッチで削除
+                    deleted_count = await redis_client.redis.delete(*keys_to_delete)
+                    logger.info(f"キャッシュ無効化完了: {path} に関連する {deleted_count} 件のキャッシュを削除")
+                else:
+                    logger.info("削除対象のキャッシュがありません")
+            else:
+                logger.info("キャッシュキーが見つかりません")
+            
+        except Exception as e:
+            logger.error(f"キャッシュ無効化エラー: {e}", exc_info=True)
 
 # キャッシュ統計エンドポイント用のヘルパー関数
 async def get_cache_stats() -> Dict[str, Any]:

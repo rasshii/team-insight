@@ -104,7 +104,9 @@ export const projectService = {
     updated: number
     total: number
   }> {
-    return await apiClient.post(`/api/v1/sync/tasks/${projectId}`)
+    const response = await apiClient.post(`/api/v1/sync/project/${projectId}/tasks`)
+    // Handle wrapped response from backend
+    return response.data || response
   },
 
   /**

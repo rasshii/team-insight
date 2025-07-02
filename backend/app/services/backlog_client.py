@@ -113,6 +113,18 @@ class BacklogClient:
         """
         return await self._make_request("GET", "/users/myself", access_token)
     
+    async def get_user_by_id(self, user_id: Union[int, str], access_token: str) -> dict:
+        """指定されたユーザーの詳細情報を取得
+        
+        Args:
+            user_id: ユーザーID（数値）またはユーザーID（文字列）
+            access_token: Backlog APIアクセストークン
+            
+        Returns:
+            ユーザー情報のディクショナリ（mailAddressフィールドを含む）
+        """
+        return await self._make_request("GET", f"/users/{user_id}", access_token)
+    
     async def get_user_issues(
         self, 
         user_id: int, 

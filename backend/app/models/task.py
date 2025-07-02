@@ -37,6 +37,7 @@ class Task(BaseModel):
     title = Column(String(255), nullable=False)
     description = Column(Text)
     status = Column(Enum(TaskStatus), nullable=False, default=TaskStatus.TODO)
+    status_id = Column(Integer)  # BacklogのステータスID
     priority = Column(Integer)  # Backlogの優先度ID
     issue_type_id = Column(Integer)  # Backlogの課題種別ID
     issue_type_name = Column(String(100))  # 課題種別名

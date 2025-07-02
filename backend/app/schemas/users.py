@@ -86,3 +86,16 @@ class UserRoleUpdateRequest(BaseModel):
     """
     user_role_id: int = Field(..., description="更新するユーザーロールID")
     role_id: int = Field(..., description="新しいロールID")
+
+
+class UserInfo(BaseModel):
+    """
+    基本的なユーザー情報（他のスキーマで使用）
+    """
+    id: int = Field(..., description="ユーザーID")
+    backlog_id: Optional[int] = Field(None, description="BacklogユーザーID")
+    name: str = Field(..., description="ユーザー名")
+    email: Optional[str] = Field(None, description="メールアドレス")
+    
+    class Config:
+        from_attributes = True

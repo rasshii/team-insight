@@ -52,14 +52,18 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Download,
+  ArrowRight,
 } from "lucide-react";
 import { useUsers } from '@/hooks/queries/useUsers';
 import { useImportBacklogUsers } from '@/hooks/queries/useSync';
+import { useProjects } from '@/hooks/queries/useProjects';
+import { useTeams } from '@/hooks/queries/useTeams';
 import { UserEditDialog } from '@/components/admin/UserEditDialog';
 import { User, UserFilters, UserSortOptions } from '@/types/users';
 import { formatDistanceToNow } from 'date-fns';
 import { ja } from 'date-fns/locale/ja';
 import { useDebounce } from '@/hooks/useDebounce';
+import Link from 'next/link';
 import {
   Dialog,
   DialogContent,
@@ -77,6 +81,8 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState('');
   const [selectedRole, setSelectedRole] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [selectedProject, setSelectedProject] = useState<string>('all');
+  const [selectedTeam, setSelectedTeam] = useState<string>('all');
   const [sortBy, setSortBy] = useState<UserSortOptions['sort_by']>('created_at');
   const [sortOrder, setSortOrder] = useState<UserSortOptions['sort_order']>('desc');
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -87,6 +93,10 @@ export default function AdminUsersPage() {
 
   const debouncedSearch = useDebounce(search, 300);
   const importUsersMutation = useImportBacklogUsers();
+  
+  // プロジェクトとチームのデータを取得
+  const { data: projectsData } = useProjects();
+  const { data: teamsData } = useTeams();
 
   // フィルター構築
   const filters = useMemo<UserFilters>(() => {
@@ -98,8 +108,14 @@ export default function AdminUsersPage() {
     if (selectedRole !== 'all') {
       // ロールIDの実装は後で追加
     }
+    if (selectedProject !== 'all') {
+      f.project_id = parseInt(selectedProject);
+    }
+    if (selectedTeam !== 'all') {
+      f.team_id = parseInt(selectedTeam);
+    }
     return f;
-  }, [debouncedSearch, selectedStatus, selectedRole]);
+  }, [debouncedSearch, selectedStatus, selectedRole, selectedProject, selectedTeam]);
 
   // ソートオプション
   const sort = useMemo<UserSortOptions>(() => ({
@@ -182,6 +198,12 @@ export default function AdminUsersPage() {
                   システムに登録されているユーザーを管理します
                 </p>
               </div>
+              <Link href="/admin/teams">
+                <Button variant="outline" className="gap-2">
+                  チーム管理へ
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
             </div>
 
             {/* フィルターセクション */}
@@ -193,8 +215,8 @@ export default function AdminUsersPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-4 md:grid-cols-4">
-                  <div className="relative">
+                <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
+                  <div className="relative md:col-span-2 lg:col-span-1">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="名前またはメールで検索"
@@ -211,6 +233,32 @@ export default function AdminUsersPage() {
                       <SelectItem value="all">すべて</SelectItem>
                       <SelectItem value="active">ログイン可</SelectItem>
                       <SelectItem value="inactive">ログイン不可</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={selectedProject} onValueChange={setSelectedProject}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="プロジェクト" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">すべてのプロジェクト</SelectItem>
+                      {projectsData?.projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id.toString()}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={selectedTeam} onValueChange={setSelectedTeam}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="チーム" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">すべてのチーム</SelectItem>
+                      {teamsData?.teams.map((team) => (
+                        <SelectItem key={team.id} value={team.id.toString()}>
+                          {team.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>

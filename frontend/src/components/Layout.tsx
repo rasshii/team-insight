@@ -121,10 +121,17 @@ export function Layout({ children }: LayoutProps) {
                       {permissions.isAdmin() && (
                         <>
                           <DropdownMenuSeparator />
+                          <DropdownMenuLabel className="text-xs">管理者メニュー</DropdownMenuLabel>
                           <DropdownMenuItem asChild>
                             <Link href="/admin/users">
-                              <ShieldCheck className="mr-2 h-4 w-4" />
-                              <span>管理者メニュー</span>
+                              <Users className="mr-2 h-4 w-4" />
+                              <span>ユーザー管理</span>
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href="/admin/teams">
+                              <Users className="mr-2 h-4 w-4" />
+                              <span>チーム管理</span>
                             </Link>
                           </DropdownMenuItem>
                         </>
@@ -173,13 +180,24 @@ export function Layout({ children }: LayoutProps) {
                 {permissions.isAdmin() && (
                   <>
                     <div className="my-2 border-t border-border" />
+                    <div className="px-3 py-2 text-xs font-semibold text-muted-foreground">
+                      管理者メニュー
+                    </div>
                     <Link
                       href="/admin/users"
                       className="flex items-center space-x-2 rounded-md px-3 py-2 text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
-                      <ShieldCheck className="h-4 w-4" />
-                      <span>管理者メニュー</span>
+                      <Users className="h-4 w-4" />
+                      <span>ユーザー管理</span>
+                    </Link>
+                    <Link
+                      href="/admin/teams"
+                      className="flex items-center space-x-2 rounded-md px-3 py-2 text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <Users className="h-4 w-4" />
+                      <span>チーム管理</span>
                     </Link>
                   </>
                 )}

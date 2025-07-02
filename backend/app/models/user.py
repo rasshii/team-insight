@@ -29,6 +29,9 @@ class User(BaseModel):
     report_schedules = relationship(
         "ReportSchedule", back_populates="user", cascade="all, delete-orphan"
     )
+    team_memberships = relationship(
+        "TeamMember", back_populates="user", cascade="all, delete-orphan"
+    )
 
     @property
     def roles(self):

@@ -139,6 +139,21 @@ class AlreadyExistsException(AppException):
         )
 
 
+class ConflictException(AppException):
+    """競合エラー例外"""
+    def __init__(
+        self, 
+        detail: str,
+        data: Optional[Dict[str, Any]] = None
+    ):
+        super().__init__(
+            error_code=ErrorCode.DATA_ALREADY_EXISTS,
+            status_code=status.HTTP_409_CONFLICT,
+            detail=detail,
+            data=data
+        )
+
+
 class ValidationException(AppException):
     """バリデーションエラー例外"""
     def __init__(

@@ -62,6 +62,8 @@ export interface UserFilters {
   is_active?: boolean;
   role_ids?: number[];
   search?: string;
+  project_id?: number;
+  team_id?: number;
 }
 
 export interface UserSortOptions {
