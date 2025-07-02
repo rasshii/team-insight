@@ -233,3 +233,50 @@ export function useRemoveTeamMember(teamId: number) {
     },
   })
 }
+
+/**
+ * チームメンバーのパフォーマンスデータを取得
+ */
+export function useTeamMembersPerformance(teamId: number) {
+  return useQuery({
+    queryKey: ['team-members-performance', teamId],
+    queryFn: () => teamsService.getTeamMembersPerformance(teamId),
+    enabled: teamId > 0,
+  })
+}
+
+/**
+ * チームのタスク分配データを取得
+ */
+export function useTeamTaskDistribution(teamId: number) {
+  return useQuery({
+    queryKey: ['team-task-distribution', teamId],
+    queryFn: () => teamsService.getTeamTaskDistribution(teamId),
+    enabled: teamId > 0,
+  })
+}
+
+/**
+ * チームの生産性推移データを取得
+ */
+export function useTeamProductivityTrend(
+  teamId: number,
+  period: 'daily' | 'weekly' | 'monthly' = 'monthly'
+) {
+  return useQuery({
+    queryKey: ['team-productivity-trend', teamId, period],
+    queryFn: () => teamsService.getTeamProductivityTrend(teamId, period),
+    enabled: teamId > 0,
+  })
+}
+
+/**
+ * チームの最近のアクティビティを取得
+ */
+export function useTeamActivities(teamId: number, limit: number = 20) {
+  return useQuery({
+    queryKey: ['team-activities', teamId, limit],
+    queryFn: () => teamsService.getTeamActivities(teamId, limit),
+    enabled: teamId > 0,
+  })
+}

@@ -317,3 +317,89 @@ async def remove_team_member(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
+
+
+@router.get("/{team_id}/members/performance")
+async def get_team_members_performance(
+    team_id: int,
+    current_user: User = Depends(deps.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    チームメンバーのパフォーマンスデータを取得
+    """
+    try:
+        team = team_service.get_team(db, team_id, with_stats=False)
+        # メンバーのパフォーマンスデータを取得
+        performance_data = team_service.get_members_performance(db, team_id)
+        return performance_data
+    except NotFoundException as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+
+
+@router.get("/{team_id}/task-distribution")
+async def get_team_task_distribution(
+    team_id: int,
+    current_user: User = Depends(deps.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    チームのタスク分配データを取得
+    """
+    try:
+        team = team_service.get_team(db, team_id, with_stats=False)
+        # タスク分配データを取得
+        distribution_data = team_service.get_task_distribution(db, team_id)
+        return distribution_data
+    except NotFoundException as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+
+
+@router.get("/{team_id}/productivity-trend")
+async def get_team_productivity_trend(
+    team_id: int,
+    period: str = Query("monthly", enum=["daily", "weekly", "monthly"]),
+    current_user: User = Depends(deps.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    チームの生産性推移データを取得
+    """
+    try:
+        team = team_service.get_team(db, team_id, with_stats=False)
+        # 生産性推移データを取得
+        trend_data = team_service.get_productivity_trend(db, team_id, period)
+        return trend_data
+    except NotFoundException as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+
+
+@router.get("/{team_id}/activities")
+async def get_team_activities(
+    team_id: int,
+    limit: int = Query(20, le=100),
+    current_user: User = Depends(deps.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    チームの最近のアクティビティを取得
+    """
+    try:
+        team = team_service.get_team(db, team_id, with_stats=False)
+        # アクティビティデータを取得
+        activities = team_service.get_team_activities(db, team_id, limit)
+        return activities
+    except NotFoundException as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )

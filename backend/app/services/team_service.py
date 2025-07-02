@@ -442,6 +442,289 @@ class TeamService:
             "active_tasks_count": active_tasks_count or 0,
             "completed_tasks_this_month": completed_tasks_this_month or 0
         }
+    
+    def get_members_performance(
+        self,
+        db: Session,
+        team_id: int
+    ) -> List[Dict[str, Any]]:
+        """
+        チームメンバーのパフォーマンスデータを取得
+        
+        Args:
+            db: データベースセッション
+            team_id: チームID
+            
+        Returns:
+            メンバーごとのパフォーマンスデータ
+        """
+        # チームメンバーを取得
+        members = db.query(TeamMember).filter(
+            TeamMember.team_id == team_id
+        ).options(
+            joinedload(TeamMember.user)
+        ).all()
+        
+        performance_data = []
+        start_of_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        
+        for member in members:
+            # 完了したタスク数（今月）
+            completed_tasks = db.query(func.count(Task.id)).filter(
+                Task.assignee_id == member.user_id,
+                Task.status == TaskStatus.CLOSED,
+                Task.completed_date >= start_of_month
+            ).scalar() or 0
+            
+            # アクティブなタスク数
+            active_tasks = db.query(func.count(Task.id)).filter(
+                Task.assignee_id == member.user_id,
+                Task.status.in_([TaskStatus.TODO, TaskStatus.IN_PROGRESS])
+            ).scalar() or 0
+            
+            # 効率性スコア（完了タスク / (完了タスク + アクティブタスク) * 100）
+            total_tasks = completed_tasks + active_tasks
+            efficiency = int((completed_tasks / total_tasks * 100) if total_tasks > 0 else 0)
+            
+            # 前月のデータと比較してトレンドを計算
+            start_of_last_month = (start_of_month - timedelta(days=1)).replace(day=1)
+            last_month_completed = db.query(func.count(Task.id)).filter(
+                Task.assignee_id == member.user_id,
+                Task.status == TaskStatus.CLOSED,
+                Task.completed_date >= start_of_last_month,
+                Task.completed_date < start_of_month
+            ).scalar() or 0
+            
+            # トレンドの判定
+            if completed_tasks > last_month_completed:
+                trend = 'up'
+            elif completed_tasks < last_month_completed:
+                trend = 'down'
+            else:
+                trend = 'stable'
+            
+            performance_data.append({
+                "member_id": member.id,
+                "user_id": member.user_id,
+                "user_name": member.user.name,
+                "role": member.role,
+                "completed_tasks": completed_tasks,
+                "active_tasks": active_tasks,
+                "efficiency": efficiency,
+                "trend": trend,
+                "last_month_completed": last_month_completed
+            })
+        
+        return performance_data
+    
+    def get_task_distribution(
+        self,
+        db: Session,
+        team_id: int
+    ) -> Dict[str, Any]:
+        """
+        チームのタスク分配データを取得
+        
+        Args:
+            db: データベースセッション
+            team_id: チームID
+            
+        Returns:
+            タスク分配データ
+        """
+        # チームメンバーを取得
+        members = db.query(TeamMember).filter(
+            TeamMember.team_id == team_id
+        ).options(
+            joinedload(TeamMember.user)
+        ).all()
+        
+        distribution_data = {
+            "labels": [],
+            "data": [],
+            "backgroundColor": [
+                "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6",
+                "#ec4899", "#06b6d4", "#84cc16", "#f97316", "#6366f1"
+            ]
+        }
+        
+        for i, member in enumerate(members):
+            # 各メンバーのタスク数を取得
+            task_count = db.query(func.count(Task.id)).filter(
+                Task.assignee_id == member.user_id
+            ).scalar() or 0
+            
+            distribution_data["labels"].append(member.user.name)
+            distribution_data["data"].append(task_count)
+        
+        return distribution_data
+    
+    def get_productivity_trend(
+        self,
+        db: Session,
+        team_id: int,
+        period: str = "monthly"
+    ) -> List[Dict[str, Any]]:
+        """
+        チームの生産性推移データを取得
+        
+        Args:
+            db: データベースセッション
+            team_id: チームID
+            period: 期間（daily, weekly, monthly）
+            
+        Returns:
+            生産性推移データ
+        """
+        # チームメンバーのユーザーIDリストを取得
+        member_user_ids = db.query(TeamMember.user_id).filter(
+            TeamMember.team_id == team_id
+        ).all()
+        member_user_ids = [uid[0] for uid in member_user_ids]
+        
+        if not member_user_ids:
+            return []
+        
+        # 期間の設定
+        now = datetime.now()
+        if period == "daily":
+            start_date = now - timedelta(days=30)
+            date_format = 'YYYY-MM-DD'
+            date_trunc = 'day'
+        elif period == "weekly":
+            start_date = now - timedelta(weeks=12)
+            date_format = 'YYYY-"W"IW'
+            date_trunc = 'week'
+        else:  # monthly
+            start_date = now - timedelta(days=365)
+            date_format = 'YYYY-MM'
+            date_trunc = 'month'
+        
+        # タスクの完了データを取得
+        completed_tasks = db.query(
+            func.date_trunc(date_trunc, Task.completed_date).label('period_date'),
+            func.count(Task.id).label('completed_count'),
+            func.avg(
+                func.extract('epoch', Task.completed_date - Task.created_at) / 86400
+            ).label('avg_completion_days')
+        ).filter(
+            Task.assignee_id.in_(member_user_ids),
+            Task.status == TaskStatus.CLOSED,
+            Task.completed_date >= start_date,
+            Task.completed_date.isnot(None)
+        ).group_by(
+            func.date_trunc(date_trunc, Task.completed_date)
+        ).all()
+        
+        # 期間ごとのデータを作成
+        period_data = {}
+        for task in completed_tasks:
+            period_key = task.period_date.strftime({
+                'day': '%Y-%m-%d',
+                'week': '%Y-W%V',
+                'month': '%Y-%m'
+            }[date_trunc])
+            
+            period_data[period_key] = {
+                "period": period_key,
+                "completed_tasks": task.completed_count,
+                "avg_completion_time": round(task.avg_completion_days, 1) if task.avg_completion_days else 0,
+                "efficiency_score": min(100, int(100 / (task.avg_completion_days + 1))) if task.avg_completion_days else 0
+            }
+        
+        # 全期間のデータを生成（データがない期間も含む）
+        trend_data = []
+        current_date = start_date
+        while current_date <= now:
+            if period == "daily":
+                period_key = current_date.strftime('%Y-%m-%d')
+                current_date += timedelta(days=1)
+            elif period == "weekly":
+                period_key = current_date.strftime('%Y-W%V')
+                current_date += timedelta(weeks=1)
+            else:  # monthly
+                period_key = current_date.strftime('%Y-%m')
+                # 次の月の初日に移動
+                if current_date.month == 12:
+                    current_date = current_date.replace(year=current_date.year + 1, month=1, day=1)
+                else:
+                    current_date = current_date.replace(month=current_date.month + 1, day=1)
+            
+            if period_key in period_data:
+                trend_data.append(period_data[period_key])
+            else:
+                trend_data.append({
+                    "period": period_key,
+                    "completed_tasks": 0,
+                    "avg_completion_time": 0,
+                    "efficiency_score": 0
+                })
+        
+        return trend_data
+    
+    def get_team_activities(
+        self,
+        db: Session,
+        team_id: int,
+        limit: int = 20
+    ) -> List[Dict[str, Any]]:
+        """
+        チームの最近のアクティビティを取得
+        
+        Args:
+            db: データベースセッション
+            team_id: チームID
+            limit: 取得件数
+            
+        Returns:
+            アクティビティリスト
+        """
+        # チームメンバーのユーザーIDリストを取得
+        member_user_ids = db.query(TeamMember.user_id).filter(
+            TeamMember.team_id == team_id
+        ).all()
+        member_user_ids = [uid[0] for uid in member_user_ids]
+        
+        # 最近のタスク更新を取得
+        tasks = db.query(Task).filter(
+            Task.assignee_id.in_(member_user_ids)
+        ).order_by(
+            Task.updated_at.desc()
+        ).limit(limit).all()
+        
+        activities = []
+        for task in tasks:
+            # タスクの担当者を取得
+            assignee = db.query(User).filter(User.id == task.assignee_id).first()
+            
+            # アクティビティタイプを判定
+            if task.status == TaskStatus.CLOSED and task.completed_date:
+                activity_type = "completed"
+                message = f"{assignee.name}さんがタスクを完了しました"
+            elif task.status == TaskStatus.IN_PROGRESS:
+                activity_type = "in_progress"
+                message = f"{assignee.name}さんがタスクを開始しました"
+            elif task.created_at == task.updated_at:
+                activity_type = "created"
+                message = f"{assignee.name}さんに新しいタスクが割り当てられました"
+            else:
+                activity_type = "updated"
+                message = f"{assignee.name}さんのタスクが更新されました"
+            
+            activities.append({
+                "id": f"task-{task.id}",
+                "type": activity_type,
+                "message": message,
+                "title": task.title,
+                "user": {
+                    "id": assignee.id,
+                    "name": assignee.name
+                },
+                "timestamp": task.updated_at.isoformat(),
+                "status": task.status
+            })
+        
+        return activities
 
 
 team_service = TeamService()

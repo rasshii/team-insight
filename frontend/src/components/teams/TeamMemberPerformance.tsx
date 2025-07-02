@@ -4,27 +4,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { Shield, User, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { Shield, User, TrendingUp, TrendingDown, Minus, Loader2 } from 'lucide-react'
 import { TeamMember, TeamRole } from '@/types/team'
+import { useTeamMembersPerformance } from '@/hooks/queries/useTeams'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface TeamMemberPerformanceProps {
   teamId: number
   members: TeamMember[]
 }
 
-// ダミーデータ（実際のAPIから取得するまでの仮データ）
-const getMemberPerformance = (memberId: number) => {
-  const performances = [
-    { completedTasks: 15, activeTasks: 3, efficiency: 92, trend: 'up' },
-    { completedTasks: 12, activeTasks: 5, efficiency: 78, trend: 'down' },
-    { completedTasks: 18, activeTasks: 2, efficiency: 88, trend: 'stable' },
-    { completedTasks: 8, activeTasks: 7, efficiency: 65, trend: 'down' },
-    { completedTasks: 20, activeTasks: 1, efficiency: 95, trend: 'up' },
-  ]
-  return performances[memberId % performances.length]
-}
-
 export function TeamMemberPerformance({ teamId, members }: TeamMemberPerformanceProps) {
+  const { data: performanceData, isLoading } = useTeamMembersPerformance(teamId)
+
   return (
     <Card>
       <CardHeader>
@@ -35,14 +27,36 @@ export function TeamMemberPerformance({ teamId, members }: TeamMemberPerformance
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {members.map((member) => {
-            const performance = getMemberPerformance(member.user_id)
-            const initials = member.user.name
-              .split(' ')
-              .map((n) => n[0])
-              .join('')
-              .toUpperCase()
-              .slice(0, 2)
+          {isLoading ? (
+            // ローディング中のスケルトン
+            Array.from({ length: members.length }).map((_, index) => (
+              <div key={index} className="flex items-center gap-4 p-4 rounded-lg border">
+                <Skeleton className="h-12 w-12 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <div className="grid grid-cols-3 gap-4">
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                  <Skeleton className="h-2 w-full" />
+                </div>
+              </div>
+            ))
+          ) : (
+            members.map((member) => {
+              const performance = performanceData?.find((p: any) => p.user_id === member.user_id) || {
+                completed_tasks: 0,
+                active_tasks: 0,
+                efficiency: 0,
+                trend: 'stable'
+              }
+              const initials = member.user.name
+                .split(' ')
+                .map((n) => n[0])
+                .join('')
+                .toUpperCase()
+                .slice(0, 2)
 
             return (
               <div
@@ -72,11 +86,11 @@ export function TeamMemberPerformance({ teamId, members }: TeamMemberPerformance
                   <div className="grid grid-cols-3 gap-4 text-sm">
                     <div>
                       <p className="text-muted-foreground">完了タスク</p>
-                      <p className="font-medium">{performance.completedTasks}</p>
+                      <p className="font-medium">{performance.completed_tasks}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">進行中</p>
-                      <p className="font-medium">{performance.activeTasks}</p>
+                      <p className="font-medium">{performance.active_tasks}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">効率性</p>
@@ -99,7 +113,8 @@ export function TeamMemberPerformance({ teamId, members }: TeamMemberPerformance
                 </div>
               </div>
             )
-          })}
+          })
+          )}
         </div>
       </CardContent>
     </Card>

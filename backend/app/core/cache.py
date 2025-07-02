@@ -238,38 +238,17 @@ class CacheMiddleware(BaseHTTPMiddleware):
         logger.info(f"キャッシュ無効化開始: {request.method} {path}")
         
         # パスベースで関連するすべてのHTTPキャッシュをクリア
-        # ハッシュ化されたキーのため、すべてのHTTPキャッシュを削除する
         try:
-            # すべてのHTTPキャッシュキーを取得
-            pattern = "cache:http:*"
-            keys = await redis_client.redis.keys(pattern)
-            logger.info(f"検出されたキャッシュキー数: {len(keys) if keys else 0}")
-            
-            if keys:
-                # パスに基づいて削除するキーをフィルタリング
-                keys_to_delete = []
-                
-                for key in keys:
-                    # バイト文字列をデコード
-                    if isinstance(key, bytes):
-                        key = key.decode('utf-8')
-                    
-                    # キーの値を取得して、関連するURLかチェック
-                    # ただし、パフォーマンスの観点から、特定のパスに関連する変更の場合は
-                    # すべてのHTTPキャッシュをクリアする
-                    if any(keyword in path for keyword in ["/teams", "/users", "/projects", "/tasks"]):
-                        keys_to_delete.append(key)
-                
-                logger.info(f"削除対象キー数: {len(keys_to_delete)}")
-                
-                if keys_to_delete:
-                    # バッチで削除
-                    deleted_count = await redis_client.redis.delete(*keys_to_delete)
+            # 特定のパスに関連する変更の場合は、すべてのHTTPキャッシュをクリア
+            if any(keyword in path for keyword in ["/teams", "/users", "/projects", "/tasks"]):
+                pattern = "cache:http:*"
+                deleted_count = await redis_client.delete_pattern(pattern)
+                if deleted_count > 0:
                     logger.info(f"キャッシュ無効化完了: {path} に関連する {deleted_count} 件のキャッシュを削除")
                 else:
                     logger.info("削除対象のキャッシュがありません")
             else:
-                logger.info("キャッシュキーが見つかりません")
+                logger.info(f"キャッシュ無効化スキップ: {path} は対象外")
             
         except Exception as e:
             logger.error(f"キャッシュ無効化エラー: {e}", exc_info=True)

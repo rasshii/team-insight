@@ -102,4 +102,43 @@ export const teamsService = {
   ): Promise<TeamMemberRemoveResponse> {
     return await apiClient.delete(`/api/v1/teams/${teamId}/members/${userId}`)
   },
+
+  /**
+   * チームメンバーのパフォーマンスデータを取得
+   */
+  async getTeamMembersPerformance(teamId: number): Promise<any[]> {
+    return await apiClient.get(`/api/v1/teams/${teamId}/members/performance`)
+  },
+
+  /**
+   * チームのタスク分配データを取得
+   */
+  async getTeamTaskDistribution(teamId: number): Promise<{
+    labels: string[]
+    data: number[]
+    backgroundColor: string[]
+  }> {
+    return await apiClient.get(`/api/v1/teams/${teamId}/task-distribution`)
+  },
+
+  /**
+   * チームの生産性推移データを取得
+   */
+  async getTeamProductivityTrend(
+    teamId: number,
+    period: 'daily' | 'weekly' | 'monthly' = 'monthly'
+  ): Promise<any[]> {
+    return await apiClient.get(`/api/v1/teams/${teamId}/productivity-trend`, {
+      params: { period }
+    })
+  },
+
+  /**
+   * チームの最近のアクティビティを取得
+   */
+  async getTeamActivities(teamId: number, limit: number = 20): Promise<any[]> {
+    return await apiClient.get(`/api/v1/teams/${teamId}/activities`, {
+      params: { limit }
+    })
+  },
 }

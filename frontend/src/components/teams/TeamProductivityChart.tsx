@@ -2,135 +2,162 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { useState } from 'react'
+import { useTeamProductivityTrend } from '@/hooks/queries/useTeams'
+import { Skeleton } from '@/components/ui/skeleton'
+import { AlertCircle } from 'lucide-react'
 
 interface TeamProductivityChartProps {
   teamId: number
 }
 
-// ダミーデータ（実際のAPIから取得するまでの仮データ）
-const getProductivityData = (teamId: number, period: string) => {
-  const weeklyData = [
-    { week: '第1週', 完了タスク: 12, 新規タスク: 15, 効率性: 85 },
-    { week: '第2週', 完了タスク: 18, 新規タスク: 16, 効率性: 92 },
-    { week: '第3週', 完了タスク: 15, 新規タスク: 20, 効率性: 78 },
-    { week: '第4週', 完了タスク: 22, 新規タスク: 18, 効率性: 95 },
-  ]
-
-  const monthlyData = [
-    { month: '1月', 完了タスク: 45, 新規タスク: 50, 効率性: 82 },
-    { month: '2月', 完了タスク: 52, 新規タスク: 48, 効率性: 88 },
-    { month: '3月', 完了タスク: 58, 新規タスク: 55, 効率性: 90 },
-    { month: '4月', 完了タスク: 65, 新規タスク: 60, 効率性: 93 },
-    { month: '5月', 完了タスク: 70, 新規タスク: 68, 効率性: 95 },
-    { month: '6月', 完了タスク: 68, 新規タスク: 70, 効率性: 91 },
-  ]
-
-  return period === 'weekly' ? weeklyData : monthlyData
-}
-
-const getVelocityData = (teamId: number) => {
-  return [
-    { スプリント: 'Sprint 1', 計画: 20, 実績: 18 },
-    { スプリント: 'Sprint 2', 計画: 22, 実績: 25 },
-    { スプリント: 'Sprint 3', 計画: 25, 実績: 23 },
-    { スプリント: 'Sprint 4', 計画: 28, 実績: 30 },
-    { スプリント: 'Sprint 5', 計画: 30, 実績: 32 },
-    { スプリント: 'Sprint 6', 計画: 32, 実績: 35 },
-  ]
-}
-
 export function TeamProductivityChart({ teamId }: TeamProductivityChartProps) {
-  const [period, setPeriod] = useState<'weekly' | 'monthly'>('weekly')
-  const productivityData = getProductivityData(teamId, period)
-  const velocityData = getVelocityData(teamId)
+  const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly'>('monthly')
+  const { data: trendData, isLoading, error } = useTeamProductivityTrend(teamId, period)
 
-  return (
-    <div className="space-y-6">
+  if (isLoading) {
+    return (
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-start">
-            <div>
-              <CardTitle>生産性推移</CardTitle>
-              <CardDescription>
-                タスクの完了数と新規作成数の推移
-              </CardDescription>
-            </div>
-            <Select value={period} onValueChange={(value) => setPeriod(value as 'weekly' | 'monthly')}>
-              <SelectTrigger className="w-[120px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="weekly">週次</SelectItem>
-                <SelectItem value="monthly">月次</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[350px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={productivityData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey={period === 'weekly' ? 'week' : 'month'} />
-                <YAxis yAxisId="left" />
-                <YAxis yAxisId="right" orientation="right" />
-                <Tooltip />
-                <Legend />
-                <Line
-                  yAxisId="left"
-                  type="monotone"
-                  dataKey="完了タスク"
-                  stroke="#10b981"
-                  strokeWidth={2}
-                  dot={{ fill: '#10b981' }}
-                />
-                <Line
-                  yAxisId="left"
-                  type="monotone"
-                  dataKey="新規タスク"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
-                  dot={{ fill: '#3b82f6' }}
-                />
-                <Line
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="効率性"
-                  stroke="#f59e0b"
-                  strokeWidth={2}
-                  dot={{ fill: '#f59e0b' }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>ベロシティチャート</CardTitle>
+          <CardTitle>生産性推移</CardTitle>
           <CardDescription>
-            スプリントごとの計画と実績の比較
+            タスクの完了数と平均完了時間の推移
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={velocityData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="スプリント" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="計画" fill="#94a3b8" />
-                <Bar dataKey="実績" fill="#3b82f6" />
-              </BarChart>
-            </ResponsiveContainer>
+          <Skeleton className="h-[350px] w-full" />
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (error || !trendData) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>生産性推移</CardTitle>
+          <CardDescription>
+            タスクの完了数と平均完了時間の推移
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center justify-center h-[350px] text-muted-foreground">
+            <AlertCircle className="h-8 w-8 mb-2" />
+            <p>データの取得に失敗しました</p>
           </div>
         </CardContent>
       </Card>
-    </div>
+    )
+  }
+
+  // データがない場合
+  if (!trendData || trendData.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>生産性推移</CardTitle>
+          <CardDescription>
+            タスクの完了数と平均完了時間の推移
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center justify-center h-[350px] text-muted-foreground">
+            <AlertCircle className="h-8 w-8 mb-2" />
+            <p>データがありません</p>
+            <p className="text-sm mt-2">タスクを作成・完了すると、ここに推移が表示されます</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle>生産性推移</CardTitle>
+            <CardDescription>
+              タスクの完了数と平均完了時間の推移
+            </CardDescription>
+          </div>
+          <Select value={period} onValueChange={(value) => setPeriod(value as 'daily' | 'weekly' | 'monthly')}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="daily">日次</SelectItem>
+              <SelectItem value="weekly">週次</SelectItem>
+              <SelectItem value="monthly">月次</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="h-[350px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={trendData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis 
+                dataKey="period" 
+                angle={-45}
+                textAnchor="end"
+                height={80}
+              />
+              <YAxis yAxisId="left" />
+              <YAxis yAxisId="right" orientation="right" />
+              <Tooltip 
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="bg-background border rounded-lg shadow-lg p-3">
+                        <p className="font-semibold">{label}</p>
+                        {payload.map((entry: any, index: number) => (
+                          <p key={index} className="text-sm" style={{ color: entry.color }}>
+                            {entry.name}: {entry.value}
+                            {entry.name === '平均完了時間' ? '日' : ''}
+                            {entry.name === '効率性スコア' ? '%' : ''}
+                          </p>
+                        ))}
+                      </div>
+                    )
+                  }
+                  return null
+                }}
+              />
+              <Legend />
+              <Line
+                yAxisId="left"
+                type="monotone"
+                dataKey="completed_tasks"
+                name="完了タスク"
+                stroke="#10b981"
+                strokeWidth={2}
+                dot={{ fill: '#10b981' }}
+              />
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="avg_completion_time"
+                name="平均完了時間"
+                stroke="#3b82f6"
+                strokeWidth={2}
+                dot={{ fill: '#3b82f6' }}
+              />
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="efficiency_score"
+                name="効率性スコア"
+                stroke="#f59e0b"
+                strokeWidth={2}
+                dot={{ fill: '#f59e0b' }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </CardContent>
+    </Card>
   )
 }

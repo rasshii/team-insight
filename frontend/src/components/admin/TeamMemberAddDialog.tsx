@@ -40,8 +40,9 @@ export function TeamMemberAddDialog({
   onOpenChange,
 }: TeamMemberAddDialogProps) {
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
+  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([])
   const [role, setRole] = useState<TeamRole>(TeamRole.MEMBER)
+  const [isAddingMembers, setIsAddingMembers] = useState(false)
 
   const { data: usersData, isLoading } = useUsers({
     page: 1,
@@ -69,21 +70,46 @@ export function TeamMemberAddDialog({
   }, [usersData, existingMemberIds, searchQuery])
 
   const handleSubmit = async () => {
-    if (!selectedUserId) return
+    if (selectedUserIds.length === 0) return
 
+    setIsAddingMembers(true)
+    
     try {
-      await addMemberMutation.mutateAsync({
-        user_id: selectedUserId,
-        role,
-      })
+      // 選択されたユーザーを順番に追加
+      for (const userId of selectedUserIds) {
+        await addMemberMutation.mutateAsync({
+          user_id: userId,
+          role,
+        })
+      }
       
       // フォームをリセット
-      setSelectedUserId(null)
+      setSelectedUserIds([])
       setRole(TeamRole.MEMBER)
       setSearchQuery('')
       onOpenChange(false)
     } catch (error) {
       // エラーはmutationのonErrorで処理される
+    } finally {
+      setIsAddingMembers(false)
+    }
+  }
+
+  const toggleUserSelection = (userId: number) => {
+    setSelectedUserIds(prev => {
+      if (prev.includes(userId)) {
+        return prev.filter(id => id !== userId)
+      } else {
+        return [...prev, userId]
+      }
+    })
+  }
+
+  const toggleAllUsers = () => {
+    if (selectedUserIds.length === availableUsers.length) {
+      setSelectedUserIds([])
+    } else {
+      setSelectedUserIds(availableUsers.map(user => user.id))
     }
   }
 
@@ -114,7 +140,22 @@ export function TeamMemberAddDialog({
 
           {/* ユーザー選択 */}
           <div className="space-y-2">
-            <Label>ユーザー選択</Label>
+            <div className="flex items-center justify-between">
+              <Label>ユーザー選択</Label>
+              {availableUsers.length > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleAllUsers}
+                  className="h-auto px-2 py-1 text-xs"
+                >
+                  {selectedUserIds.length === availableUsers.length
+                    ? 'すべて解除'
+                    : 'すべて選択'}
+                </Button>
+              )}
+            </div>
             <ScrollArea className="h-[200px] rounded-md border p-4">
               {isLoading ? (
                 <div className="flex justify-center py-4">
@@ -132,10 +173,8 @@ export function TeamMemberAddDialog({
                       className="flex items-center space-x-2 cursor-pointer hover:bg-accent p-2 rounded"
                     >
                       <Checkbox
-                        checked={selectedUserId === user.id}
-                        onCheckedChange={(checked) =>
-                          setSelectedUserId(checked ? user.id : null)
-                        }
+                        checked={selectedUserIds.includes(user.id)}
+                        onCheckedChange={() => toggleUserSelection(user.id)}
                       />
                       <div className="flex-1">
                         <div className="font-medium">{user.name}</div>
@@ -150,6 +189,11 @@ export function TeamMemberAddDialog({
                 </div>
               )}
             </ScrollArea>
+            {selectedUserIds.length > 0 && (
+              <p className="text-sm text-muted-foreground">
+                {selectedUserIds.length}人のユーザーを選択中
+              </p>
+            )}
           </div>
 
           {/* 役割選択 */}
@@ -176,18 +220,22 @@ export function TeamMemberAddDialog({
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            disabled={addMemberMutation.isPending}
+            disabled={isAddingMembers}
           >
             キャンセル
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!selectedUserId || addMemberMutation.isPending}
+            disabled={selectedUserIds.length === 0 || isAddingMembers}
           >
-            {addMemberMutation.isPending && (
+            {isAddingMembers && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             )}
-            追加
+            {isAddingMembers
+              ? '追加中...'
+              : selectedUserIds.length > 0
+              ? `${selectedUserIds.length}人を追加`
+              : '追加'}
           </Button>
         </DialogFooter>
       </DialogContent>
