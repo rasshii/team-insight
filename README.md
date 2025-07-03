@@ -19,39 +19,90 @@
 
 ## 概要
 
-Team Insight は、Backlog API と連携してチームの開発プロセスを分析・可視化する Web アプリケーションです。
+Team Insight は、Backlog API と連携してチームの開発プロセスを分析・可視化する生産性向上プラットフォームです。個人、プロジェクト、組織レベルでの包括的なダッシュボードを提供し、データに基づいた意思決定を支援します。
 
 ### 主な機能
 
-- **Backlog OAuth 認証**: セキュアな OAuth2.0 認証
-- **ダッシュボード**: プロジェクトとチームの統計情報を一覧表示
-- **プロジェクト分析**: 課題の進捗状況やボトルネックを可視化
-- **チーム分析**: メンバーの生産性やワークロードを分析
+#### 実装済み ✅
+- **Backlog OAuth 認証**: セキュアな OAuth2.0 認証と JWT セッション管理（特定スペース専用）
+- **RBAC（ロールベースアクセス制御）**: プロジェクト単位での柔軟な権限管理
+- **管理画面**: ユーザー管理UI（/admin/users）でGUIによるロール管理が可能
+  - ユーザー一覧表示（グローバル/プロジェクトロールの区別表示）
+  - Backlogユーザー一括インポート機能
+  - ユーザーステータス管理（ログイン可/不可）
+- **個人ダッシュボード**: タスク情報とパフォーマンス指標の可視化（実データ連携済み）
+- **プロジェクト管理**: プロジェクト情報の取得と管理
+- **Backlog同期**: 
+  - プロジェクトとタスクデータの自動同期
+  - ユーザー一括インポート（全プロジェクトから収集）
+  - 定期同期スケジューラー（日次ユーザー同期、6時間ごとのプロジェクト同期）
+- **データ可視化**: D3.js によるボトルネック分析とスループット表示
+- **ヘルスチェック**: システム稼働状況の監視
+- **キャッシュシステム**: Redis によるAPI レスポンスのキャッシュ（有効化済み）
+- **統一エラーハンドリング**: 構造化されたエラーレスポンスとロギング
+- **セキュリティ強化**: レート制限、機密データマスキング、アクティビティログ記録
+- **自動トークンリフレッシュ**: Backlog OAuth トークンの自動更新機能
+- **レポート配信システム**: 定期的な分析レポートのメール配信（APScheduler使用）
+- **チーム管理機能**: Team Insight独自のチーム概念
+  - チームの作成・編集・削除（/admin/teams）
+  - チームメンバー管理とロール設定（チームリーダー/メンバー）
+  - チームごとの統計情報表示
+  - ユーザー一覧でのチーム・プロジェクトフィルター
+- **チーム生産性ダッシュボード**: チームごとの生産性分析（/teams）
+  - メンバー別パフォーマンス表示
+  - タスク分配の可視化
+  - 生産性推移グラフ
+  - チームアクティビティタイムライン
+- **ユーザー設定機能**: 個人設定とセキュリティ管理（2025年7月追加）
+  - アカウント設定（/settings/account）- タイムゾーン、言語、通知設定
+  - セキュリティ設定（/settings/security）- ログイン履歴、アクティビティログ、セッション管理
+  - ユーザープリファレンス管理
+  - 操作履歴の自動記録とIPアドレス追跡
+
+#### 開発中 🚧
+- **プロジェクトダッシュボード**: プロジェクト全体の分析機能
+- **組織ダッシュボード**: 組織全体の生産性分析
+- **高度な分析機能**: ボトルネック検出アルゴリズム（実データとの連携）
+
+#### 計画中 📋
+- **通知システム**: ボトルネックアラートと改善提案
+- **予測分析**: AI を活用した将来予測
+- **WebSocket 統合**: リアルタイム更新
+- **レポート生成**: PDF/Excel形式でのレポート出力
 
 ## 技術スタック
 
 ### バックエンド
 
-- **FastAPI** (Python 3.11): 高速で型安全な Web API フレームワーク
-- **SQLAlchemy 2.0**: ORM とデータベース管理
-- **PostgreSQL 15**: メインデータベース
-- **Redis 7**: キャッシュとセッション管理
+- **FastAPI** (0.109.2): 高速で型安全な Web API フレームワーク
+- **Python** (3.11): モダンな Python ランタイム
+- **SQLAlchemy** (2.0): 最新の ORM とデータベース管理
+- **PostgreSQL** (15): メインデータベース（team_insight スキーマ使用）
+- **Redis** (7): キャッシュとセッション管理（パスワード認証付き）
 - **Alembic**: データベースマイグレーション
+- **httpx**: 非同期 HTTP クライアント（Backlog API 連携用）
+- **python-jose[cryptography]**: JWT トークン処理
 
 ### フロントエンド
 
-- **React 18**: UI フレームワーク
-- **TypeScript 5**: 型安全な開発
-- **Redux Toolkit**: 状態管理
-- **shadcn/ui**: UI コンポーネントライブラリ
-- **Tailwind CSS v3**: ユーティリティファースト CSS
-- **Yarn v4 (Berry)**: パッケージ管理（Corepack使用）
+- **Next.js** (14): App Router を使用した React フレームワーク
+- **React** (18): UI ライブラリ
+- **TypeScript** (5): 型安全な開発
+- **Redux Toolkit**: グローバル状態管理（ユーザー認証情報のみ）
+- **TanStack Query** (v5): サーバー状態管理とデータフェッチング
+- **shadcn/ui**: Radix UI ベースのコンポーネントライブラリ
+- **Tailwind CSS** (v3): ユーティリティファースト CSS
+- **D3.js**: データ可視化ライブラリ
+- **Yarn v4 (Berry)**: パッケージ管理（Corepack 使用）
+- **react-hook-form + zod**: フォーム処理とバリデーション
+- **axios**: HTTP クライアント（統一されたエラーハンドリング付き）
 
 ### インフラ
 
 - **Docker & Docker Compose**: コンテナ化と開発環境
-- **Nginx**: リバースプロキシ
+- **Nginx**: リバースプロキシ（API ルーティング）
 - **Node.js v22 LTS**: フロントエンドランタイム
+- **Make**: 開発タスクの自動化
 
 ## セットアップ
 
@@ -76,20 +127,28 @@ cd team-insight
 
 ```env
 # データベース設定
-DATABASE_URL=postgresql://team_insight_user:team_insight_password@postgres:5432/team_insight
+DATABASE_URL=postgresql://teaminsight:teaminsight@postgres:5432/teaminsight
 
 # Redis設定
 REDIS_URL=redis://redis:6379/0
 
 # セキュリティ
-SECRET_KEY=your-secret-key-here
-ACCESS_TOKEN_EXPIRE_MINUTES=30
+SECRET_KEY=your-secret-key-here  # 32文字以上の強力なキーを使用
 
 # Backlog OAuth設定
 BACKLOG_CLIENT_ID=your-client-id
 BACKLOG_CLIENT_SECRET=your-client-secret
-BACKLOG_REDIRECT_URI=http://localhost:3000/auth/callback
+BACKLOG_REDIRECT_URI=http://localhost/auth/callback
 BACKLOG_SPACE_KEY=your-space-key
+
+# SMTP設定（開発環境はMailHogが自動設定されます）
+# プロダクション環境の場合は以下を設定
+# SMTP_HOST=smtp.gmail.com
+# SMTP_PORT=587
+# SMTP_USER=your-email@gmail.com
+# SMTP_PASSWORD=your-app-password
+# SMTP_FROM_EMAIL=noreply@teaminsight.dev
+# SMTP_FROM_NAME=Team Insight
 ```
 
 3. **セットアップスクリプトの実行**
@@ -110,9 +169,10 @@ make setup
 
 4. **アプリケーションへのアクセス**
 
-- フロントエンド: http://localhost:3000
-- バックエンド API: http://localhost:8000
-- API ドキュメント: http://localhost:8000/docs
+- フロントエンド: http://localhost (Nginx経由)
+- バックエンド API: http://localhost/api (Nginx経由)
+- API ドキュメント: http://localhost/api/v1/docs (Nginx経由)
+- MailHog Web UI: http://localhost:8025 (開発環境のメール確認)
 
 ## 開発ガイド
 
@@ -158,6 +218,20 @@ make generate-types # 型生成のみ（バックエンド起動確認なし）
 make dev-sync       # マイグレーション + 型生成を一括実行
 ```
 
+#### Redis操作
+
+```bash
+make redis-keys     # 全Redisキー一覧を表示
+make redis-cli      # Redis CLIに接続
+```
+
+#### Nginx操作
+
+```bash
+make nginx-access-log # Nginxアクセスログを表示
+make nginx-reload     # Nginx設定をリロード
+```
+
 #### コンテナ操作
 
 ```bash
@@ -166,6 +240,55 @@ make rebuild       # 全イメージを再ビルド
 make ps            # コンテナの状態を表示
 make shell         # バックエンドコンテナのシェルに入る
 ```
+
+#### ロール管理
+
+Team Insightは**独自のロールベースアクセス制御（RBAC）システム**を実装しており、Backlogのロールとは独立して動作します。
+
+**Team Insight固有のロール**:
+- **ADMIN（管理者）**: システム全体の管理権限、ユーザー管理、全プロジェクトへのアクセス
+- **PROJECT_LEADER（プロジェクトリーダー）**: 担当プロジェクトの管理権限、メンバー管理
+- **MEMBER（メンバー）**: 所属プロジェクトへの参照権限
+
+**Backlogロールとの関係**:
+- Team InsightのロールはBacklogのロール（管理者、一般ユーザー等）とは**完全に独立**
+- Backlogでの権限に関わらず、Team Insight内で個別に権限を設定可能
+- この設計により、Team Insight固有の機能（レポート配信、ダッシュボード管理等）に対する柔軟な権限制御を実現
+
+**管理方法**:
+
+**管理画面（GUI）**: http://localhost/admin/users でユーザー・ロール管理が可能です。
+
+**CLIツール（並行して利用可能）**:
+```bash
+make set-admin EMAIL=user@example.com       # ユーザーを管理者に設定
+make set-role EMAIL=user@example.com ROLE=PROJECT_LEADER  # ロール設定
+make list-users     # 全ユーザーとロールを一覧表示
+make remove-role EMAIL=user@example.com ROLE=MEMBER # ロール削除
+make init-admin     # 環境変数から初期管理者を設定
+```
+
+#### ユーザーステータス管理
+
+Team Insightでは、ユーザーのログイン可否を`is_active`フラグで管理しています。
+
+**ステータスの種類**:
+- **ログイン可（is_active = true）**: ユーザーがシステムにログインできる状態
+- **ログイン不可（is_active = false）**: ユーザーがシステムにログインできない状態
+
+**使用場面**:
+1. **退職・休職時**: 従業員が退職または休職した際に、一時的にアクセスを停止
+2. **セキュリティ対応**: 不正アクセスの疑いがある場合の緊急アカウント停止
+3. **ライセンス管理**: 利用人数に制限がある場合の調整
+4. **一時的な利用停止**: プロジェクト終了後もデータ履歴は残したいが、アクセスは制限したい場合
+
+**管理方法**:
+- 管理画面（http://localhost/admin/users）から各ユーザーのステータスを変更可能
+- フィルター機能で「ログイン可」「ログイン不可」のユーザーを絞り込み表示
+
+**注意事項**:
+- Backlog OAuth認証を使用しているため、Backlog側でもアカウントが有効である必要があります
+- このフラグはTeam Insight側での追加的なアクセス制御として機能します
 
 ### バックエンド開発
 
@@ -214,12 +337,14 @@ class YourFeatureResponse(BaseModel):
 from sqlalchemy import Column, Integer, String
 from app.db.base_class import Base
 
-class YourFeature(Base):
+class YourFeature(BaseModel):
     """データベースモデル"""
     __tablename__ = "your_features"
+    __table_args__ = {"schema": "team_insight"}
 
-    id = Column(Integer, primary_key=True, index=True)
+    # idは BaseModel で定義済み
     name = Column(String(255), nullable=False)
+    # created_at, updated_at も BaseModel で定義済み
 ```
 
 3. **サービスの実装** (`app/services/your_feature_service.py`):
@@ -319,54 +444,42 @@ class YourFeatureService {
 export const yourFeatureService = new YourFeatureService();
 ```
 
-3. **Redux Slice** (`src/store/slices/yourFeatureSlice.ts`):
+3. **React Query Hook** (`src/hooks/queries/useYourFeature.ts`):
 
 ```typescript
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import { yourFeatureService } from "@/services/your-feature.service";
-import { YourFeature } from "@/types/your-feature";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { yourFeatureService } from '@/services/your-feature.service'
+import { YourFeature } from '@/types/your-feature'
+import { queryKeys } from '@/lib/react-query'
+import { useToast } from '@/hooks/use-toast'
 
-interface YourFeatureState {
-  items: YourFeature[];
-  loading: boolean;
-  error: string | null;
+export const useYourFeatures = () => {
+  return useQuery({
+    queryKey: queryKeys.yourFeature.all,
+    queryFn: () => yourFeatureService.getAll(),
+    staleTime: 5 * 60 * 1000, // 5分
+  })
 }
 
-const initialState: YourFeatureState = {
-  items: [],
-  loading: false,
-  error: null,
-};
-
-export const fetchYourFeatures = createAsyncThunk(
-  "yourFeature/fetchAll",
-  async () => {
-    return await yourFeatureService.getAll();
-  }
-);
-
-const yourFeatureSlice = createSlice({
-  name: "yourFeature",
-  initialState,
-  reducers: {},
-  extraReducers: (builder) => {
-    builder
-      .addCase(fetchYourFeatures.pending, (state) => {
-        state.loading = true;
-        state.error = null;
+export const useCreateYourFeature = () => {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  
+  return useMutation({
+    mutationFn: yourFeatureService.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.yourFeature.all })
+      toast({ title: '作成しました' })
+    },
+    onError: (error) => {
+      toast({ 
+        title: 'エラー',
+        description: getApiErrorMessage(error),
+        variant: 'destructive'
       })
-      .addCase(fetchYourFeatures.fulfilled, (state, action) => {
-        state.loading = false;
-        state.items = action.payload;
-      })
-      .addCase(fetchYourFeatures.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || "エラーが発生しました";
-      });
-  },
-});
-
-export default yourFeatureSlice.reducer;
+    }
+  })
+}
 ```
 
 4. **ページコンポーネント** (`src/app/your-feature/page.tsx`):
@@ -374,24 +487,15 @@ export default yourFeatureSlice.reducer;
 ```typescript
 "use client";
 
-import { useEffect } from "react";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { fetchYourFeatures } from "@/store/slices/yourFeatureSlice";
+import { useYourFeatures } from "@/hooks/queries/useYourFeature";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function YourFeaturePage() {
-  const dispatch = useAppDispatch();
-  const { items, loading, error } = useAppSelector(
-    (state) => state.yourFeature
-  );
+  const { data: items, isLoading, error } = useYourFeatures();
 
-  useEffect(() => {
-    dispatch(fetchYourFeatures());
-  }, [dispatch]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="container mx-auto p-6">
         <Skeleton className="h-[200px] w-full" />
@@ -403,7 +507,7 @@ export default function YourFeaturePage() {
     return (
       <div className="container mx-auto p-6">
         <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{getApiErrorMessage(error)}</AlertDescription>
         </Alert>
       </div>
     );
@@ -413,7 +517,7 @@ export default function YourFeaturePage() {
     <div className="container mx-auto p-6">
       <h1 className="text-3xl font-bold mb-6">Your Feature</h1>
       <div className="grid gap-4">
-        {items.map((item) => (
+        {items?.map((item) => (
           <Card key={item.id}>
             <CardHeader>
               <CardTitle>{item.name}</CardTitle>
@@ -619,6 +723,8 @@ yarn test src/services/__tests__/health.service.test.ts
 
 > 注意: プロジェクトではYarn v4 (Berry)を使用してテストを実行します。
 
+**詳細なテストガイド**: フロントエンドテストの詳細（setupTests.ts、モックの使用方法、ベストプラクティス）については、[frontend/docs/testing.md](frontend/docs/testing.md)を参照してください。
+
 ## アーキテクチャ
 
 ### システム構成図
@@ -695,7 +801,7 @@ docker-compose up -d
 
 ### 開発のヒント
 
-1. **API ドキュメント**: http://localhost:8000/docs で対話的に API をテスト
+1. **API ドキュメント**: http://localhost/api/v1/docs で対話的に API をテスト（Nginx経由）
 2. **Redux DevTools**: ブラウザ拡張機能で状態管理をデバッグ
 3. **Docker logs**: `docker-compose logs -f [service]` でリアルタイムログ確認
 4. **Hot Reload**: フロントエンド・バックエンドともに自動リロード対応
@@ -737,6 +843,37 @@ jest.mock("@/config/env", () => ({
 ```
 
 これは実際のNginxを経由せずに、バックエンドAPIを直接モックするためです。
+
+## トラブルシューティング
+
+### 認証関連
+
+#### 別のBacklogスペースでログイン中の場合
+
+Team Insightは特定のBacklogスペース（設定されたスペース）専用のツールです。別のBacklogスペースのアカウントでログインしている場合、以下の手順で対処してください：
+
+1. **エラーメッセージが表示される場合**
+   - ログイン時に「このBacklogスペースへのアクセス権限がありません」というエラーが表示されます
+   - これは正常な動作で、別のスペースのアカウントでログインしているためです
+
+2. **対処方法**
+   別のBacklogアカウントでログインする必要がある場合は、以下のいずれかの方法をご利用ください：
+   - **プライベートブラウジング（推奨）**: 新しいプライベート/シークレットウィンドウでアクセス
+   - **別のブラウザを使用**: Chrome、Firefox、Safari など異なるブラウザでアクセス
+   - **Cookieをクリア**: ブラウザの設定から nulab.com のCookieを削除してからアクセス
+
+3. **技術的な制約**
+   - Backlog/Nulabの認証はドメインが異なるため、事前に別スペースでのログイン状態を検知できません
+   - そのため、認証後にスペースの確認を行い、適切なエラーメッセージを表示します
+
+#### CORSエラーについて
+
+Nulab認証ページで以下のようなエラーが表示されることがあります：
+```
+Unsafe attempt to load URL https://d1lvv0q42gy9jf.cloudfront.net/...
+```
+
+これはNulab側の実装に起因するもので、Team Insightの動作には影響しません。無視して問題ありません。
 
 ## コントリビューション
 

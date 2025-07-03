@@ -8,12 +8,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FolderOpen, Home, LogOut, Menu, Settings, Users } from "lucide-react";
+import { FolderOpen, Home, LogOut, Menu, Settings, Users, UserCircle, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { PrivateRoute } from "./PrivateRoute";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -21,6 +22,7 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const { user, logout, isAuthenticated, isInitialized } = useAuth();
+  const permissions = usePermissions();
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -104,10 +106,36 @@ export function Layout({ children }: LayoutProps) {
                         </div>
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem>
-                        <Settings className="mr-2 h-4 w-4" />
-                        <span>設定</span>
+                      <DropdownMenuItem asChild>
+                        <Link href="/settings/profile">
+                          <UserCircle className="mr-2 h-4 w-4" />
+                          <span>プロフィール</span>
+                        </Link>
                       </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/settings">
+                          <Settings className="mr-2 h-4 w-4" />
+                          <span>設定</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      {permissions.isAdmin() && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuLabel className="text-xs">管理者メニュー</DropdownMenuLabel>
+                          <DropdownMenuItem asChild>
+                            <Link href="/admin/users">
+                              <Users className="mr-2 h-4 w-4" />
+                              <span>ユーザー管理</span>
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href="/admin/teams">
+                              <Users className="mr-2 h-4 w-4" />
+                              <span>チーム管理</span>
+                            </Link>
+                          </DropdownMenuItem>
+                        </>
+                      )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleLogout}>
                         <LogOut className="mr-2 h-4 w-4" />
@@ -149,10 +177,35 @@ export function Layout({ children }: LayoutProps) {
                     </Link>
                   );
                 })}
+                {permissions.isAdmin() && (
+                  <>
+                    <div className="my-2 border-t border-border" />
+                    <div className="px-3 py-2 text-xs font-semibold text-muted-foreground">
+                      管理者メニュー
+                    </div>
+                    <Link
+                      href="/admin/users"
+                      className="flex items-center space-x-2 rounded-md px-3 py-2 text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <Users className="h-4 w-4" />
+                      <span>ユーザー管理</span>
+                    </Link>
+                    <Link
+                      href="/admin/teams"
+                      className="flex items-center space-x-2 rounded-md px-3 py-2 text-base font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <Users className="h-4 w-4" />
+                      <span>チーム管理</span>
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           )}
         </nav>
+
 
         <main className="flex-1">{children}</main>
       </div>

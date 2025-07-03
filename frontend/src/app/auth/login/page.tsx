@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
-import { LoginContent } from "./LoginContent";
+import { SimpleLoginContent } from "./SimpleLoginContent";
 
 export default function LoginPage() {
   return (
@@ -15,7 +15,7 @@ export default function LoginPage() {
         </div>
       }
     >
-      <LoginContent />
+      <SimpleLoginContent />
     </Suspense>
   );
 }

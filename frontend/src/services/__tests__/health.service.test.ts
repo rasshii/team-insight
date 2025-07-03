@@ -8,7 +8,7 @@ const mockedAxios = axios as jest.Mocked<typeof axios>;
 // 環境変数のモック
 jest.mock("@/config/env", () => ({
   env: {
-    get: jest.fn().mockReturnValue("http://localhost:8000"),
+    get: jest.fn().mockReturnValue("http://localhost"),
   },
 }));
 
@@ -44,7 +44,7 @@ describe("HealthService", () => {
 
       // 検証
       expect(mockedAxios.get).toHaveBeenCalledWith(
-        "http://localhost:8000/health",
+        "http://localhost/health",
         { timeout: 5000 }
       );
       expect(result).toEqual(mockResponse);

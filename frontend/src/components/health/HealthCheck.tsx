@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { healthService, HealthStatus, HealthCheckError } from "@/services/health.service";
+import React from "react";
+import { healthUtils } from "@/services/health.service";
+import { useHealthCheck } from "@/hooks/queries/useHealth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, CheckCircle2, RefreshCw, Server, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * ヘルスチェックコンポーネント
@@ -15,37 +17,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
  * APIとRedisの状態をリアルタイムで監視できます。
  */
 export const HealthCheck: React.FC = () => {
-  const [status, setStatus] = useState<HealthStatus | null>(null);
-  const [error, setError] = useState<HealthCheckError | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [lastChecked, setLastChecked] = useState<Date | null>(null);
-
-  // ヘルスチェックを実行
-  const checkHealth = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const healthStatus = await healthService.checkHealth();
-      setStatus(healthStatus);
-      setLastChecked(new Date());
-    } catch (err) {
-      setError(err as HealthCheckError);
-      setStatus(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 初回実行と定期的な更新
-  useEffect(() => {
-    checkHealth();
-
-    // 30秒ごとに自動更新
-    const interval = setInterval(checkHealth, 30000);
-
-    return () => clearInterval(interval);
-  }, []);
+  const { data: status, isLoading, error, refetch, dataUpdatedAt } = useHealthCheck();
 
   // ステータスに応じたアイコンを取得
   const getStatusIcon = (isHealthy: boolean) => {
@@ -69,17 +41,17 @@ export const HealthCheck: React.FC = () => {
           <Button
             variant="ghost"
             size="icon"
-            onClick={checkHealth}
-            disabled={loading}
+            onClick={() => refetch()}
+            disabled={isLoading}
             className="h-8 w-8"
           >
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
           </Button>
         </div>
         <CardDescription>
-          {lastChecked && (
+          {dataUpdatedAt && (
             <span className="text-xs">
-              最終確認: {lastChecked.toLocaleTimeString("ja-JP")}
+              最終確認: {new Date(dataUpdatedAt).toLocaleTimeString("ja-JP")}
             </span>
           )}
         </CardDescription>
@@ -88,7 +60,7 @@ export const HealthCheck: React.FC = () => {
         {error && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{healthService.getErrorMessage(error)}</AlertDescription>
+            <AlertDescription>{healthUtils.getErrorMessage(error)}</AlertDescription>
           </Alert>
         )}
 
@@ -98,9 +70,9 @@ export const HealthCheck: React.FC = () => {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">全体</span>
               <div className="flex items-center gap-2">
-                {getStatusIcon(healthService.isHealthy(status))}
-                <Badge variant={getBadgeVariant(healthService.isHealthy(status))}>
-                  {healthService.getStatusMessage(status.status)}
+                {getStatusIcon(healthUtils.isHealthy(status))}
+                <Badge variant={getBadgeVariant(healthUtils.isHealthy(status))}>
+                  {healthUtils.getStatusMessage(status.status)}
                 </Badge>
               </div>
             </div>
@@ -119,7 +91,7 @@ export const HealthCheck: React.FC = () => {
                     variant={getBadgeVariant(status.services.api === "healthy")}
                     className="text-xs"
                   >
-                    {healthService.getStatusMessage(status.services.api)}
+                    {healthUtils.getStatusMessage(status.services.api)}
                   </Badge>
                 </div>
               </div>
@@ -136,7 +108,7 @@ export const HealthCheck: React.FC = () => {
                     variant={getBadgeVariant(status.services.redis === "healthy")}
                     className="text-xs"
                   >
-                    {healthService.getStatusMessage(status.services.redis)}
+                    {healthUtils.getStatusMessage(status.services.redis)}
                   </Badge>
                 </div>
               </div>
@@ -151,9 +123,11 @@ export const HealthCheck: React.FC = () => {
           </>
         )}
 
-        {loading && !status && !error && (
-          <div className="flex items-center justify-center py-8">
-            <RefreshCw className="h-8 w-8 animate-spin text-gray-400" />
+        {isLoading && !status && (
+          <div className="space-y-3">
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
           </div>
         )}
       </CardContent>

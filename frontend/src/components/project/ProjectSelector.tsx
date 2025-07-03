@@ -1,5 +1,6 @@
 // frontend/src/components/project/ProjectSelector.tsx
 
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -9,21 +10,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useProjects } from "@/hooks/useProjects";
-import { AlertCircle, Folder, Users } from "lucide-react";
+import { useProjects } from "@/hooks/queries/useProjects";
+import { AlertCircle, Folder } from "lucide-react";
 
 export function ProjectSelector() {
-  const { projects, selectedProject, loading, error, selectProject } =
-    useProjects();
+  const { data, isLoading, error } = useProjects();
+  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>();
+  
+  const projects = data?.projects || [];
+  const selectedProject = projects.find((p) => p.id.toString() === selectedProjectId);
 
   // プロジェクト切り替え時の処理
   const handleProjectChange = (projectId: string) => {
-    const id = parseInt(projectId, 10);
-    console.log(`📁 プロジェクトを切り替え: ${id}`);
-    selectProject(id);
+    console.log(`📁 プロジェクトを切り替え: ${projectId}`);
+    setSelectedProjectId(projectId);
   };
 
-  if (loading) {
+  if (isLoading) {
     return <Skeleton className="w-[300px] h-10" />;
   }
 
@@ -31,7 +34,7 @@ export function ProjectSelector() {
     return (
       <div className="flex items-center gap-2 text-red-600">
         <AlertCircle className="w-4 h-4" />
-        <span className="text-sm">{error}</span>
+        <span className="text-sm">{error instanceof Error ? error.message : 'エラーが発生しました'}</span>
       </div>
     );
   }
@@ -61,20 +64,16 @@ export function ProjectSelector() {
               <div className="flex items-center gap-2">
                 <Folder className="w-4 h-4 text-gray-500" />
                 <span className="font-medium">{project.name}</span>
-                <span className="text-gray-500">({project.key})</span>
+                <span className="text-gray-500">({project.project_key})</span>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-xs">
-                  <Users className="w-3 h-3 mr-1" />
-                  {project.memberCount}
-                </Badge>
-                {project.isActive ? (
+                {project.status === 'active' ? (
                   <Badge variant="default" className="text-xs">
                     アクティブ
                   </Badge>
                 ) : (
-                  <Badge variant="default" className="text-xs">
-                    非アクティブ
+                  <Badge variant="secondary" className="text-xs">
+                    アーカイブ
                   </Badge>
                 )}
               </div>
