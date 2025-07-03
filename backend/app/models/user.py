@@ -16,6 +16,11 @@ class User(BaseModel):
     backlog_id = Column(Integer, unique=True, index=True, nullable=True)
     user_id = Column(String, unique=True, index=True, nullable=True)
     name = Column(String, nullable=True)
+    
+    # ユーザー設定
+    timezone = Column(String(50), default='Asia/Tokyo')
+    locale = Column(String(10), default='ja')
+    date_format = Column(String(20), default='YYYY-MM-DD')
 
     oauth_tokens = relationship(
         "OAuthToken", back_populates="user", cascade="all, delete-orphan"
@@ -31,6 +36,15 @@ class User(BaseModel):
     )
     team_memberships = relationship(
         "TeamMember", back_populates="user", cascade="all, delete-orphan"
+    )
+    preferences = relationship(
+        "UserPreferences", back_populates="user", cascade="all, delete-orphan", uselist=False
+    )
+    login_history = relationship(
+        "LoginHistory", back_populates="user", cascade="all, delete-orphan"
+    )
+    activity_logs = relationship(
+        "ActivityLog", back_populates="user", cascade="all, delete-orphan"
     )
 
     @property

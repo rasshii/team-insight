@@ -5,12 +5,13 @@
 認証URLの生成、コールバック処理、トークンのリフレッシュなどを処理します。
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Response, Request
 from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 import logging
+import secrets
 from zoneinfo import ZoneInfo
 
 from app.api.deps import get_db_session
@@ -204,7 +205,8 @@ async def get_authorization_url(
 
 @router.post("/backlog/callback", response_model=TokenResponse)
 async def handle_callback(
-    request: CallbackRequest, 
+    request: CallbackRequest,
+    http_request: Request,
     db: Session = Depends(get_db_session),
     auth_service: BacklogAuthService = Depends(get_auth_service)
 ):

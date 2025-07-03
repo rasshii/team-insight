@@ -41,6 +41,9 @@ class UserResponse(UserBase):
     backlog_id: Optional[int] = Field(None, description="BacklogユーザーID")
     user_id: Optional[str] = Field(None, description="BacklogユーザーID（文字列）")
     user_roles: List[UserRoleResponse] = Field(default_factory=list, description="ユーザーのロール一覧")
+    timezone: str = Field('Asia/Tokyo', description="タイムゾーン")
+    locale: str = Field('ja', description="言語設定")
+    date_format: str = Field('YYYY-MM-DD', description="日付フォーマット")
     created_at: datetime = Field(..., description="作成日時")
     updated_at: datetime = Field(..., description="更新日時")
 

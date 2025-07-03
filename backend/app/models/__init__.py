@@ -7,3 +7,4 @@ from .team import Team, TeamMember, TeamRole
 from .report_schedule import ReportSchedule, ReportDeliveryHistory
 from .sync_history import SyncHistory, SyncType, SyncStatus
 from .settings import SystemSetting
+from .user_preferences import UserPreferences, LoginHistory, ActivityLog
