@@ -12,7 +12,7 @@ import {
 } from '@/types/user-settings'
 
 export class UserSettingsService {
-  private baseUrl = '/users'
+  private baseUrl = '/api/v1/users'
 
   /**
    * 現在のユーザーの設定を取得

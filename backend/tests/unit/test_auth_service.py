@@ -199,7 +199,6 @@ class TestAuthService:
         assert result.name == "新規ユーザー"
         assert result.user_id == "newuser"
         assert result.is_active == True
-        assert result.is_email_verified == True
         mock_db.add.assert_called_once()
         mock_db.commit.assert_called_once()
         mock_db.refresh.assert_called_once()

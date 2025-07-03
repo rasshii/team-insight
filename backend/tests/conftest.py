@@ -26,10 +26,17 @@ def clean_database():
     try:
         # テスト前にクリーンアップ
         # 外部キー制約の順序を考慮して削除
+        db.execute(text("DELETE FROM team_insight.activity_logs"))
+        db.execute(text("DELETE FROM team_insight.login_history"))
+        db.execute(text("DELETE FROM team_insight.report_delivery_history"))
+        db.execute(text("DELETE FROM team_insight.report_schedules"))
         db.execute(text("DELETE FROM team_insight.tasks"))
         db.execute(text("DELETE FROM team_insight.sync_histories"))
+        db.execute(text("DELETE FROM team_insight.team_members"))
+        db.execute(text("DELETE FROM team_insight.teams"))
         db.execute(text("DELETE FROM team_insight.project_members"))
         db.execute(text("DELETE FROM team_insight.user_roles"))
+        db.execute(text("DELETE FROM team_insight.user_preferences"))
         db.execute(delete(OAuthToken))
         db.execute(delete(OAuthState))
         db.execute(delete(Project))
@@ -58,10 +65,17 @@ def clean_database():
     
     try:
         # テスト後にもクリーンアップ
+        db.execute(text("DELETE FROM team_insight.activity_logs"))
+        db.execute(text("DELETE FROM team_insight.login_history"))
+        db.execute(text("DELETE FROM team_insight.report_delivery_history"))
+        db.execute(text("DELETE FROM team_insight.report_schedules"))
         db.execute(text("DELETE FROM team_insight.tasks"))
         db.execute(text("DELETE FROM team_insight.sync_histories"))
+        db.execute(text("DELETE FROM team_insight.team_members"))
+        db.execute(text("DELETE FROM team_insight.teams"))
         db.execute(text("DELETE FROM team_insight.project_members"))
         db.execute(text("DELETE FROM team_insight.user_roles"))
+        db.execute(text("DELETE FROM team_insight.user_preferences"))
         db.execute(delete(OAuthToken))
         db.execute(delete(OAuthState))
         db.execute(delete(Project))
@@ -81,7 +95,6 @@ def test_user():
     db = SessionLocal()
     user = User(
         email="test@example.com",
-        hashed_password="dummy_hashed_password",
         full_name="テストユーザー",
         is_active=True,
         is_superuser=False,
