@@ -16,10 +16,13 @@ import { TeamActivityTimeline } from '@/components/teams/TeamActivityTimeline'
 import { Layout } from '@/components/Layout'
 import { usePermissions } from '@/hooks/usePermissions'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { MetricTooltip, MetricLabel } from '@/components/ui/metric-tooltip'
 
 export default function TeamsProductivityPage() {
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null)
   const permissions = usePermissions()
+  const router = useRouter()
   
   const { data: teamsData, isLoading: teamsLoading } = useTeams({ with_stats: true })
   const { data: teamDetail, isLoading: teamLoading } = useTeam(selectedTeamId || 0)
@@ -109,7 +112,9 @@ export default function TeamsProductivityPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">アクティブタスク</CardTitle>
+            <MetricLabel metric="activeTasks" className="text-sm font-medium">
+              アクティブタスク
+            </MetricLabel>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -135,7 +140,9 @@ export default function TeamsProductivityPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">平均生産性</CardTitle>
+            <MetricLabel metric="teamProductivity" className="text-sm font-medium">
+              平均生産性
+            </MetricLabel>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -171,24 +178,32 @@ export default function TeamsProductivityPage() {
             <CardContent>
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">アクティブタスク</p>
+                  <MetricLabel metric="activeTasks" className="text-sm font-medium">
+                    アクティブタスク
+                  </MetricLabel>
                   <div className="flex items-center gap-2">
-                    <Progress value={30} className="flex-1" />
+                    <Progress value={teamDetail.active_tasks_count ? (teamDetail.active_tasks_count / (teamDetail.active_tasks_count + teamDetail.completed_tasks_this_month) * 100) : 0} className="flex-1" />
                     <span className="text-sm font-bold">{teamDetail.active_tasks_count}</span>
                   </div>
                 </div>
                 <div className="space-y-2">
                   <p className="text-sm font-medium">今月の完了タスク</p>
                   <div className="flex items-center gap-2">
-                    <Progress value={70} className="flex-1" />
+                    <Progress value={teamDetail.completed_tasks_this_month ? (teamDetail.completed_tasks_this_month / (teamDetail.active_tasks_count + teamDetail.completed_tasks_this_month) * 100) : 0} className="flex-1" />
                     <span className="text-sm font-bold">{teamDetail.completed_tasks_this_month}</span>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">効率性スコア</p>
+                  <MetricLabel 
+                    metric="efficiencyScore" 
+                    className="text-sm font-medium"
+                  >
+                    効率性スコア
+                  </MetricLabel>
                   <div className="flex items-center gap-2">
                     <Progress value={85} className="flex-1" />
                     <span className="text-sm font-bold">85%</span>
+                    <Badge variant="secondary" className="text-xs">ダミー</Badge>
                   </div>
                 </div>
               </div>
@@ -205,18 +220,50 @@ export default function TeamsProductivityPage() {
             </TabsList>
 
             <TabsContent value="members" className="space-y-4">
+              <div className="flex items-center justify-between mb-4">
+                <MetricLabel 
+                  metric="memberPerformance"
+                  className="text-lg font-medium"
+                >
+                  メンバー別パフォーマンス分析
+                </MetricLabel>
+              </div>
               <TeamMemberPerformance teamId={selectedTeamId} members={teamDetail.members} />
             </TabsContent>
 
             <TabsContent value="distribution" className="space-y-4">
+              <div className="flex items-center justify-between mb-4">
+                <MetricLabel 
+                  metric="taskDistribution"
+                  className="text-lg font-medium"
+                >
+                  タスク分配分析
+                </MetricLabel>
+              </div>
               <TaskDistributionChart teamId={selectedTeamId} />
             </TabsContent>
 
             <TabsContent value="productivity" className="space-y-4">
+              <div className="flex items-center justify-between mb-4">
+                <MetricLabel 
+                  metric="productivityTrend"
+                  className="text-lg font-medium"
+                >
+                  生産性推移分析
+                </MetricLabel>
+              </div>
               <TeamProductivityChart teamId={selectedTeamId} />
             </TabsContent>
 
             <TabsContent value="timeline" className="space-y-4">
+              <div className="flex items-center justify-between mb-4">
+                <MetricLabel 
+                  metric="activityTimeline"
+                  className="text-lg font-medium"
+                >
+                  アクティビティタイムライン
+                </MetricLabel>
+              </div>
               <TeamActivityTimeline teamId={selectedTeamId} />
             </TabsContent>
           </Tabs>

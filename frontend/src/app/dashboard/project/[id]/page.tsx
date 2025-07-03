@@ -39,6 +39,7 @@ import { useProject, useSyncProjectTasks } from "@/hooks/queries/useProjects";
 import { toast } from "@/components/ui/use-toast";
 import { getTaskStatusLabel } from "@/lib/task-utils";
 import { useProjectStatuses } from "@/hooks/queries/useBacklog";
+import { MetricTooltip, MetricLabel } from "@/components/ui/metric-tooltip";
 
 interface ProjectDashboardPageProps {
   params: {
@@ -110,7 +111,7 @@ export default function ProjectDashboardPage({ params }: ProjectDashboardPagePro
     );
   }
 
-  if (!project) {
+  if (!project && !projectLoading) {
     return (
       <PrivateRoute>
         <Layout>
@@ -119,16 +120,24 @@ export default function ProjectDashboardPage({ params }: ProjectDashboardPagePro
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>エラー</AlertTitle>
               <AlertDescription>
-                プロジェクトが見つかりません
+                プロジェクトID: {projectId} が見つかりません。
+                プロジェクトが存在しないか、アクセス権限がありません。
               </AlertDescription>
             </Alert>
-            <Button
-              variant="ghost"
-              onClick={() => router.push('/projects')}
-              className="mt-4"
-            >
-              プロジェクト一覧に戻る
-            </Button>
+            <div className="mt-4 space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => router.push('/projects')}
+              >
+                プロジェクト一覧に戻る
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => window.location.reload()}
+              >
+                再読み込み
+              </Button>
+            </div>
           </div>
         </Layout>
       </PrivateRoute>
@@ -163,23 +172,17 @@ export default function ProjectDashboardPage({ params }: ProjectDashboardPagePro
               variant="outline" 
               size="sm"
               onClick={() => {
-                syncTasksMutation.mutate(projectId, {
-                  onSuccess: () => {
-                    toast({
-                      title: "同期完了",
-                      description: "タスクデータを最新の状態に更新しました。",
-                    });
-                  },
-                  onError: () => {
-                    toast({
-                      title: "同期エラー",
-                      description: "タスクの同期に失敗しました。",
-                      variant: "destructive",
-                    });
-                  }
-                });
+                if (!project) {
+                  toast({
+                    title: "エラー",
+                    description: "プロジェクトが見つかりません",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                syncTasksMutation.mutate(projectId);
               }}
-              disabled={syncTasksMutation.isPending}
+              disabled={syncTasksMutation.isPending || !project}
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${syncTasksMutation.isPending ? 'animate-spin' : ''}`} />
               {syncTasksMutation.isPending ? '同期中...' : 'タスクを同期'}
@@ -191,7 +194,9 @@ export default function ProjectDashboardPage({ params }: ProjectDashboardPagePro
             {/* 健康度スコア */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">健康度スコア</CardTitle>
+                <MetricLabel metric="healthScore" className="text-sm font-medium">
+                  健康度スコア
+                </MetricLabel>
                 <healthVariant.icon className={`h-5 w-5 ${healthVariant.color}`} />
               </CardHeader>
               <CardContent>
@@ -242,7 +247,9 @@ export default function ProjectDashboardPage({ params }: ProjectDashboardPagePro
             {/* ステータス分布 */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">ステータス分布</CardTitle>
+                <MetricLabel metric="statusDistribution" className="text-sm font-medium">
+                  ステータス分布
+                </MetricLabel>
                 <BarChart3 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -289,12 +296,16 @@ export default function ProjectDashboardPage({ params }: ProjectDashboardPagePro
           </div>
 
           {/* ボトルネック分析 */}
-          {bottlenecks && bottlenecks.length > 0 && (
+          {bottlenecks && bottlenecks.length > 0 ? (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Zap className="h-5 w-5" />
-                  ボトルネック分析
+                  <MetricLabel 
+                    metric="bottleneck"
+                  >
+                    ボトルネック分析
+                  </MetricLabel>
                 </CardTitle>
                 <CardDescription>
                   プロジェクトの進行を妨げている要因
@@ -304,17 +315,42 @@ export default function ProjectDashboardPage({ params }: ProjectDashboardPagePro
                 <BottleneckChart data={bottlenecks} />
               </CardContent>
             </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Zap className="h-5 w-5" />
+                  <MetricLabel 
+                    metric="bottleneck"
+                  >
+                    ボトルネック分析
+                  </MetricLabel>
+                </CardTitle>
+                <CardDescription>
+                  プロジェクトの進行を妨げている要因
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="h-[400px] flex items-center justify-center">
+                <div className="text-center text-muted-foreground">
+                  <AlertCircle className="h-12 w-12 mx-auto mb-2" />
+                  <p>ボトルネックデータがありません</p>
+                  <p className="text-sm mt-1">タスクを同期してください</p>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {/* ベロシティとサイクルタイム */}
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2">
             {/* ベロシティトレンド */}
-            {velocity && velocity.length > 0 && (
+            {velocity && velocity.length > 0 ? (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <TrendingUp className="h-5 w-5" />
-                    ベロシティトレンド
+                    <MetricLabel metric="velocity">
+                      ベロシティトレンド
+                    </MetricLabel>
                   </CardTitle>
                   <CardDescription>
                     日別完了タスク数の推移
@@ -330,15 +366,38 @@ export default function ProjectDashboardPage({ params }: ProjectDashboardPagePro
                   />
                 </CardContent>
               </Card>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    <MetricLabel metric="velocity">
+                      ベロシティトレンド
+                    </MetricLabel>
+                  </CardTitle>
+                  <CardDescription>
+                    日別完了タスク数の推移
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="h-[300px] flex items-center justify-center">
+                  <div className="text-center text-muted-foreground">
+                    <BarChart3 className="h-12 w-12 mx-auto mb-2" />
+                    <p>ベロシティデータがありません</p>
+                    <p className="text-sm mt-1">タスクを同期してください</p>
+                  </div>
+                </CardContent>
+              </Card>
             )}
 
             {/* サイクルタイム分析 */}
-            {cycleTime && (
+            {cycleTime && Object.keys(cycleTime.cycle_times || {}).length > 0 ? (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Clock className="h-5 w-5" />
-                    サイクルタイム分析
+                    <MetricLabel metric="cycleTime">
+                      サイクルタイム分析
+                    </MetricLabel>
                   </CardTitle>
                   <CardDescription>
                     各ステータスでの平均滞留時間
@@ -362,6 +421,27 @@ export default function ProjectDashboardPage({ params }: ProjectDashboardPagePro
                         />
                       </div>
                     ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock className="h-5 w-5" />
+                    <MetricLabel metric="cycleTime">
+                      サイクルタイム分析
+                    </MetricLabel>
+                  </CardTitle>
+                  <CardDescription>
+                    各ステータスでの平均滞留時間
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="h-[300px] flex items-center justify-center">
+                  <div className="text-center text-muted-foreground">
+                    <Clock className="h-12 w-12 mx-auto mb-2" />
+                    <p>サイクルタイムデータがありません</p>
+                    <p className="text-sm mt-1">タスクを同期してください</p>
                   </div>
                 </CardContent>
               </Card>

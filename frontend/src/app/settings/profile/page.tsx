@@ -1,205 +1,233 @@
 "use client";
 
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Mail, CheckCircle, XCircle } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { CheckCircle, Mail, User, Hash, Users, Folder } from "lucide-react";
 import { useAppSelector } from "@/store/hooks";
-import { useRequestEmailVerification, useResendVerificationEmail } from "@/hooks/queries/useAuth";
-import { toast } from "@/components/ui/use-toast";
-
-const emailSchema = z.object({
-  email: z.string().email("有効なメールアドレスを入力してください"),
-});
-
-type EmailFormData = z.infer<typeof emailSchema>;
+import { Layout } from "@/components/Layout";
+import { PrivateRoute } from "@/components/PrivateRoute";
+import { useProjects } from "@/hooks/queries/useProjects";
+import { Skeleton } from "@/components/ui/skeleton";
+import { MetricLabel } from "@/components/ui/metric-tooltip";
 
 export default function ProfileSettingsPage() {
   const user = useAppSelector((state) => state.auth.user);
-  const [verificationSent, setVerificationSent] = useState(false);
-  const requestEmailVerificationMutation = useRequestEmailVerification();
-  const resendVerificationEmailMutation = useResendVerificationEmail();
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm<EmailFormData>({
-    resolver: zodResolver(emailSchema),
-    defaultValues: {
-      email: user?.email || "",
-    },
-  });
-
-  const onSubmit = (data: EmailFormData) => {
-    if (data.email === user?.email && user?.is_email_verified) {
-      toast({
-        title: "変更なし",
-        description: "メールアドレスは既に検証済みです",
-      });
-      return;
-    }
-
-    requestEmailVerificationMutation.mutate(
-      { email: data.email },
-      {
-        onSuccess: () => {
-          setVerificationSent(true);
-        },
-      }
-    );
-  };
+  const { data: projectsData, isLoading: projectsLoading } = useProjects();
 
   if (!user) {
     return null;
   }
 
+  // プロジェクトIDから名前を取得するヘルパー関数
+  const getProjectName = (projectId: number) => {
+    if (!projectsData) return `プロジェクトID: ${projectId}`;
+    const project = projectsData.projects.find(p => p.id === projectId);
+    return project ? project.name : `プロジェクトID: ${projectId}`;
+  };
+
   return (
-    <div className="container mx-auto py-8 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-8">プロフィール設定</h1>
+    <PrivateRoute>
+      <Layout>
+        <div className="container mx-auto py-8 max-w-4xl">
+          <h1 className="text-3xl font-bold mb-8">プロフィール設定</h1>
 
-      <div className="space-y-6">
-        {/* ユーザー基本情報 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>基本情報</CardTitle>
-            <CardDescription>Backlogアカウントから取得した情報</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label>名前</Label>
-              <p className="text-sm text-muted-foreground">{user.name}</p>
-            </div>
-            <div>
-              <Label>ユーザーID</Label>
-              <p className="text-sm text-muted-foreground">{user.user_id}</p>
-            </div>
-            <div>
-              <Label>BacklogID</Label>
-              <p className="text-sm text-muted-foreground">{user.backlog_id}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* メールアドレス設定 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>メールアドレス</CardTitle>
-            <CardDescription>
-              通知やレポートの送信に使用されます
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="email">メールアドレス</Label>
-                  {user.is_email_verified ? (
-                    <Badge variant="default" className="flex items-center gap-1">
-                      <CheckCircle className="h-3 w-3" />
-                      検証済み
-                    </Badge>
-                  ) : user.email ? (
-                    <Badge variant="secondary" className="flex items-center gap-1">
-                      <XCircle className="h-3 w-3" />
-                      未検証
-                    </Badge>
-                  ) : null}
+          <div className="space-y-6">
+            {/* ユーザー基本情報 */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  基本情報
+                </CardTitle>
+                <CardDescription>Backlogアカウントから取得した情報</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>名前</Label>
+                  <p className="text-lg font-medium mt-1">{user.name}</p>
                 </div>
-                <Input
-                  id="email"
-                  type="email"
-                  {...register("email")}
-                  placeholder="your-email@example.com"
-                />
-                {errors.email && (
-                  <p className="text-sm text-red-500">{errors.email.message}</p>
-                )}
-              </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <Label>ユーザーID</Label>
+                    <p className="text-sm text-muted-foreground mt-1">{user.user_id}</p>
+                  </div>
+                  <div>
+                    <Label>BacklogID</Label>
+                    <p className="text-sm text-muted-foreground mt-1">{user.backlog_id}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-              {verificationSent && (
-                <Alert className="border-blue-200 bg-blue-50">
-                  <Mail className="h-4 w-4 text-blue-600" />
-                  <AlertDescription className="text-blue-800">
-                    検証メールを送信しました。メールをご確認ください。
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              <div className="flex gap-2">
-                <Button type="submit" disabled={requestEmailVerificationMutation.isPending}>
-                  {requestEmailVerificationMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      送信中...
-                    </>
-                  ) : (
-                    "メールアドレスを更新"
-                  )}
-                </Button>
-                {user.email && !user.is_email_verified && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => resendVerificationEmailMutation.mutate()}
-                    disabled={resendVerificationEmailMutation.isPending}
-                  >
-                    {resendVerificationEmailMutation.isPending ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        送信中...
-                      </>
-                    ) : (
-                      "検証メールを再送信"
-                    )}
-                  </Button>
-                )}
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-
-        {/* ロール情報 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>ロールと権限</CardTitle>
-            <CardDescription>
-              あなたに割り当てられているロール
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {user.user_roles.length > 0 ? (
-                user.user_roles.map((userRole) => (
-                  <div key={userRole.id} className="flex items-center gap-2">
-                    <Badge>{userRole.role.name}</Badge>
-                    <span className="text-sm text-muted-foreground">
-                      {userRole.role.description}
-                    </span>
-                    {userRole.project_id && (
-                      <span className="text-sm text-muted-foreground">
-                        (プロジェクト限定)
-                      </span>
+            {/* メールアドレス情報 */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="h-5 w-5" />
+                  メールアドレス
+                </CardTitle>
+                <CardDescription>
+                  Backlogアカウントに登録されているメールアドレス
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <p className="text-lg font-medium">{user.email || "未設定"}</p>
+                    {user.email && (
+                      <p className="text-sm text-muted-foreground">
+                        レポート配信やシステム通知はこのアドレスに送信されます
+                      </p>
                     )}
                   </div>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  ロールが割り当てられていません
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+                  {user.email && (
+                    <Badge variant="default" className="flex items-center gap-1">
+                      <CheckCircle className="h-3 w-3" />
+                      Backlog連携
+                    </Badge>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* ロール情報 */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  ロールと権限
+                </CardTitle>
+                <CardDescription>
+                  Team Insightでのアクセス権限
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {user.user_roles && user.user_roles.length > 0 ? (
+                    <>
+                      <div className="space-y-2">
+                        <MetricLabel metric="globalRole">
+                          グローバルロール
+                        </MetricLabel>
+                        {user.user_roles
+                          .filter(userRole => !userRole.project_id)
+                          .map((userRole) => (
+                            <div key={userRole.id} className="p-3 bg-muted/50 rounded-lg space-y-1">
+                              <div className="flex items-center gap-2">
+                                <Badge 
+                                  variant={userRole.role.name === 'ADMIN' ? 'destructive' : 
+                                          userRole.role.name === 'PROJECT_LEADER' ? 'default' : 'secondary'}
+                                >
+                                  {userRole.role.name === 'ADMIN' ? '管理者' :
+                                   userRole.role.name === 'PROJECT_LEADER' ? 'プロジェクトリーダー' :
+                                   userRole.role.name === 'MEMBER' ? 'メンバー' :
+                                   userRole.role.name}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  全プロジェクト共通
+                                </span>
+                              </div>
+                              {userRole.role.description && (
+                                <p className="text-sm text-muted-foreground">
+                                  {userRole.role.description}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        {user.user_roles.filter(ur => !ur.project_id).length === 0 && (
+                          <p className="text-sm text-muted-foreground">なし</p>
+                        )}
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <MetricLabel metric="projectRole">
+                          プロジェクトロール
+                        </MetricLabel>
+                        {projectsLoading ? (
+                          <div className="space-y-2">
+                            <Skeleton className="h-6 w-48" />
+                            <Skeleton className="h-6 w-48" />
+                          </div>
+                        ) : (
+                          <>
+                            {user.user_roles
+                              .filter(userRole => userRole.project_id)
+                              .map((userRole) => (
+                                <div key={userRole.id} className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <Folder className="h-4 w-4 text-muted-foreground" />
+                                    <span className="font-medium">
+                                      {getProjectName(userRole.project_id!)}
+                                    </span>
+                                  </div>
+                                  <div className="ml-6 flex items-center gap-2">
+                                    <Badge variant="secondary">
+                                      {userRole.role.name}
+                                    </Badge>
+                                    {userRole.role.description && (
+                                      <span className="text-sm text-muted-foreground">
+                                        {userRole.role.description}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            {user.user_roles.filter(ur => ur.project_id).length === 0 && (
+                              <p className="text-sm text-muted-foreground">なし</p>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      ロールが割り当てられていません
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* アカウント状態 */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Hash className="h-5 w-5" />
+                  アカウント状態
+                </CardTitle>
+                <CardDescription>
+                  アカウントのステータス情報
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>ログイン状態</Label>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      システムへのアクセス可否
+                    </p>
+                  </div>
+                  <Badge variant={user.is_active ? "default" : "destructive"}>
+                    {user.is_active ? "有効" : "無効"}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>連携状態</Label>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Backlog APIとの接続状態
+                    </p>
+                  </div>
+                  <Badge variant="default">
+                    接続済み
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </Layout>
+    </PrivateRoute>
   );
 }

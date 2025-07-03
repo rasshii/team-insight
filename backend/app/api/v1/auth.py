@@ -101,7 +101,8 @@ def _build_user_response(user: User, access_token: str = None, db: Session = Non
         name=user.name,
         user_id=user.user_id,
         backlog_space_key=backlog_space_key,
-        user_roles=user_roles
+        user_roles=user_roles,
+        is_active=user.is_active
     )
     
     response_data = {"user": user_info.model_dump()}

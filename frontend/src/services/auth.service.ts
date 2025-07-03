@@ -39,6 +39,7 @@ export interface UserInfoResponse {
   name: string
   user_id: string
   is_email_verified: boolean
+  is_active: boolean
   backlog_space_key?: string
   user_roles: UserRole[]
 }

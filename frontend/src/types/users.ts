@@ -17,6 +17,7 @@ export interface UserRole {
   id: number;
   user_id: number;
   role_id: number;
+  project_id: number | null;
   assigned_at: string;
   assigned_by: number | null;
   role: Role;

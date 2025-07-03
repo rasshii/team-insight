@@ -34,6 +34,7 @@ import { syncService } from "@/services/sync.service";
 import { toast } from "@/components/ui/use-toast";
 import { queryKeys } from "@/lib/react-query";
 import { getTaskStatusLabel } from "@/lib/task-utils";
+import { MetricTooltip, MetricLabel } from "@/components/ui/metric-tooltip";
 
 export default function PersonalDashboardPage() {
   const { data: dashboard, isLoading, error } = usePersonalDashboard();
@@ -253,7 +254,9 @@ export default function PersonalDashboardPage() {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">完了率</span>
+                    <MetricLabel metric="completionRate" className="text-sm font-medium">
+                      完了率
+                    </MetricLabel>
                     <span className="text-sm font-bold">
                       {statistics.completion_rate.toFixed(1)}%
                     </span>
@@ -352,7 +355,9 @@ export default function PersonalDashboardPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Workflow className="h-5 w-5" />
-                    ワークフロー分析
+                    <MetricLabel metric="workflowAnalysis">
+                      ワークフロー分析
+                    </MetricLabel>
                   </CardTitle>
                   <CardDescription>
                     各ステータスでの平均滞留時間（日数）
@@ -396,7 +401,9 @@ export default function PersonalDashboardPage() {
                 {/* 平均処理時間 */}
                 <div className="p-4 bg-muted/50 rounded-lg">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">平均処理時間</span>
+                    <MetricLabel metric="averageCompletionTime" className="text-sm font-medium">
+                      平均処理時間
+                    </MetricLabel>
                     <span className="text-2xl font-bold">
                       {statistics.average_completion_days} 日
                     </span>
@@ -409,7 +416,9 @@ export default function PersonalDashboardPage() {
                 {/* スキルマトリックス */}
                 {dashboard.skill_matrix && dashboard.skill_matrix.length > 0 && (
                   <div className="space-y-2">
-                    <p className="text-sm font-medium">タスクタイプ別効率</p>
+                    <MetricLabel metric="taskTypeEfficiency" className="text-sm font-medium">
+                      タスクタイプ別効率
+                    </MetricLabel>
                     {dashboard.skill_matrix.map((skill) => (
                       <div key={skill.task_type} className="flex items-center justify-between text-sm">
                         <span>
@@ -436,7 +445,9 @@ export default function PersonalDashboardPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <TrendingUp className="h-5 w-5" />
-                  生産性トレンド
+                  <MetricLabel metric="productivityTrend">
+                    生産性トレンド
+                  </MetricLabel>
                 </CardTitle>
                 <CardDescription>
                   過去30日間の完了タスク数推移

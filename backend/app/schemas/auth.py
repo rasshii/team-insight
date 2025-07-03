@@ -80,6 +80,7 @@ class UserInfoResponse(BaseModel):
     user_id: Optional[str] = Field(None, description="BacklogのユーザーID（文字列）")
     backlog_space_key: Optional[str] = Field(None, description="BacklogスペースキーID")
     user_roles: List[UserRoleResponse] = Field(default_factory=list, description="ユーザーのロール一覧")
+    is_active: bool = Field(True, description="アカウントの有効状態")
 
     class Config:
         json_schema_extra = {

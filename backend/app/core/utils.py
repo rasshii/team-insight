@@ -299,7 +299,8 @@ def build_user_role_responses(user_roles: List[Any]) -> List[Dict[str, Any]]:
     for user_role in user_roles:
         role_data = RoleResponse(
             id=user_role.role.id,
-            name=user_role.role.name
+            name=user_role.role.name,
+            description=user_role.role.description
         )
         
         user_role_data = UserRoleResponse(
