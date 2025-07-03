@@ -123,48 +123,37 @@ cd team-insight
 
 2. **環境変数の設定**
 
-バックエンド環境変数 (`backend/.env`):
-
-```env
-# データベース設定
-DATABASE_URL=postgresql://teaminsight:teaminsight@postgres:5432/teaminsight
-
-# Redis設定
-REDIS_URL=redis://redis:6379/0
-
-# セキュリティ
-SECRET_KEY=your-secret-key-here  # 32文字以上の強力なキーを使用
-
-# Backlog OAuth設定
-BACKLOG_CLIENT_ID=your-client-id
-BACKLOG_CLIENT_SECRET=your-client-secret
-BACKLOG_REDIRECT_URI=http://localhost/auth/callback
-BACKLOG_SPACE_KEY=your-space-key
-
-# SMTP設定（開発環境はMailHogが自動設定されます）
-# プロダクション環境の場合は以下を設定
-# SMTP_HOST=smtp.gmail.com
-# SMTP_PORT=587
-# SMTP_USER=your-email@gmail.com
-# SMTP_PASSWORD=your-app-password
-# SMTP_FROM_EMAIL=noreply@teaminsight.dev
-# SMTP_FROM_NAME=Team Insight
-```
-
-3. **セットアップスクリプトの実行**
+環境変数のサンプルファイルをコピーして編集します:
 
 ```bash
-# 実行権限を付与
-chmod +x setup.sh
-
-# セットアップ実行
-./setup.sh
+# バックエンド環境変数
+cp backend/.env.example backend/.env
+# フロントエンド環境変数
+cp frontend/.env.example frontend/.env
 ```
 
-または
+**backend/.env** の必須設定項目:
+- `BACKLOG_CLIENT_ID`: Backlog OAuth アプリケーションのクライアントID
+- `BACKLOG_CLIENT_SECRET`: Backlog OAuth アプリケーションのクライアントシークレット
+- `BACKLOG_SPACE_KEY`: 使用するBacklogスペースキー（例: your-space）
+- `SECRET_KEY`: JWT署名用の秘密鍵（32文字以上のランダムな文字列）
+
+**frontend/.env** の必須設定項目:
+- `NEXT_PUBLIC_BACKLOG_CLIENT_ID`: Backlog OAuth アプリケーションのクライアントID（backend/.envと同じ値）
+- `NEXT_PUBLIC_BACKLOG_SPACE_NAME`: 使用するBacklogスペース名（例: your-space）
+
+その他の設定項目はデフォルト値で動作します。詳細は各`.env.example`ファイルのコメントを参照してください。
+
+3. **Docker環境のセットアップと起動**
 
 ```bash
+# Makefileを使用（推奨）
 make setup
+
+# または手動で実行
+docker-compose build
+docker-compose up -d
+docker-compose exec backend alembic upgrade head
 ```
 
 4. **アプリケーションへのアクセス**
@@ -841,15 +830,47 @@ graph TB
 
 ### よくある問題と解決方法
 
+#### 初回セットアップ時の問題
+
+##### 環境変数ファイルが見つからない
+```bash
+# エラー: .env file not found
+# 解決方法:
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+# その後、必要な値を設定してください
+```
+
+##### Dockerが起動していない
+```bash
+# エラー: Cannot connect to the Docker daemon
+# 解決方法: Docker Desktopを起動してください
+```
+
+##### make setupが失敗する
+```bash
+# データベース接続エラーの場合
+docker-compose down -v  # 既存のボリュームを削除
+make setup             # 再度セットアップを実行
+
+# ポート競合の場合
+docker-compose down    # 既存のコンテナを停止
+make setup            # 再度セットアップを実行
+```
+
 #### ポート競合エラー
 
 ```bash
 # 使用中のポートを確認
 lsof -i :3000  # フロントエンド
 lsof -i :8000  # バックエンド
+lsof -i :5432  # PostgreSQL
+lsof -i :6379  # Redis
 
 # プロセスを終了
 kill -9 [PID]
+
+# または別のポートを使用（docker-compose.override.yml を作成）
 ```
 
 #### データベース接続エラー
@@ -863,14 +884,38 @@ docker-compose logs postgres
 
 # データベースを再作成
 docker-compose down -v
-docker-compose up -d
+docker-compose up -d postgres
+make migrate  # マイグレーションを再実行
 ```
 
 #### 認証エラー
 
-- Backlog OAuth 設定を確認
-- リダイレクト URI が正しいか確認
-- 環境変数が正しく設定されているか確認
+- **Backlog OAuth 設定を確認**
+  - `BACKLOG_CLIENT_ID`と`BACKLOG_CLIENT_SECRET`が正しく設定されているか
+  - `BACKLOG_SPACE_KEY`が正しいスペースキーか（URLの一部分）
+  - `BACKLOG_REDIRECT_URI`が`http://localhost/auth/callback`になっているか
+
+- **環境変数の反映**
+  ```bash
+  # 環境変数を変更した後は、コンテナを再起動
+  make restart
+  ```
+
+#### Next.jsビルドエラー
+
+```bash
+# .nextディレクトリの問題
+cd frontend
+rm -rf .next
+cd ..
+make restart
+
+# node_modulesの問題
+cd frontend
+rm -rf node_modules
+docker-compose build frontend
+make restart
+```
 
 ### 開発のヒント
 
