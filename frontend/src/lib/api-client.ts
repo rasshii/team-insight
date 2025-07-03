@@ -108,9 +108,8 @@ class ApiClient {
           // 認証が不要なエンドポイントの場合は、リフレッシュを試みない
           const publicEndpoints = [
             '/auth/login',
-            '/auth/signup',
-            '/auth/forgot-password',
-            '/auth/reset-password'
+            '/auth/backlog/authorize',
+            '/auth/backlog/callback'
           ]
           if (publicEndpoints.some(endpoint => originalRequest.url?.includes(endpoint))) {
             console.log('[API Client] Public endpoint 401 error - no refresh attempt')

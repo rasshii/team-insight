@@ -92,16 +92,10 @@ export default function HomePage() {
               </p>
               <div className="mt-10 flex items-center justify-center gap-x-6">
                 <Link
-                  href="/auth/signup"
+                  href="/auth/login"
                   className="rounded-md bg-blue-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
                 >
-                  無料で始める
-                </Link>
-                <Link
-                  href="/auth/login"
-                  className="rounded-md bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-                >
-                  ログイン
+                  Backlogアカウントでログイン
                 </Link>
                 <Link
                   href="#features"
@@ -194,14 +188,14 @@ export default function HomePage() {
               今すぐチームの生産性を向上させましょう
             </h2>
             <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-blue-100">
-              メールアドレスで簡単登録。Backlogアカウントをお持ちの方もそうでない方も、すぐに始められます。
+              Backlogアカウントでログインして、チームの生産性を可視化しましょう。
             </p>
             <div className="mt-10 flex items-center justify-center gap-x-6">
               <Link
-                href="/auth/signup"
+                href="/auth/login"
                 className="rounded-md bg-white px-3.5 py-2.5 text-sm font-semibold text-blue-600 shadow-sm hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
-                無料アカウントを作成
+                今すぐ始める
               </Link>
               <Link
                 href="/auth/login"

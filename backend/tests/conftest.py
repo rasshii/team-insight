@@ -14,7 +14,7 @@ from app.db.base import Base  # Import base to ensure all models are loaded
 from app.models.user import User
 from app.models.auth import OAuthToken, OAuthState
 from app.models.project import Project
-from app.core.security import get_password_hash, create_access_token
+from app.core.security import create_access_token
 from sqlalchemy import delete, text
 from sqlalchemy.orm import Session
 
@@ -164,11 +164,10 @@ def auth_cookies(test_user) -> dict:
 
 @pytest.fixture
 def test_superuser():
-    """テスト用管理者ユーザー"""
+    """テスト用管理者ユーザー（Backlog OAuth専用）"""
     db = SessionLocal()
     user = User(
         email="admin@example.com",
-        hashed_password=get_password_hash("adminpassword123"),
         full_name="管理者",
         is_active=True,
         is_superuser=True,
