@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Settings,
   Mail,
@@ -28,44 +29,67 @@ import {
   Link2,
   Clock,
   FileText,
+  AlertCircle,
 } from "lucide-react";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from '@/components/ui/use-toast';
+import { useSettings, useUpdateSettings } from '@/hooks/queries/useSettings';
+import { AllSettings } from '@/types/settings';
 
 export default function AdminSettingsPage() {
-  // 設定の状態管理（実際のAPIは後で実装）
-  const [settings, setSettings] = useState({
-    // メール設定
-    emailEnabled: true,
-    emailVerificationRequired: true,
-    emailFrom: 'noreply@teaminsight.dev',
-    emailFromName: 'Team Insight',
-    
-    // セキュリティ設定
-    sessionTimeout: 60, // 分
-    passwordMinLength: 8,
-    passwordRequireUppercase: true,
-    passwordRequireLowercase: true,
-    passwordRequireNumber: true,
-    passwordRequireSpecial: true,
-    
-    // Backlog設定
-    backlogSyncInterval: 60, // 分
-    backlogCacheTimeout: 300, // 秒
-    
-    // システム設定
-    maintenanceMode: false,
-    debugMode: false,
-    logLevel: 'info',
-  });
+  const { data: settingsData, isLoading, error } = useSettings();
+  const updateSettingsMutation = useUpdateSettings();
+  
+  const [settings, setSettings] = useState<AllSettings | null>(null);
+
+  // APIから取得したデータで初期化
+  useEffect(() => {
+    if (settingsData) {
+      setSettings(settingsData);
+    }
+  }, [settingsData]);
 
   const handleSave = () => {
-    // TODO: APIで設定を保存
-    toast({
-      title: "成功",
-      description: "設定を保存しました",
-    });
+    if (!settings) return;
+    
+    updateSettingsMutation.mutate(settings);
   };
+
+  if (isLoading) {
+    return (
+      <PrivateRoute>
+        <AdminOnly>
+          <Layout>
+            <div className="container mx-auto p-6 space-y-6">
+              <Skeleton className="h-12 w-64" />
+              <Skeleton className="h-96 w-full" />
+              <Skeleton className="h-96 w-full" />
+              <Skeleton className="h-96 w-full" />
+            </div>
+          </Layout>
+        </AdminOnly>
+      </PrivateRoute>
+    );
+  }
+
+  if (error || !settings) {
+    return (
+      <PrivateRoute>
+        <AdminOnly>
+          <Layout>
+            <div className="container mx-auto p-6">
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  設定の読み込みに失敗しました。再度お試しください。
+                </AlertDescription>
+              </Alert>
+            </div>
+          </Layout>
+        </AdminOnly>
+      </PrivateRoute>
+    );
+  }
 
   return (
     <PrivateRoute>
@@ -83,9 +107,12 @@ export default function AdminSettingsPage() {
                   システム全体の設定を管理します
                 </p>
               </div>
-              <Button onClick={handleSave}>
+              <Button 
+                onClick={handleSave}
+                disabled={updateSettingsMutation.isPending}
+              >
                 <Save className="mr-2 h-4 w-4" />
-                設定を保存
+                {updateSettingsMutation.isPending ? '保存中...' : '設定を保存'}
               </Button>
             </div>
 
@@ -110,10 +137,8 @@ export default function AdminSettingsPage() {
                   </div>
                   <Switch
                     id="email-enabled"
-                    checked={settings.emailEnabled}
-                    onCheckedChange={(checked) => 
-                      setSettings({ ...settings, emailEnabled: checked })
-                    }
+                    disabled={true}
+                    checked={true}
                   />
                 </div>
                 
@@ -126,10 +151,8 @@ export default function AdminSettingsPage() {
                   </div>
                   <Switch
                     id="email-verification"
-                    checked={settings.emailVerificationRequired}
-                    onCheckedChange={(checked) => 
-                      setSettings({ ...settings, emailVerificationRequired: checked })
-                    }
+                    disabled={true}
+                    checked={true}
                   />
                 </div>
                 
@@ -141,9 +164,12 @@ export default function AdminSettingsPage() {
                     <Input
                       id="email-from"
                       type="email"
-                      value={settings.emailFrom}
+                      value={settings.email.email_from}
                       onChange={(e) => 
-                        setSettings({ ...settings, emailFrom: e.target.value })
+                        setSettings({ 
+                          ...settings, 
+                          email: { ...settings.email, email_from: e.target.value }
+                        })
                       }
                     />
                   </div>
@@ -151,9 +177,12 @@ export default function AdminSettingsPage() {
                     <Label htmlFor="email-from-name">送信者名</Label>
                     <Input
                       id="email-from-name"
-                      value={settings.emailFromName}
+                      value={settings.email.email_from_name}
                       onChange={(e) => 
-                        setSettings({ ...settings, emailFromName: e.target.value })
+                        setSettings({ 
+                          ...settings, 
+                          email: { ...settings.email, email_from_name: e.target.value }
+                        })
                       }
                     />
                   </div>
@@ -178,9 +207,12 @@ export default function AdminSettingsPage() {
                   <Input
                     id="session-timeout"
                     type="number"
-                    value={settings.sessionTimeout}
+                    value={settings.security.session_timeout}
                     onChange={(e) => 
-                      setSettings({ ...settings, sessionTimeout: parseInt(e.target.value) })
+                      setSettings({ 
+                        ...settings, 
+                        security: { ...settings.security, session_timeout: parseInt(e.target.value) || 0 }
+                      })
                     }
                   />
                   <p className="text-sm text-muted-foreground">
@@ -198,58 +230,28 @@ export default function AdminSettingsPage() {
                     <Input
                       id="password-length"
                       type="number"
-                      value={settings.passwordMinLength}
+                      value={settings.security.password_min_length}
                       onChange={(e) => 
-                        setSettings({ ...settings, passwordMinLength: parseInt(e.target.value) })
+                        setSettings({ 
+                          ...settings, 
+                          security: { ...settings.security, password_min_length: parseInt(e.target.value) || 0 }
+                        })
                       }
                     />
                   </div>
                   
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id="password-uppercase"
-                        checked={settings.passwordRequireUppercase}
-                        onCheckedChange={(checked) => 
-                          setSettings({ ...settings, passwordRequireUppercase: checked })
-                        }
-                      />
-                      <Label htmlFor="password-uppercase">大文字を必須にする</Label>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id="password-lowercase"
-                        checked={settings.passwordRequireLowercase}
-                        onCheckedChange={(checked) => 
-                          setSettings({ ...settings, passwordRequireLowercase: checked })
-                        }
-                      />
-                      <Label htmlFor="password-lowercase">小文字を必須にする</Label>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id="password-number"
-                        checked={settings.passwordRequireNumber}
-                        onCheckedChange={(checked) => 
-                          setSettings({ ...settings, passwordRequireNumber: checked })
-                        }
-                      />
-                      <Label htmlFor="password-number">数字を必須にする</Label>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id="password-special"
-                        checked={settings.passwordRequireSpecial}
-                        onCheckedChange={(checked) => 
-                          setSettings({ ...settings, passwordRequireSpecial: checked })
-                        }
-                      />
-                      <Label htmlFor="password-special">特殊文字を必須にする</Label>
-                    </div>
-                  </div>
+                  <Alert>
+                    <Info className="h-4 w-4" />
+                    <AlertDescription>
+                      パスワードは以下の条件を満たす必要があります：
+                      <ul className="list-disc list-inside mt-2">
+                        <li>大文字を含む</li>
+                        <li>小文字を含む</li>
+                        <li>数字を含む</li>
+                        <li>特殊文字を含む</li>
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
                 </div>
               </CardContent>
             </Card>
@@ -271,9 +273,12 @@ export default function AdminSettingsPage() {
                   <Input
                     id="sync-interval"
                     type="number"
-                    value={settings.backlogSyncInterval}
+                    value={settings.sync.backlog_sync_interval}
                     onChange={(e) => 
-                      setSettings({ ...settings, backlogSyncInterval: parseInt(e.target.value) })
+                      setSettings({ 
+                        ...settings, 
+                        sync: { ...settings.sync, backlog_sync_interval: parseInt(e.target.value) || 0 }
+                      })
                     }
                   />
                   <p className="text-sm text-muted-foreground">
@@ -286,9 +291,12 @@ export default function AdminSettingsPage() {
                   <Input
                     id="cache-timeout"
                     type="number"
-                    value={settings.backlogCacheTimeout}
+                    value={settings.sync.backlog_cache_timeout}
                     onChange={(e) => 
-                      setSettings({ ...settings, backlogCacheTimeout: parseInt(e.target.value) })
+                      setSettings({ 
+                        ...settings, 
+                        sync: { ...settings.sync, backlog_cache_timeout: parseInt(e.target.value) || 0 }
+                      })
                     }
                   />
                   <p className="text-sm text-muted-foreground">
@@ -319,9 +327,12 @@ export default function AdminSettingsPage() {
                   </div>
                   <Switch
                     id="maintenance-mode"
-                    checked={settings.maintenanceMode}
+                    checked={settings.system.maintenance_mode}
                     onCheckedChange={(checked) => 
-                      setSettings({ ...settings, maintenanceMode: checked })
+                      setSettings({ 
+                        ...settings, 
+                        system: { ...settings.system, maintenance_mode: checked }
+                      })
                     }
                   />
                 </div>
@@ -335,9 +346,12 @@ export default function AdminSettingsPage() {
                   </div>
                   <Switch
                     id="debug-mode"
-                    checked={settings.debugMode}
+                    checked={settings.system.debug_mode}
                     onCheckedChange={(checked) => 
-                      setSettings({ ...settings, debugMode: checked })
+                      setSettings({ 
+                        ...settings, 
+                        system: { ...settings.system, debug_mode: checked }
+                      })
                     }
                   />
                 </div>

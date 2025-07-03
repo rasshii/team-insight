@@ -71,6 +71,7 @@ class TeamWithStats(Team):
     member_count: int = Field(..., description="メンバー数")
     active_tasks_count: int = Field(0, description="アクティブなタスク数")
     completed_tasks_this_month: int = Field(0, description="今月完了したタスク数")
+    efficiency_score: float = Field(0.0, description="効率性スコア（0-100）")
 
     class Config:
         from_attributes = True

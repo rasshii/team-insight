@@ -36,6 +36,7 @@ export interface TeamWithStats extends Team {
   member_count: number
   active_tasks_count: number
   completed_tasks_this_month: number
+  efficiency_score: number
 }
 
 export interface TeamCreateInput {

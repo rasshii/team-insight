@@ -24,7 +24,9 @@ from app.services.backlog_client import backlog_client
 from app.core.cache import cache_response, cache_invalidate
 from app.core.redis_client import redis_client
 import json
+import logging
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -283,32 +285,35 @@ async def get_project_statuses(
         except json.JSONDecodeError:
             pass
     
-    # OAuthトークンを取得
-    oauth_token = db.query(OAuthToken).filter(
-        OAuthToken.user_id == current_user.id,
-        OAuthToken.provider == "backlog"
-    ).first()
-    
-    if not oauth_token:
+    # トークンリフレッシュサービスを使用して有効なトークンを取得
+    from app.core.token_refresh import token_refresh_service
+    try:
+        access_token = await token_refresh_service.ensure_valid_token(current_user, db)
+    except Exception as e:
         raise AppException(
-            error_code=ErrorCode.NOT_FOUND,
-            detail="Backlog連携が設定されていません",
-            status_code=status.HTTP_404_NOT_FOUND
+            error_code=ErrorCode.AUTHENTICATION_ERROR,
+            detail="Backlog APIトークンの取得に失敗しました",
+            status_code=status.HTTP_401_UNAUTHORIZED
         )
     
     try:
         # Backlog APIからステータス一覧を取得
         statuses = await backlog_client.get_issue_statuses(
             project_id=backlog_project_id,
-            access_token=oauth_token.access_token
+            access_token=access_token
         )
         
         # キャッシュに保存（5分間）
         await redis_client.set(cache_key, json.dumps(statuses), expire=300)
         
         # 最終使用日時を更新
-        oauth_token.last_used_at = datetime.utcnow()
-        db.commit()
+        oauth_token = db.query(OAuthToken).filter(
+            OAuthToken.user_id == current_user.id,
+            OAuthToken.provider == "backlog"
+        ).first()
+        if oauth_token:
+            oauth_token.last_used_at = datetime.utcnow()
+            db.commit()
         
         return formatter.success(
             data={
@@ -353,17 +358,15 @@ async def get_user_project_statuses(
             message="参加しているプロジェクトがありません"
         )
     
-    # OAuthトークンを取得
-    oauth_token = db.query(OAuthToken).filter(
-        OAuthToken.user_id == current_user.id,
-        OAuthToken.provider == "backlog"
-    ).first()
-    
-    if not oauth_token:
+    # トークンリフレッシュサービスを使用して有効なトークンを取得
+    from app.core.token_refresh import token_refresh_service
+    try:
+        access_token = await token_refresh_service.ensure_valid_token(current_user, db)
+    except Exception as e:
         raise AppException(
-            error_code=ErrorCode.NOT_FOUND,
-            detail="Backlog連携が設定されていません",
-            status_code=status.HTTP_404_NOT_FOUND
+            error_code=ErrorCode.AUTHENTICATION_ERROR,
+            detail="Backlog APIトークンの取得に失敗しました",
+            status_code=status.HTTP_401_UNAUTHORIZED
         )
     
     # 各プロジェクトのステータス情報を収集
@@ -375,7 +378,7 @@ async def get_user_project_statuses(
             # Backlog APIからステータス一覧を取得
             statuses = await backlog_client.get_issue_statuses(
                 project_id=project.backlog_id,
-                access_token=oauth_token.access_token
+                access_token=access_token
             )
             
             project_statuses.append({

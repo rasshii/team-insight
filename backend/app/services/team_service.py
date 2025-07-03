@@ -59,6 +59,7 @@ class TeamService:
                 team.member_count = team_stats["member_count"]
                 team.active_tasks_count = team_stats["active_tasks_count"]
                 team.completed_tasks_this_month = team_stats["completed_tasks_this_month"]
+                team.efficiency_score = team_stats["efficiency_score"]
         
         return {
             "teams": teams,
@@ -97,6 +98,7 @@ class TeamService:
             team.member_count = team_stats["member_count"]
             team.active_tasks_count = team_stats["active_tasks_count"]
             team.completed_tasks_this_month = team_stats["completed_tasks_this_month"]
+            team.efficiency_score = team_stats["efficiency_score"]
         
         return team
     
@@ -437,10 +439,19 @@ class TeamService:
             Task.completed_date >= start_of_month
         ).scalar()
         
+        # 効率性スコアの計算
+        # 完了タスク数 / (完了タスク数 + アクティブタスク数) * 100
+        total_tasks = (completed_tasks_this_month or 0) + (active_tasks_count or 0)
+        if total_tasks > 0:
+            efficiency_score = round((completed_tasks_this_month or 0) / total_tasks * 100, 1)
+        else:
+            efficiency_score = 0.0
+        
         return {
             "member_count": member_count or 0,
             "active_tasks_count": active_tasks_count or 0,
-            "completed_tasks_this_month": completed_tasks_this_month or 0
+            "completed_tasks_this_month": completed_tasks_this_month or 0,
+            "efficiency_score": efficiency_score
         }
     
     def get_members_performance(

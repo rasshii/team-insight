@@ -201,9 +201,8 @@ export default function TeamsProductivityPage() {
                     効率性スコア
                   </MetricLabel>
                   <div className="flex items-center gap-2">
-                    <Progress value={85} className="flex-1" />
-                    <span className="text-sm font-bold">85%</span>
-                    <Badge variant="secondary" className="text-xs">ダミー</Badge>
+                    <Progress value={teamDetail.efficiency_score || 0} className="flex-1" />
+                    <span className="text-sm font-bold">{teamDetail.efficiency_score || 0}%</span>
                   </div>
                 </div>
               </div>

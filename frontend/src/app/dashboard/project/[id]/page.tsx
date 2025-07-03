@@ -311,7 +311,7 @@ export default function ProjectDashboardPage({ params }: ProjectDashboardPagePro
                   プロジェクトの進行を妨げている要因
                 </CardDescription>
               </CardHeader>
-              <CardContent className="h-[400px]">
+              <CardContent className="h-[400px] overflow-y-auto">
                 <BottleneckChart data={bottlenecks} />
               </CardContent>
             </Card>
