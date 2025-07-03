@@ -267,6 +267,26 @@ async def handle_callback(
         # ユーザーにデフォルトロールを割り当て
         user = auth_service.assign_default_role_if_needed(db, user)
         
+        # ログイン履歴を記録
+        from app.models.user_preferences import LoginHistory
+        from app.services.activity_logger import ActivityLogger
+        
+        client_ip = http_request.client.host if http_request.client else None
+        user_agent = http_request.headers.get("user-agent", "Unknown")
+        
+        login_history = LoginHistory(
+            user_id=user.id,
+            ip_address=client_ip,
+            user_agent=user_agent,
+            login_at=datetime.now(timezone.utc)
+        )
+        db.add(login_history)
+        
+        # アクティビティログを記録
+        ActivityLogger.log_login(db, user, http_request)
+        
+        db.commit()
+        
         # 統一的なユーザーレスポンスを構築
         response_data = _build_user_response(user, access_token, db=db)
         response_data["refresh_token"] = refresh_token
@@ -548,13 +568,20 @@ async def refresh_jwt_token(
 @router.post("/logout")
 async def logout(
     response: Response,
-    formatter: ResponseFormatter = Depends(get_response_formatter)
+    http_request: Request,
+    formatter: ResponseFormatter = Depends(get_response_formatter),
+    current_user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
 ) -> Dict[str, Any]:
     """
     ログアウト処理
     
     HttpOnlyクッキーからアクセストークンを削除します。
     """
+    # ログアウトのアクティビティログを記録（ユーザーがログイン中の場合のみ）
+    if current_user:
+        from app.services.activity_logger import ActivityLogger
+        ActivityLogger.log_logout(db, current_user, http_request)
     # クッキーを削除（アクセストークン）
     response.delete_cookie(
         key=AuthConstants.COOKIE_NAME,  # "auth_token"を使用

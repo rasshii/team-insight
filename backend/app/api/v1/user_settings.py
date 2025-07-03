@@ -47,6 +47,7 @@ async def get_my_settings(
 @router.put("/me", response_model=UserSettings)
 async def update_my_settings(
     settings_update: UserSettingsUpdate,
+    request: Request,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db_session),
     formatter: ResponseFormatter = Depends(get_response_formatter)
@@ -65,7 +66,8 @@ async def update_my_settings(
         action="update_settings",
         resource_type="user",
         resource_id=current_user.id,
-        details=settings_update.model_dump(exclude_unset=True)
+        details=settings_update.model_dump(exclude_unset=True),
+        request=request
     )
     
     return formatter.success(
