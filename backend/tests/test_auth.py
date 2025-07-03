@@ -20,7 +20,7 @@ def mock_backlog_oauth():
         yield mock
 
 
-def test_get_authorization_url(mock_backlog_oauth, test_user):
+def test_get_authorization_url(mock_backlog_oauth):
     """認証URL取得のテスト"""
     # モックの設定
     import uuid

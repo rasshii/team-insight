@@ -27,7 +27,7 @@ from app.core.error_handler import AppException, ErrorCode
 router = APIRouter()
 
 
-@router.get("/me", response_model=UserSettings)
+@router.get("/me")
 async def get_my_settings(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db_session),
@@ -44,7 +44,7 @@ async def get_my_settings(
     return formatter.success(data=UserSettings.from_orm(current_user).model_dump())
 
 
-@router.put("/me", response_model=UserSettings)
+@router.put("/me")
 async def update_my_settings(
     settings_update: UserSettingsUpdate,
     request: Request,
@@ -76,7 +76,7 @@ async def update_my_settings(
     )
 
 
-@router.get("/me/preferences", response_model=UserPreferences)
+@router.get("/me/preferences")
 async def get_my_preferences(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db_session),
@@ -92,7 +92,7 @@ async def get_my_preferences(
     return formatter.success(data=preferences)
 
 
-@router.put("/me/preferences", response_model=UserPreferences)
+@router.put("/me/preferences")
 async def update_my_preferences(
     preferences_update: UserPreferencesUpdate,
     current_user: User = Depends(get_current_active_user),
@@ -112,7 +112,7 @@ async def update_my_preferences(
     )
 
 
-@router.get("/me/login-history", response_model=LoginHistoryListResponse)
+@router.get("/me/login-history")
 async def get_my_login_history(
     page: int = Query(1, ge=1, description="ページ番号"),
     page_size: int = Query(20, ge=1, le=100, description="1ページあたりの件数"),
@@ -131,7 +131,7 @@ async def get_my_login_history(
     return formatter.success(data=result)
 
 
-@router.get("/me/activity-logs", response_model=ActivityLogListResponse)
+@router.get("/me/activity-logs")
 async def get_my_activity_logs(
     page: int = Query(1, ge=1, description="ページ番号"),
     page_size: int = Query(50, ge=1, le=100, description="1ページあたりの件数"),

@@ -202,15 +202,19 @@ def test_validate_settings_valid_production(caplog, monkeypatch):
         config.settings = original_settings
 
 
-def test_password_policy_settings():
-    """パスワードポリシー設定のテスト"""
-    settings = Settings()
+def test_backlog_oauth_settings():
+    """Backlog OAuth設定のテスト"""
+    settings = Settings(
+        BACKLOG_CLIENT_ID="test-client-id",
+        BACKLOG_CLIENT_SECRET="test-client-secret",
+        BACKLOG_SPACE_KEY="test-space",
+        BACKLOG_REDIRECT_URI="http://localhost:8000/api/v1/auth/callback"
+    )
 
-    assert settings.PASSWORD_MIN_LENGTH == 8
-    assert settings.PASSWORD_REQUIRE_UPPERCASE == True
-    assert settings.PASSWORD_REQUIRE_LOWERCASE == True
-    assert settings.PASSWORD_REQUIRE_NUMBERS == True
-    assert settings.PASSWORD_REQUIRE_SPECIAL == True
+    assert settings.BACKLOG_CLIENT_ID == "test-client-id"
+    assert settings.BACKLOG_CLIENT_SECRET == "test-client-secret"
+    assert settings.BACKLOG_SPACE_KEY == "test-space"
+    assert settings.BACKLOG_REDIRECT_URI == "http://localhost:8000/api/v1/auth/callback"
 
 
 def test_env_override():

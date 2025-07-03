@@ -237,7 +237,7 @@ migrate-history:
 .PHONY: test
 test:
 	@echo "🧪 バックエンドテストを実行..."
-	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) pytest
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) pytest tests/ --ignore=scripts/
 	@echo "✅ バックエンドテストが完了しました"
 
 # フロントエンドテスト実行
@@ -281,7 +281,7 @@ dev-sync: migrate update-types
 .PHONY: test-v
 test-v:
 	@echo "🧪 テストを詳細モードで実行..."
-	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) pytest -v
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) pytest tests/ -v --ignore=scripts/
 	@echo "✅ テストが完了しました"
 
 # 特定のファイルのテスト実行
@@ -289,33 +289,33 @@ test-v:
 test-file:
 	@echo "🧪 ファイル指定テストを実行..."
 	@echo "使用方法: make test-file FILE=tests/test_config.py"
-	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) pytest $(FILE) -v
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) pytest $(FILE) -v --ignore=scripts/
 
 # カバレッジ付きテスト実行
 .PHONY: test-cov
 test-cov:
 	@echo "🧪 カバレッジ付きでテストを実行..."
-	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) pytest --cov=app --cov-report=term-missing
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) pytest tests/ --cov=app --cov-report=term-missing --ignore=scripts/
 	@echo "✅ テストが完了しました"
 
 # カバレッジHTMLレポート生成
 .PHONY: test-cov-html
 test-cov-html:
 	@echo "🧪 カバレッジHTMLレポートを生成..."
-	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) pytest --cov=app --cov-report=html
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) pytest tests/ --cov=app --cov-report=html --ignore=scripts/
 	@echo "✅ HTMLレポートが生成されました: backend/htmlcov/index.html"
 
 # 前回失敗したテストのみ実行
 .PHONY: test-failed
 test-failed:
 	@echo "🧪 前回失敗したテストのみ実行..."
-	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) pytest --lf -v
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) pytest tests/ --lf -v --ignore=scripts/
 
 # テスト実行（警告なし）
 .PHONY: test-no-warnings
 test-no-warnings:
 	@echo "🧪 テストを実行（警告非表示）..."
-	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) pytest --disable-warnings -v
+	@$(DOCKER_COMPOSE) exec $(BACKEND_CONTAINER) pytest tests/ --disable-warnings -v --ignore=scripts/
 
 # キャッシュ機能テスト
 .PHONY: cache-test
