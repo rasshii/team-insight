@@ -118,7 +118,7 @@ export function Layout({ children }: LayoutProps) {
                           <span>設定</span>
                         </Link>
                       </DropdownMenuItem>
-                      {permissions.isAdmin() && (
+                      {permissions && permissions.isAdmin?.() && (
                         <>
                           <DropdownMenuSeparator />
                           <DropdownMenuLabel className="text-xs">管理者メニュー</DropdownMenuLabel>

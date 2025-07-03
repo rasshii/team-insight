@@ -14,6 +14,23 @@ export const usePermissions = (): PermissionCheck => {
   const currentUser = useAppSelector(selectCurrentUser);
 
   return useMemo(() => {
+    // デバッグ用ログ（本番環境では削除してください）
+    if (process.env.NODE_ENV === 'development') {
+      console.log('usePermissions - currentUser:', currentUser);
+    }
+    
+    // ユーザーが存在しない場合のデフォルト権限オブジェクト
+    if (!currentUser) {
+      return {
+        hasRole: () => false,
+        hasPermission: () => false,
+        canAccessProject: () => false,
+        canManageProject: () => false,
+        isAdmin: () => false,
+        isProjectLeader: () => false,
+      };
+    }
+    
     const permissions: PermissionCheck = {
       /**
        * 指定されたロールを持っているかチェック
