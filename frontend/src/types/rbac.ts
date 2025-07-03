@@ -58,6 +58,7 @@ export interface PermissionCheck {
   canAccessProject: (projectId: number) => boolean;
   canManageProject: (projectId: number) => boolean;
   isAdmin: () => boolean;
+  isProjectLeader: () => boolean;
 }
 
 /**

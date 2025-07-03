@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { BarChart3, Users, TrendingUp, Activity, CheckCircle2, Clock, AlertCircle, Settings } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -16,13 +16,11 @@ import { TeamActivityTimeline } from '@/components/teams/TeamActivityTimeline'
 import { Layout } from '@/components/Layout'
 import { usePermissions } from '@/hooks/usePermissions'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { MetricTooltip, MetricLabel } from '@/components/ui/metric-tooltip'
 
 export default function TeamsProductivityPage() {
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null)
   const permissions = usePermissions()
-  const router = useRouter()
   
   const { data: teamsData, isLoading: teamsLoading } = useTeams({ with_stats: true })
   const { data: teamDetail, isLoading: teamLoading } = useTeam(selectedTeamId || 0)
@@ -32,12 +30,23 @@ export default function TeamsProductivityPage() {
   }
 
   // 全体統計の計算
-  const totalStats = teamsData ? {
-    totalTeams: teamsData.total,
-    totalMembers: teamsData.teams.reduce((sum, team: any) => sum + (team.member_count || 0), 0),
-    totalActiveTasks: teamsData.teams.reduce((sum, team: any) => sum + (team.active_tasks_count || 0), 0),
-    totalCompletedThisMonth: teamsData.teams.reduce((sum, team: any) => sum + (team.completed_tasks_this_month || 0), 0),
-  } : null
+  const totalStats = useMemo(() => {
+    if (!teamsData || !teamsData.teams || teamsData.teams.length === 0) {
+      return {
+        totalTeams: 0,
+        totalMembers: 0,
+        totalActiveTasks: 0,
+        totalCompletedThisMonth: 0,
+      }
+    }
+    
+    return {
+      totalTeams: teamsData.total || 0,
+      totalMembers: teamsData.teams.reduce((sum, team: any) => sum + (team.member_count || 0), 0),
+      totalActiveTasks: teamsData.teams.reduce((sum, team: any) => sum + (team.active_tasks_count || 0), 0),
+      totalCompletedThisMonth: teamsData.teams.reduce((sum, team: any) => sum + (team.completed_tasks_this_month || 0), 0),
+    }
+  }, [teamsData])
 
   if (teamsLoading) {
     return (
@@ -75,11 +84,17 @@ export default function TeamsProductivityPage() {
                 <SelectValue placeholder="チームを選択してください" />
               </SelectTrigger>
               <SelectContent>
-                {teamsData?.teams.map((team) => (
-                  <SelectItem key={team.id} value={team.id.toString()}>
-                    {team.name}
-                  </SelectItem>
-                ))}
+                {teamsData?.teams && teamsData.teams.length > 0 ? (
+                  teamsData.teams.map((team) => (
+                    <SelectItem key={team.id} value={team.id.toString()}>
+                      {team.name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <div className="p-2 text-sm text-muted-foreground">
+                    チームがありません
+                  </div>
+                )}
               </SelectContent>
             </Select>
             
@@ -157,6 +172,33 @@ export default function TeamsProductivityPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* チームがない場合のメッセージ */}
+      {teamsData && teamsData.teams.length === 0 && (
+        <Card className="p-12">
+          <div className="text-center space-y-4">
+            <Users className="h-12 w-12 mx-auto text-muted-foreground" />
+            <div>
+              <h3 className="text-lg font-semibold">チームがまだ作成されていません</h3>
+              <p className="text-muted-foreground">
+                {permissions.isAdmin() || permissions.isProjectLeader() ? (
+                  <>チーム管理画面から新しいチームを作成してください</>
+                ) : (
+                  <>管理者にチームの作成を依頼してください</>
+                )}
+              </p>
+            </div>
+            {(permissions.isAdmin() || permissions.isProjectLeader()) && (
+              <Link href="/admin/teams">
+                <Badge variant="default" className="cursor-pointer">
+                  <Settings className="mr-1 h-3 w-3" />
+                  チームを作成
+                </Badge>
+              </Link>
+            )}
+          </div>
+        </Card>
+      )}
 
       {/* チーム詳細 */}
       {selectedTeamId && teamDetail ? (
@@ -267,7 +309,7 @@ export default function TeamsProductivityPage() {
             </TabsContent>
           </Tabs>
         </div>
-      ) : (
+      ) : teamsData && teamsData.teams.length > 0 ? (
         <Card className="p-12">
           <div className="text-center space-y-4">
             <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground" />
@@ -279,7 +321,7 @@ export default function TeamsProductivityPage() {
             </div>
           </div>
         </Card>
-      )}
+      ) : null}
       </div>
     </Layout>
   )

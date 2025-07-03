@@ -126,6 +126,16 @@ export const usePermissions = (): PermissionCheck => {
         return currentUser.user_roles.some(
           userRole => userRole.role.name === RoleType.ADMIN && userRole.project_id === null
         );
+      },
+
+      /**
+       * プロジェクトリーダーかどうかチェック（グローバルロール）
+       */
+      isProjectLeader: () => {
+        if (!currentUser || !currentUser.user_roles) return false;
+        return currentUser.user_roles.some(
+          userRole => userRole.role.name === RoleType.PROJECT_LEADER && userRole.project_id === null
+        );
       }
     };
 
