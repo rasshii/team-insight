@@ -21,6 +21,38 @@
 
 Team Insight は、Backlog API と連携してチームの開発プロセスを分析・可視化する生産性向上プラットフォームです。個人、プロジェクト、組織レベルでの包括的なダッシュボードを提供し、データに基づいた意思決定を支援します。
 
+## クイックスタートガイド
+
+### 5分で始めるTeam Insight
+
+1. **環境構築**（3分）
+   ```bash
+   git clone <repository-url>
+   cd team-insight
+   cp backend/.env.example backend/.env
+   cp frontend/.env.example frontend/.env
+   # .envファイルを編集してBacklog OAuth情報を設定
+   make setup
+   ```
+
+2. **初回ログイン**（1分）
+   - http://localhost にアクセス
+   - 「Backlogでログイン」をクリック
+   - Backlogアカウントでログイン
+
+3. **管理者権限の設定**（1分）
+   ```bash
+   # RBACの初期化
+   docker-compose exec backend python scripts/init_rbac.py
+   # 自分のメールアドレスで管理者権限を設定
+   docker-compose exec backend bash -c "INITIAL_ADMIN_EMAILS=your-email@example.com python scripts/init_admin.py"
+   ```
+
+4. **機能を試す**
+   - 個人ダッシュボード: http://localhost/dashboard/personal
+   - チーム管理: http://localhost/admin/teams （管理者のみ）
+   - ユーザー管理: http://localhost/admin/users （管理者のみ）
+
 ### 主な機能
 
 #### 実装済み ✅
@@ -163,6 +195,139 @@ docker-compose exec backend alembic upgrade head
 - API ドキュメント: http://localhost/api/v1/docs (Nginx経由)
 - MailHog Web UI: http://localhost:8025 (開発環境のメール確認)
 
+### 初回ログインと管理者権限の設定
+
+#### ステップ1: Backlog OAuthでログイン
+
+1. ブラウザで http://localhost にアクセス
+2. 「Backlogでログイン」ボタンをクリック
+3. Backlogアカウントでログイン（設定したスペースのアカウントを使用）
+
+#### ステップ2: 管理者権限の付与
+
+初回セットアップ後、以下の手順で管理者権限を設定します：
+
+```bash
+# 1. RBACの初期化（初回のみ必要）
+docker-compose exec backend python scripts/init_rbac.py
+
+# 2. 管理者権限の付与（メールアドレスを自分のものに変更）
+docker-compose exec backend bash -c "INITIAL_ADMIN_EMAILS=your-email@example.com python scripts/init_admin.py"
+
+# または、Makefileコマンドを使用（RBACが初期化済みの場合）
+make init-admin  # .envファイルのINITIAL_ADMIN_EMAILSを使用
+```
+
+#### ステップ3: 機能の確認
+
+管理者権限が付与されると、以下の機能にアクセスできます：
+
+- **管理画面** (http://localhost/admin)
+  - ユーザー管理: 全ユーザーの一覧表示、ロール変更
+  - チーム管理: チームの作成・編集・削除、メンバー管理
+- **分析ダッシュボード**
+  - 個人ダッシュボード: タスクの進捗とパフォーマンス分析
+  - チーム生産性: チーム別の生産性分析とKPI表示
+- **レポート配信**: 定期レポートのスケジュール設定
+
+## 機能を試してみる
+
+### 1. 個人ダッシュボード
+
+**アクセス方法**: http://localhost/dashboard/personal
+
+個人の生産性とタスク管理を可視化します：
+
+- **KPI カード**: アクティブタスク数、完了率、平均サイクルタイム
+- **最近の完了タスク**: 過去7日間に完了したタスクの一覧
+- **ワークフロー分析**: タスクのステータス分布
+- **パフォーマンス詳細**: スループットチャート（D3.js）
+
+### 2. チーム管理（管理者/プロジェクトリーダー）
+
+**アクセス方法**: http://localhost/admin/teams
+
+チームの作成と管理：
+
+1. 「新規チーム作成」ボタンをクリック
+2. チーム名と説明を入力
+3. メンバーを追加（ユーザー一覧から選択）
+4. チームロールを設定（チームリーダー/メンバー）
+
+### 3. チーム生産性ダッシュボード
+
+**アクセス方法**: http://localhost/teams
+
+チーム別の生産性分析：
+
+- **チーム選択**: ドロップダウンからチームを選択
+- **全体統計**: 総チーム数、アクティブタスク、月間完了タスク
+- **チーム詳細タブ**:
+  - メンバー別パフォーマンス: 個人の貢献度を可視化
+  - タスク分配: 円グラフでタスク配分を表示
+  - 生産性推移: 時系列での生産性変化
+  - アクティビティタイムライン: 最近の活動履歴
+
+### 4. ユーザー管理（管理者のみ）
+
+**アクセス方法**: http://localhost/admin/users
+
+ユーザーとロールの管理：
+
+- **ユーザー一覧**: 全ユーザーの表示（フィルター・ソート機能付き）
+- **ロール変更**: ユーザーのロールをGUIで簡単に変更
+- **ステータス管理**: ログイン可/不可の切り替え
+- **Backlog同期**: 「Backlogから同期」ボタンで一括インポート
+
+### 5. プロジェクト管理
+
+**アクセス方法**: http://localhost/projects
+
+Backlogプロジェクトとの連携：
+
+- **プロジェクト一覧**: 同期されたプロジェクトの表示
+- **メンバー管理**: プロジェクトメンバーの追加・削除
+- **同期機能**: Backlogからの最新データ取得
+
+### 6. レポート配信設定
+
+**アクセス方法**: 個人設定またはAPI経由
+
+定期レポートの設定：
+
+```bash
+# テストレポートの送信
+curl -X POST http://localhost/api/v1/reports/test \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# MailHogでメールを確認
+# http://localhost:8025
+```
+
+### 7. ユーザー設定
+
+**アクセス方法**: http://localhost/settings
+
+個人設定の管理：
+
+- **アカウント設定** (/settings/account)
+  - 表示名、タイムゾーン、言語、日付形式
+  - 通知設定（日次/週次/月次レポート）
+- **セキュリティ設定** (/settings/security)
+  - ログイン履歴の確認
+  - アクティビティログの閲覧
+  - アクティブセッションの管理
+
+### 8. API ドキュメント
+
+**アクセス方法**: http://localhost/api/v1/docs
+
+FastAPIの対話的なAPIドキュメント：
+
+- 全エンドポイントの詳細仕様
+- リクエスト/レスポンスの例
+- 直接APIをテスト実行可能
+
 ## 開発ガイド
 
 ### Makefile コマンド一覧
@@ -249,6 +414,20 @@ Team Insightは**独自のロールベースアクセス制御（RBAC）シス�
 **管理画面（GUI）**: http://localhost/admin/users でユーザー・ロール管理が可能です。
 
 **CLIツール（並行して利用可能）**:
+
+初回セットアップ時：
+```bash
+# RBACの初期化（ロールと権限の定義を作成）
+docker-compose exec backend python scripts/init_rbac.py
+
+# 環境変数から管理者を設定（.envのINITIAL_ADMIN_EMAILSを使用）
+make init-admin
+
+# または直接指定
+docker-compose exec backend bash -c "INITIAL_ADMIN_EMAILS=admin@example.com python scripts/init_admin.py"
+```
+
+通常のロール管理：
 ```bash
 make set-admin EMAIL=user@example.com       # ユーザーを管理者に設定
 make set-role EMAIL=user@example.com ROLE=PROJECT_LEADER  # ロール設定

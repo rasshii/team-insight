@@ -68,6 +68,8 @@ services:
       context: ./backend
       dockerfile: ../infrastructure/docker/backend/Dockerfile
     container_name: team-insight-backend
+    env_file:
+      - ./backend/.env
     environment:
       DATABASE_URL: postgresql://team_insight_user:team_insight_password@postgres:5432/team_insight
       REDIS_URL: redis://:team_insight_redis_password@redis:6379/0
