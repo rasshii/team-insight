@@ -7,18 +7,16 @@ pytest設定と共通フィクスチャ
 import pytest
 from typing import Generator
 from unittest.mock import Mock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.db.session import SessionLocal
-from app.db.base import Base  # Import base to ensure all models are loaded
 from app.models.user import User
 from app.models.auth import OAuthToken, OAuthState
 from app.models.project import Project
 from app.core.security import create_access_token
 from sqlalchemy import delete, text
-from sqlalchemy.orm import Session
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse=True)  # type: ignore
 def clean_database():
     """各テストの前後でデータベースをクリーンアップとRBACセットアップ"""
     from app.models.rbac import Role, Permission
@@ -110,7 +108,7 @@ def test_oauth_token(test_user):
         provider="backlog",
         access_token="dummy_access_token",
         refresh_token="dummy_refresh_token",
-        expires_at=datetime.utcnow() + timedelta(hours=1)
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1)
     )
     db.add(token)
     db.commit()
@@ -129,8 +127,8 @@ def test_oauth_state(test_user):
     state = OAuthState(
         state="test_state",
         user_id=test_user.id,
-        created_at=datetime.utcnow(),
-        expires_at=datetime.utcnow() + timedelta(minutes=10)
+        created_at=datetime.now(timezone.utc),
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10)
     )
     db.add(state)
     db.commit()
@@ -291,7 +289,7 @@ def sample_task_data():
         "title": "Test Task",
         "description": "This is a test task",
         "assignee_id": 1,
-        "due_date": datetime.utcnow() + timedelta(days=7),
+        "due_date": datetime.now(timezone.utc) + timedelta(days=7),
         "priority": "medium",
         "status": "todo",
     }
