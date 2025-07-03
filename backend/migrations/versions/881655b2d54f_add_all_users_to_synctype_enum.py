@@ -20,7 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # PostgreSQLのENUM型に新しい値を追加
-    op.execute("ALTER TYPE synctype ADD VALUE IF NOT EXISTS 'all_users'")
+    op.execute("ALTER TYPE synctype ADD VALUE IF NOT EXISTS 'ALL_USERS'")
 
 
 def downgrade() -> None:
