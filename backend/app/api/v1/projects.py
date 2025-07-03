@@ -7,231 +7,118 @@
 
 import logging
 from typing import List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session, joinedload
+from app.core.query_optimizer import QueryOptimizer
+from app.api import deps
 from datetime import timedelta
-
-from app.db.session import get_db
+from app.models.project import Project
+from app.schemas.project import Project as ProjectSchema, ProjectUpdate
 from app.core.cache import cache_response, cache_invalidate
-from app.core.security import get_current_active_user
 from app.models.user import User
+from app.core.deps import get_response_formatter
+from app.core.response_builder import ResponseFormatter
+from app.core.exceptions import NotFoundException, ExternalAPIException
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/projects", tags=["projects"])
+router = APIRouter()
+
 
 @router.get("/")
-@cache_response("projects_list", expire=600)  # 10分間キャッシュ
-async def get_projects(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+def get_projects(
+    db: Session = Depends(deps.get_db_session), 
+    current_user: User = Depends(deps.get_current_active_user),
+    formatter: ResponseFormatter = Depends(get_response_formatter)
 ) -> Dict[str, Any]:
     """
-    プロジェクト一覧を取得します
-
-    このエンドポイントは、ユーザーがアクセス可能なプロジェクト一覧を返します。
-    結果は10分間キャッシュされ、データベースへの負荷を軽減します。
-
+    現在のユーザーが参加しているプロジェクト一覧を取得
+    
     Args:
         db: データベースセッション
         current_user: 現在の認証済みユーザー
 
     Returns:
         プロジェクト一覧
-
-    Raises:
-        HTTPException: データ取得に失敗した場合
     """
-    try:
-        # 実際のデータベースクエリをシミュレート
-        # 本番環境では実際のプロジェクトモデルを使用
-        logger.info(f"プロジェクト一覧取得: ユーザー {current_user.email}")
+    # ユーザーが参加しているプロジェクトを取得（リレーションシップを含む）
+    logger.info(f"Fetching projects for user {current_user.id}")
+    
+    # 最適化されたクエリを使用
+    user_with_projects = db.query(User).options(
+        joinedload(User.projects).joinedload(Project.members)
+    ).filter(User.id == current_user.id).first()
+    projects = user_with_projects.projects if user_with_projects else []
+    
+    logger.info(f"Found {len(projects)} projects for user {current_user.id}")
+    if projects:
+        logger.info(f"Project IDs: {[p.id for p in projects]}")
+        logger.info(f"Project keys: {[p.project_key for p in projects]}")
+    
+    # Pydanticスキーマに変換
+    projects_data = [ProjectSchema.model_validate(p).model_dump() for p in projects]
+    
+    return formatter.success(
+        data={"projects": projects_data},
+        message=f"{len(projects_data)}件のプロジェクトを取得しました"
+    )
 
-        # データベースアクセスをシミュレート（重い処理）
-        import asyncio
-        await asyncio.sleep(0.5)  # 500msの遅延をシミュレート
-
-        # サンプルデータ
-        projects = [
-            {
-                "id": 1,
-                "name": "Team Insight 開発",
-                "description": "チームの生産性を可視化するWebアプリケーション",
-                "status": "active",
-                "created_at": "2024-01-15T10:00:00Z",
-                "updated_at": "2024-01-20T15:30:00Z"
-            },
-            {
-                "id": 2,
-                "name": "モバイルアプリ開発",
-                "description": "iOS/Android向けのモバイルアプリケーション",
-                "status": "planning",
-                "created_at": "2024-01-10T09:00:00Z",
-                "updated_at": "2024-01-18T14:20:00Z"
-            },
-            {
-                "id": 3,
-                "name": "データ分析基盤",
-                "description": "ビッグデータ分析のための基盤システム",
-                "status": "active",
-                "created_at": "2024-01-05T11:00:00Z",
-                "updated_at": "2024-01-19T16:45:00Z"
-            }
-        ]
-
-        return {
-            "message": "プロジェクト一覧を取得しました",
-            "data": projects,
-            "total": len(projects),
-            "cached": True
-        }
-
-    except Exception as e:
-        logger.error(f"プロジェクト一覧取得エラー: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="プロジェクト一覧の取得に失敗しました"
-        )
 
 @router.get("/{project_id}")
-@cache_response("project_detail", expire=300)  # 5分間キャッシュ
-async def get_project_detail(
-    project_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+def get_project_detail(
+    project: Project = Depends(deps.get_current_project),
+    current_user: User = Depends(deps.get_current_active_user),
+    formatter: ResponseFormatter = Depends(get_response_formatter)
 ) -> Dict[str, Any]:
     """
     プロジェクト詳細を取得します
 
-    このエンドポイントは、指定されたプロジェクトの詳細情報を返します。
-    結果は5分間キャッシュされ、データベースへの負荷を軽減します。
+    権限チェック：プロジェクトメンバーのみアクセス可能
 
     Args:
-        project_id: プロジェクトID
-        db: データベースセッション
+        project: プロジェクト（権限チェック済み）
         current_user: 現在の認証済みユーザー
 
     Returns:
         プロジェクト詳細情報
-
-    Raises:
-        HTTPException: プロジェクトが見つからない、または取得に失敗した場合
     """
-    try:
-        logger.info(f"プロジェクト詳細取得: プロジェクトID {project_id}, ユーザー {current_user.email}")
+    logger.info(
+        f"プロジェクト詳細取得: プロジェクトID {project.id}, ユーザー {current_user.email}"
+    )
+    
+    # Pydanticスキーマに変換
+    project_data = ProjectSchema.model_validate(project).model_dump()
+    
+    return formatter.success(
+        data=project_data,
+        message="プロジェクト詳細を取得しました"
+    )
 
-        # データベースアクセスをシミュレート（重い処理）
-        import asyncio
-        await asyncio.sleep(0.3)  # 300msの遅延をシミュレート
-
-        # サンプルデータ
-        project_details = {
-            1: {
-                "id": 1,
-                "name": "Team Insight 開発",
-                "description": "チームの生産性を可視化するWebアプリケーション",
-                "status": "active",
-                "created_at": "2024-01-15T10:00:00Z",
-                "updated_at": "2024-01-20T15:30:00Z",
-                "team_size": 8,
-                "progress": 75,
-                "technologies": ["Python", "FastAPI", "React", "PostgreSQL", "Redis"],
-                "repository": "https://github.com/team/team-insight",
-                "lead": {
-                    "id": 1,
-                    "name": "田中太郎",
-                    "email": "tanaka@example.com"
-                }
-            },
-            2: {
-                "id": 2,
-                "name": "モバイルアプリ開発",
-                "description": "iOS/Android向けのモバイルアプリケーション",
-                "status": "planning",
-                "created_at": "2024-01-10T09:00:00Z",
-                "updated_at": "2024-01-18T14:20:00Z",
-                "team_size": 5,
-                "progress": 20,
-                "technologies": ["React Native", "TypeScript", "Firebase"],
-                "repository": "https://github.com/team/mobile-app",
-                "lead": {
-                    "id": 2,
-                    "name": "佐藤花子",
-                    "email": "sato@example.com"
-                }
-            },
-            3: {
-                "id": 3,
-                "name": "データ分析基盤",
-                "description": "ビッグデータ分析のための基盤システム",
-                "status": "active",
-                "created_at": "2024-01-05T11:00:00Z",
-                "updated_at": "2024-01-19T16:45:00Z",
-                "team_size": 12,
-                "progress": 60,
-                "technologies": ["Python", "Apache Spark", "Kafka", "Elasticsearch"],
-                "repository": "https://github.com/team/data-platform",
-                "lead": {
-                    "id": 3,
-                    "name": "鈴木一郎",
-                    "email": "suzuki@example.com"
-                }
-            }
-        }
-
-        if project_id not in project_details:
-            raise HTTPException(
-                status_code=404,
-                detail=f"プロジェクトID {project_id} が見つかりません"
-            )
-
-        return {
-            "message": "プロジェクト詳細を取得しました",
-            "data": project_details[project_id],
-            "cached": True
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"プロジェクト詳細取得エラー: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="プロジェクト詳細の取得に失敗しました"
-        )
 
 @router.get("/{project_id}/metrics")
-@cache_response("project_metrics", expire=180)  # 3分間キャッシュ
-async def get_project_metrics(
-    project_id: int,
-    period: str = "month",  # week, month, quarter
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+def get_project_metrics(
+    project: Project = Depends(deps.get_current_project),
+    current_user: User = Depends(deps.get_current_active_user),
+    formatter: ResponseFormatter = Depends(get_response_formatter),
+    period: str = "month"  # week, month, quarter
 ) -> Dict[str, Any]:
     """
     プロジェクトのメトリクスを取得します
 
-    このエンドポイントは、プロジェクトの生産性メトリクスを返します。
-    結果は3分間キャッシュされ、データベースへの負荷を軽減します。
+    権限チェック：プロジェクトメンバーのみアクセス可能
 
     Args:
-        project_id: プロジェクトID
-        period: 期間（week, month, quarter）
-        db: データベースセッション
+        project: プロジェクト（権限チェック済み）
         current_user: 現在の認証済みユーザー
+        period: 期間（week, month, quarter）
 
     Returns:
         プロジェクトメトリクス
-
-    Raises:
-        HTTPException: メトリクス取得に失敗した場合
     """
     try:
-        logger.info(f"プロジェクトメトリクス取得: プロジェクトID {project_id}, 期間 {period}, ユーザー {current_user.email}")
-
-        # データベースアクセスをシミュレート（重い処理）
-        import asyncio
-        await asyncio.sleep(0.8)  # 800msの遅延をシミュレート
+        logger.info(
+            f"プロジェクトメトリクス取得: プロジェクトID {project.id}, 期間 {period}, ユーザー {current_user.email}"
+        )
 
         # サンプルメトリクスデータ
         metrics_data = {
@@ -239,87 +126,120 @@ async def get_project_metrics(
                 "completed_tasks": 45,
                 "total_tasks": 60,
                 "completion_rate": 75.0,
-                "trend": "increasing"
+                "trend": "increasing",
             },
             "cycle_time": {
                 "average_days": 3.2,
                 "min_days": 1,
                 "max_days": 8,
-                "trend": "decreasing"
+                "trend": "decreasing",
             },
             "lead_time": {
                 "average_days": 5.8,
                 "min_days": 2,
                 "max_days": 12,
-                "trend": "stable"
+                "trend": "stable",
             },
             "bottlenecks": [
-                {
-                    "stage": "コードレビュー",
-                    "avg_wait_time": 2.1,
-                    "frequency": 15
-                },
-                {
-                    "stage": "テスト",
-                    "avg_wait_time": 1.8,
-                    "frequency": 8
-                }
+                {"stage": "コードレビュー", "avg_wait_time": 2.1, "frequency": 15},
+                {"stage": "テスト", "avg_wait_time": 1.8, "frequency": 8},
             ],
             "team_velocity": {
                 "current_sprint": 28,
                 "previous_sprint": 25,
-                "trend": "increasing"
-            }
+                "trend": "increasing",
+            },
         }
 
-        return {
-            "message": "プロジェクトメトリクスを取得しました",
-            "project_id": project_id,
-            "period": period,
-            "data": metrics_data,
-            "cached": True
-        }
+        return formatter.success(
+            data={
+                "project_id": project.id,
+                "period": period,
+                "metrics": metrics_data,
+                "cached": False,
+            },
+            message="プロジェクトメトリクスを取得しました"
+        )
 
     except Exception as e:
         logger.error(f"プロジェクトメトリクス取得エラー: {e}")
-        raise HTTPException(
-            status_code=500,
+        raise ExternalAPIException(
+            service="メトリクスサービス",
             detail="プロジェクトメトリクスの取得に失敗しました"
         )
 
-@router.post("/{project_id}/refresh")
-@cache_invalidate("project_*")  # プロジェクト関連のキャッシュを無効化
-async def refresh_project_cache(
-    project_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+
+@router.put("/{project_id}")
+def update_project(
+    update_data: ProjectUpdate,
+    project: Project = Depends(deps.get_current_project_as_leader),
+    current_user: User = Depends(deps.get_current_active_user),
+    db: Session = Depends(deps.get_db_session),
+    formatter: ResponseFormatter = Depends(get_response_formatter)
 ) -> Dict[str, Any]:
     """
-    プロジェクト関連のキャッシュを無効化します
+    プロジェクト情報を更新します
 
-    このエンドポイントは、プロジェクト関連のキャッシュを無効化し、
-    次回のリクエストで最新のデータを取得できるようにします。
+    権限チェック：プロジェクトリーダー以上の権限が必要
 
     Args:
-        project_id: プロジェクトID
-        db: データベースセッション
+        update_data: 更新データ
+        project: プロジェクト（権限チェック済み）
         current_user: 現在の認証済みユーザー
+        db: データベースセッション
 
     Returns:
-        キャッシュ無効化結果
+        更新されたプロジェクト
     """
-    try:
-        logger.info(f"プロジェクトキャッシュ無効化: プロジェクトID {project_id}, ユーザー {current_user.email}")
+    logger.info(
+        f"プロジェクト更新: プロジェクトID {project.id}, ユーザー {current_user.email}"
+    )
+    
+    # 更新データを適用
+    update_dict = update_data.model_dump(exclude_unset=True)
+    for field, value in update_dict.items():
+        setattr(project, field, value)
+    
+    db.commit()
+    db.refresh(project)
+    
+    # Pydanticスキーマに変換
+    project_data = ProjectSchema.model_validate(project).model_dump()
+    
+    return formatter.updated(
+        data=project_data,
+        message="プロジェクト情報を更新しました"
+    )
 
-        return {
-            "message": f"プロジェクトID {project_id} のキャッシュを無効化しました",
-            "project_id": project_id,
-            "cache_invalidated": True
-        }
 
-    except Exception as e:
-        logger.error(f"プロジェクトキャッシュ無効化エラー: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="キャッシュの無効化に失敗しました"
-        )
+@router.delete("/{project_id}")
+def delete_project(
+    project: Project = Depends(deps.get_current_project_as_admin),
+    current_user: User = Depends(deps.get_current_active_user),
+    db: Session = Depends(deps.get_db_session),
+    formatter: ResponseFormatter = Depends(get_response_formatter)
+) -> Dict[str, Any]:
+    """
+    プロジェクトを削除します
+
+    権限チェック：管理者権限が必要
+
+    Args:
+        project: プロジェクト（権限チェック済み）
+        current_user: 現在の認証済みユーザー
+        db: データベースセッション
+
+    Returns:
+        削除結果
+    """
+    logger.info(
+        f"プロジェクト削除: プロジェクトID {project.id}, ユーザー {current_user.email}"
+    )
+    
+    project_id = project.id
+    db.delete(project)
+    db.commit()
+    
+    return formatter.deleted(
+        message=f"プロジェクト（ID: {project_id}）を削除しました"
+    )

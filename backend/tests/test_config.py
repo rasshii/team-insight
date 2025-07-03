@@ -22,7 +22,7 @@ def test_settings_validation():
     assert test_settings.APP_NAME == "Team Insight"
     assert test_settings.DEBUG == True
     assert test_settings.API_V1_STR == "/api/v1"
-    assert test_settings.ACCESS_TOKEN_EXPIRE_MINUTES == 30
+    assert test_settings.ACCESS_TOKEN_EXPIRE_MINUTES == 10080  # 7 days in minutes
     assert test_settings.CACHE_DEFAULT_EXPIRE == 300
 
 
@@ -68,7 +68,7 @@ def test_default_values():
             os.environ[key] = value
 
 
-def test_validate_settings_with_defaults(caplog):
+def test_validate_settings_with_defaults(caplog, monkeypatch):
     """デフォルト設定での検証テスト"""
     # テスト用の設定を作成
     test_settings = Settings(
@@ -90,11 +90,12 @@ def test_validate_settings_with_defaults(caplog):
         # テスト用設定に置き換え
         config.settings = test_settings
 
-        with caplog.at_level(logging.WARNING):
-            result = validate_settings()
+        # ログレベルをWARNINGに設定してキャプチャ
+        caplog.set_level(logging.WARNING)
+        result = validate_settings()
 
         # 結果を確認
-        assert result == False  # 問題があるのでFalse
+        assert result is False  # 問題があるのでFalse
 
         # 警告メッセージを確認
         warning_messages = [
@@ -108,15 +109,17 @@ def test_validate_settings_with_defaults(caplog):
             record.message for record in caplog.records if record.levelname == "ERROR"
         ]
         assert len(error_messages) > 0
-        assert "Backlog OAuth認証が設定されていません" in error_messages[0]
-        assert "Backlogスペースキーが設定されていません" in error_messages[0]
+        # エラーメッセージは複数の問題を含む1つのメッセージにまとめられている
+        error_msg = error_messages[0]
+        assert "Backlog OAuth認証が設定されていません" in error_msg
+        assert "Backlogスペースキーが設定されていません" in error_msg
 
     finally:
         # 元の設定に戻す
         config.settings = original_settings
 
 
-def test_validate_settings_production_mode(caplog):
+def test_validate_settings_production_mode(caplog, monkeypatch):
     """本番モードでの検証テスト"""
     # テスト用の設定を作成
     test_settings = Settings(
@@ -138,11 +141,12 @@ def test_validate_settings_production_mode(caplog):
         # テスト用設定に置き換え
         config.settings = test_settings
 
-        with caplog.at_level(logging.ERROR):
-            result = validate_settings()
+        # ログレベルをERRORに設定してキャプチャ
+        caplog.set_level(logging.ERROR)
+        result = validate_settings()
 
         # 結果を確認
-        assert result == False  # 本番環境でデフォルト値を使っているのでFalse
+        assert result is False  # 本番環境でデフォルト値を使っているのでFalse
 
         # エラーメッセージを確認
         error_messages = [
@@ -158,11 +162,11 @@ def test_validate_settings_production_mode(caplog):
         config.settings = original_settings
 
 
-def test_validate_settings_valid_production(caplog):
+def test_validate_settings_valid_production(caplog, monkeypatch):
     """有効な本番設定での検証テスト"""
     # テスト用の設定を作成
     test_settings = Settings(
-        SECRET_KEY="production-secret-key-abc123xyz",
+        SECRET_KEY="production-secret-key-abc123xyz-production-secret-key-abc123xyz",
         DATABASE_URL="postgresql://produser:prodpass@db.example.com:5432/team_insight",
         REDISCLI_AUTH="production-redis-password",
         BACKLOG_CLIENT_ID="prod-client-id",
@@ -180,11 +184,12 @@ def test_validate_settings_valid_production(caplog):
         # テスト用設定に置き換え
         config.settings = test_settings
 
-        with caplog.at_level(logging.INFO):
-            result = validate_settings()
+        # ログレベルをINFOに設定してキャプチャ
+        caplog.set_level(logging.INFO)
+        result = validate_settings()
 
         # 結果を確認
-        assert result == True  # 問題なし
+        assert result is True  # 問題なし
 
         # 成功メッセージを確認
         info_messages = [
@@ -197,15 +202,19 @@ def test_validate_settings_valid_production(caplog):
         config.settings = original_settings
 
 
-def test_password_policy_settings():
-    """パスワードポリシー設定のテスト"""
-    settings = Settings()
+def test_backlog_oauth_settings():
+    """Backlog OAuth設定のテスト"""
+    settings = Settings(
+        BACKLOG_CLIENT_ID="test-client-id",
+        BACKLOG_CLIENT_SECRET="test-client-secret",
+        BACKLOG_SPACE_KEY="test-space",
+        BACKLOG_REDIRECT_URI="http://localhost:8000/api/v1/auth/callback"
+    )
 
-    assert settings.PASSWORD_MIN_LENGTH == 8
-    assert settings.PASSWORD_REQUIRE_UPPERCASE == True
-    assert settings.PASSWORD_REQUIRE_LOWERCASE == True
-    assert settings.PASSWORD_REQUIRE_NUMBERS == True
-    assert settings.PASSWORD_REQUIRE_SPECIAL == True
+    assert settings.BACKLOG_CLIENT_ID == "test-client-id"
+    assert settings.BACKLOG_CLIENT_SECRET == "test-client-secret"
+    assert settings.BACKLOG_SPACE_KEY == "test-space"
+    assert settings.BACKLOG_REDIRECT_URI == "http://localhost:8000/api/v1/auth/callback"
 
 
 def test_env_override():

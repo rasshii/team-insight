@@ -51,6 +51,17 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # MailHog - Email Testing Tool
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: team-insight-mailhog
+    ports:
+      - "1025:1025"  # SMTP server
+      - "8025:8025"  # Web UI
+    networks:
+      - team-insight-network
+    restart: unless-stopped
+
   # Backend API (FastAPI)
   backend:
     build:
@@ -66,6 +77,15 @@ services:
       DEBUG: ${DEBUG:-True}
       BACKEND_CORS_ORIGINS: http://localhost,http://frontend:3000
       LOG_LEVEL: DEBUG
+      # MailHog settings for development
+      SMTP_HOST: ${SMTP_HOST:-mailhog}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_TLS: ${SMTP_TLS:-false}
+      SMTP_SSL: ${SMTP_SSL:-false}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-noreply@teaminsight.dev}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Team Insight}
     ports:
       - "8000:8000"
     volumes:
@@ -76,9 +96,11 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      mailhog:
+        condition: service_started
     networks:
       - team-insight-network
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
+    command: /bin/bash scripts/startup.sh
     restart: unless-stopped
 
   # Frontend Application (Next.js)
@@ -89,6 +111,7 @@ services:
     container_name: team-insight-frontend
     environment:
       NEXT_PUBLIC_API_URL: http://localhost
+      NEXT_PUBLIC_APP_URL: http://localhost
       NEXT_PUBLIC_API_BASE_URL: http://localhost
       NODE_ENV: development
       NEXT_TELEMETRY_DISABLED: 1

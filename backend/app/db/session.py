@@ -11,3 +11,18 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def get_db_with_commit():
+    """
+    自動コミット付きのデータベースセッションを取得
+    メール検証トークンの保存などに使用
+    """
+    db = SessionLocal()
+    try:
+        yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()

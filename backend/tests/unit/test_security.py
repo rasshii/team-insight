@@ -1,39 +1,14 @@
 """
-セキュリティ関連の単体テスト
+セキュリティ関連の単体テスト（JWT認証のみ）
 """
 import pytest
 from datetime import timedelta
 from jose import jwt
 from app.core.security import (
-    verify_password,
-    get_password_hash,
     create_access_token,
     decode_token
 )
 from app.core.config import settings
-
-
-class TestPasswordHashing:
-    """パスワードハッシュ化のテスト"""
-    
-    def test_password_hashing(self):
-        """パスワードのハッシュ化と検証"""
-        password = "testpassword123"
-        hashed = get_password_hash(password)
-        
-        assert hashed != password
-        assert verify_password(password, hashed) is True
-        assert verify_password("wrongpassword", hashed) is False
-    
-    def test_different_passwords_different_hashes(self):
-        """異なるパスワードは異なるハッシュを生成"""
-        password1 = "password123"
-        password2 = "password456"
-        
-        hash1 = get_password_hash(password1)
-        hash2 = get_password_hash(password2)
-        
-        assert hash1 != hash2
 
 
 class TestJWTToken:

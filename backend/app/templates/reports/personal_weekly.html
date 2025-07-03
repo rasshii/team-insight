@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Insight 週次レポート - {{ user_name }}</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #1a202c;
+            background-color: #f7fafc;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+            border-radius: 0 0 20px 20px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        .header p {
+            margin: 10px 0 0;
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .section {
+            margin-bottom: 40px;
+        }
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .kpi-card {
+            background-color: #f7fafc;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .kpi-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #4F46E5;
+            margin: 0;
+        }
+        .kpi-label {
+            font-size: 14px;
+            color: #718096;
+            margin-top: 5px;
+        }
+        .kpi-change {
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        .kpi-change.positive {
+            color: #48bb78;
+        }
+        .kpi-change.negative {
+            color: #f56565;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        th {
+            background-color: #f7fafc;
+            font-weight: 600;
+            color: #4a5568;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        tr:hover {
+            background-color: #f7fafc;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background-color: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+        .progress-fill {
+            height: 100%;
+            background-color: #4F46E5;
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+        .footer {
+            background-color: #f7fafc;
+            padding: 30px;
+            text-align: center;
+            color: #718096;
+            font-size: 14px;
+        }
+        .footer a {
+            color: #4F46E5;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        .cta-button {
+            display: inline-block;
+            background-color: #4F46E5;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 20px;
+            transition: background-color 0.2s;
+        }
+        .cta-button:hover {
+            background-color: #4338ca;
+        }
+        @media (max-width: 600px) {
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+            .header {
+                padding: 30px 20px;
+            }
+            .content {
+                padding: 30px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>週次パフォーマンスレポート</h1>
+            <p>{{ report_period }}</p>
+        </div>
+        
+        <div class="content">
+            <!-- KPIサマリー -->
+            <div class="section">
+                <h2 class="section-title">📊 週間サマリー</h2>
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <p class="kpi-value">{{ completed_tasks }}</p>
+                        <p class="kpi-label">完了タスク数</p>
+                        {% if completion_rate_change %}
+                        <p class="kpi-change {{ 'positive' if completion_rate_change > 0 else 'negative' }}">
+                            {{ completion_rate_change }}% 前週比
+                        </p>
+                        {% endif %}
+                    </div>
+                    <div class="kpi-card">
+                        <p class="kpi-value">{{ avg_cycle_time }}日</p>
+                        <p class="kpi-label">平均サイクルタイム</p>
+                    </div>
+                    <div class="kpi-card">
+                        <p class="kpi-value">{{ productivity_score }}</p>
+                        <p class="kpi-label">生産性スコア</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: {{ productivity_score }}%"></div>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <p class="kpi-value">{{ deadline_adherence_rate }}%</p>
+                        <p class="kpi-label">期限遵守率</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- タスクタイプ別分析 -->
+            {% if task_types %}
+            <div class="section">
+                <h2 class="section-title">🎯 タスクタイプ別実績</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>タスクタイプ</th>
+                            <th>完了数</th>
+                            <th>割合</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for task_type in task_types %}
+                        <tr>
+                            <td>{{ task_type.type }}</td>
+                            <td>{{ task_type.count }}</td>
+                            <td>
+                                <div style="display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">{{ (task_type.count / completed_tasks * 100)|round(1) }}%</span>
+                                    <div class="progress-bar" style="width: 100px;">
+                                        <div class="progress-fill" style="width: {{ (task_type.count / completed_tasks * 100) }}%"></div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+            
+            <!-- 今週の成果 -->
+            <div class="section">
+                <h2 class="section-title">✨ 今週の主な成果</h2>
+                <ul style="color: #4a5568; line-height: 1.8;">
+                    <li>{{ completed_tasks }}件のタスクを完了し、チームの目標達成に貢献しました</li>
+                    <li>平均サイクルタイム{{ avg_cycle_time }}日を維持し、効率的な作業を実現しました</li>
+                    {% if deadline_adherence_rate > 90 %}
+                    <li>期限遵守率{{ deadline_adherence_rate }}%という高い水準を達成しました</li>
+                    {% endif %}
+                    {% if in_progress_tasks > 0 %}
+                    <li>現在{{ in_progress_tasks }}件のタスクが進行中です</li>
+                    {% endif %}
+                </ul>
+            </div>
+            
+            <!-- アクションアイテム -->
+            {% if overdue_tasks > 0 or productivity_score < 70 %}
+            <div class="section">
+                <h2 class="section-title">⚡ 改善ポイント</h2>
+                <ul style="color: #4a5568; line-height: 1.8;">
+                    {% if overdue_tasks > 0 %}
+                    <li>{{ overdue_tasks }}件の遅延タスクがあります。優先順位を見直しましょう</li>
+                    {% endif %}
+                    {% if productivity_score < 70 %}
+                    <li>生産性スコアが{{ productivity_score }}%です。タスクの整理や優先順位の見直しを検討しましょう</li>
+                    {% endif %}
+                    {% if avg_cycle_time > 5 %}
+                    <li>平均サイクルタイムが{{ avg_cycle_time }}日と長めです。ボトルネックの特定が必要かもしれません</li>
+                    {% endif %}
+                </ul>
+            </div>
+            {% endif %}
+            
+            <div style="text-align: center; margin-top: 40px;">
+                <a href="{{ dashboard_url }}" class="cta-button">詳細をダッシュボードで確認</a>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>このレポートは{{ generated_at.strftime('%Y年%m月%d日 %H:%M') }}に生成されました</p>
+            <p>© 2025 Team Insight. All rights reserved.</p>
+            <p><a href="{{ dashboard_url }}/settings/reports">レポート配信設定を変更</a></p>
+        </div>
+    </div>
+</body>
+</html>
