@@ -43,7 +43,7 @@ class UserBrief(BaseModel):
     backlog_id: Optional[int]
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class ProjectBrief(BaseModel):
@@ -54,7 +54,7 @@ class ProjectBrief(BaseModel):
     backlog_id: int
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class TaskResponse(BaseModel):
@@ -94,37 +94,9 @@ class TaskResponse(BaseModel):
     reporter: Optional[UserBrief]
     
     class Config:
-        orm_mode = True
+        from_attributes = True
         use_enum_values = False
     
-    @classmethod
-    def from_orm(cls, task):
-        """ORMモデルからスキーマに変換"""
-        return cls(
-            id=task.id,
-            backlog_id=task.backlog_id,
-            backlog_key=task.backlog_key,
-            title=task.title,
-            description=task.description,
-            status=task.status,
-            priority=task.priority,
-            issue_type_id=task.issue_type_id,
-            issue_type_name=task.issue_type_name,
-            estimated_hours=task.estimated_hours,
-            actual_hours=task.actual_hours,
-            start_date=task.start_date,
-            due_date=task.due_date,
-            completed_date=task.completed_date,
-            milestone_id=task.milestone_id,
-            milestone_name=task.milestone_name,
-            category_names=task.category_names,
-            version_names=task.version_names,
-            created_at=task.created_at,
-            updated_at=task.updated_at,
-            project=ProjectBrief.from_orm(task.project) if task.project else None,
-            assignee=UserBrief.from_orm(task.assignee) if task.assignee else None,
-            reporter=UserBrief.from_orm(task.reporter) if task.reporter else None
-        )
 
 
 class TaskListResponse(BaseModel):
