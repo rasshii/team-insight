@@ -7,6 +7,7 @@
 from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from sqlalchemy.orm import Session
+import logging
 
 from app.api.deps import get_db_session, get_current_active_user
 from app.models.user import User
@@ -20,9 +21,11 @@ from app.schemas.user_preferences import (
     SessionInfo
 )
 from app.services.user_preferences_service import user_preferences_service
-from app.core.response_builder import ResponseFormatter
 from app.core.deps import get_response_formatter
+from app.core.response_builder import ResponseFormatter
 from app.core.error_handler import AppException, ErrorCode
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -32,16 +35,47 @@ async def get_my_settings(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db_session),
     formatter: ResponseFormatter = Depends(get_response_formatter)
-) -> Dict[str, Any]:
+):
     """
     現在のユーザーの設定を取得
     """
+    logger.info(f"get_my_settings called for user: {current_user.id}")
     # preferencesを取得または作成
     current_user.preferences = user_preferences_service.get_or_create_preferences(
         db, current_user.id
     )
     
-    return formatter.success(data=UserSettings.from_orm(current_user).model_dump())
+    try:
+        # UserSettingsスキーマを手動で構築
+        user_data = {
+            "id": current_user.id,
+            "email": current_user.email,
+            "name": current_user.name,
+            "backlog_id": current_user.backlog_id,
+            "is_active": current_user.is_active,
+            "timezone": current_user.timezone,
+            "locale": current_user.locale,
+            "date_format": current_user.date_format,
+            "preferences": None
+        }
+        
+        # preferencesが存在する場合は追加
+        if current_user.preferences:
+            user_data["preferences"] = {
+                "id": current_user.preferences.id,
+                "user_id": current_user.preferences.user_id,
+                "email_notifications": current_user.preferences.email_notifications,
+                "report_frequency": current_user.preferences.report_frequency,
+                "notification_email": current_user.preferences.notification_email,
+                "created_at": current_user.preferences.created_at,
+                "updated_at": current_user.preferences.updated_at
+            }
+        
+        user_settings = UserSettings.model_validate(user_data)
+        return formatter.success(data=user_settings.model_dump())
+    except Exception as e:
+        logger.error(f"Error validating user settings: {e}", exc_info=True)
+        raise
 
 
 @router.put("/me")
@@ -51,7 +85,7 @@ async def update_my_settings(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db_session),
     formatter: ResponseFormatter = Depends(get_response_formatter)
-) -> Dict[str, Any]:
+):
     """
     現在のユーザーの設定を更新
     """
@@ -70,8 +104,33 @@ async def update_my_settings(
         request=request
     )
     
+    # UserSettingsスキーマを手動で構築
+    user_data = {
+        "id": updated_user.id,
+        "email": updated_user.email,
+        "name": updated_user.name,
+        "backlog_id": updated_user.backlog_id,
+        "is_active": updated_user.is_active,
+        "timezone": updated_user.timezone,
+        "locale": updated_user.locale,
+        "date_format": updated_user.date_format,
+        "preferences": None
+    }
+    
+    # preferencesが存在する場合は追加
+    if updated_user.preferences:
+        user_data["preferences"] = {
+            "id": updated_user.preferences.id,
+            "user_id": updated_user.preferences.user_id,
+            "email_notifications": updated_user.preferences.email_notifications,
+            "report_frequency": updated_user.preferences.report_frequency,
+            "notification_email": updated_user.preferences.notification_email,
+            "created_at": updated_user.preferences.created_at,
+            "updated_at": updated_user.preferences.updated_at
+        }
+    
     return formatter.success(
-        data=UserSettings.from_orm(updated_user).model_dump(),
+        data=UserSettings.model_validate(user_data).model_dump(),
         message="設定を更新しました"
     )
 
@@ -81,7 +140,7 @@ async def get_my_preferences(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db_session),
     formatter: ResponseFormatter = Depends(get_response_formatter)
-) -> Dict[str, Any]:
+):
     """
     現在のユーザーの通知設定を取得
     """
@@ -98,7 +157,7 @@ async def update_my_preferences(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db_session),
     formatter: ResponseFormatter = Depends(get_response_formatter)
-) -> Dict[str, Any]:
+):
     """
     現在のユーザーの通知設定を更新
     """
@@ -119,7 +178,7 @@ async def get_my_login_history(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db_session),
     formatter: ResponseFormatter = Depends(get_response_formatter)
-) -> Dict[str, Any]:
+):
     """
     現在のユーザーのログイン履歴を取得
     """
@@ -139,7 +198,7 @@ async def get_my_activity_logs(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db_session),
     formatter: ResponseFormatter = Depends(get_response_formatter)
-) -> Dict[str, Any]:
+):
     """
     現在のユーザーのアクティビティログを取得
     """
@@ -157,7 +216,7 @@ async def get_my_sessions(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db_session),
     formatter: ResponseFormatter = Depends(get_response_formatter)
-) -> Dict[str, Any]:
+):
     """
     現在のユーザーのアクティブセッション一覧を取得
     """
@@ -186,7 +245,7 @@ async def terminate_session(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db_session),
     formatter: ResponseFormatter = Depends(get_response_formatter)
-) -> Dict[str, Any]:
+):
     """
     指定されたセッションを終了
     """

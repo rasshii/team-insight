@@ -172,7 +172,7 @@ async def get_my_tasks(
         total=len(tasks),
         limit=len(tasks),
         offset=0,
-        tasks=[TaskResponse.from_orm(task) for task in tasks]
+        tasks=[TaskResponse.model_validate(task) for task in tasks]
     )
 
 
@@ -206,7 +206,7 @@ async def get_task(
                 detail="このタスクへのアクセス権限がありません"
             )
     
-    return TaskResponse.from_orm(task)
+    return TaskResponse.model_validate(task)
 
 
 @router.get("/backlog/{backlog_key}", response_model=TaskResponse)
@@ -239,7 +239,7 @@ async def get_task_by_backlog_key(
                 detail="このタスクへのアクセス権限がありません"
             )
     
-    return TaskResponse.from_orm(task)
+    return TaskResponse.model_validate(task)
 
 
 @router.get("/statistics/summary")
