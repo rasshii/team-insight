@@ -268,6 +268,79 @@ make remove-role EMAIL=user@example.com ROLE=MEMBER # ロール削除
 make init-admin     # 環境変数から初期管理者を設定
 ```
 
+#### レポート配信機能
+
+Team Insightは自動レポート配信機能を完備しており、個人・プロジェクト・チーム単位での定期レポートを送信できます。
+
+**レポートの種類**:
+- **個人レポート**: タスク完了率、サイクルタイム、生産性スコアなどの個人パフォーマンス指標
+- **プロジェクトレポート**: プロジェクト健全度、ボトルネック分析、トップパフォーマー
+- **チームレポート**: 組織全体の統計、アクティブプロジェクト数、全体的な生産性指標
+
+**レポート頻度**:
+- 日次（Daily）
+- 週次（Weekly）
+- 月次（Monthly）
+
+**レポート配信のテスト方法**:
+
+1. **MailHog Web UIを開く**:
+   ```bash
+   # ブラウザで以下のURLにアクセス
+   open http://localhost:8025
+   ```
+
+2. **テストレポートの送信**（認証が必要）:
+   ```bash
+   # ブラウザでTeam Insightにログイン後、開発者ツールでCookieのauth_tokenを取得
+   # または、curlコマンドで直接APIを呼び出し:
+   
+   curl -X POST "http://localhost/api/v1/reports/test" \
+     -H "Cookie: auth_token=YOUR_AUTH_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "report_type": "weekly",
+       "recipient_type": "personal"
+     }'
+   ```
+
+3. **MailHogでレポートを確認**:
+   - MailHog UI（http://localhost:8025）を開く
+   - 受信トレイに「Team Insight Weekly Report」という件名のメールが表示される
+   - メールをクリックしてHTMLレポートの内容を確認
+
+**レポートに含まれる内容**:
+- KPIカード（タスク完了数、平均サイクルタイム、生産性スコア、期限遵守率）
+- タスクタイプ別分析（バグ、機能、タスク、その他）
+- 最近完了したタスク一覧
+- 視覚的な進捗バー
+- モバイル対応のレスポンシブデザイン
+
+**レポートスケジュールの管理**:
+
+API経由でレポート配信スケジュールを設定・管理できます：
+
+```bash
+# スケジュール一覧の取得
+curl -X GET "http://localhost/api/v1/reports/schedules" \
+  -H "Cookie: auth_token=YOUR_AUTH_TOKEN"
+
+# 週次レポートのスケジュール作成
+curl -X POST "http://localhost/api/v1/reports/schedules" \
+  -H "Cookie: auth_token=YOUR_AUTH_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "report_type": "weekly",
+    "recipient_type": "personal",
+    "is_active": true
+  }'
+```
+
+**開発環境での注意事項**:
+- MailHogはSMTPサーバーとして機能し、すべてのメールを捕捉します
+- 実際のメールアドレスには送信されません
+- 本番環境では適切なSMTPサーバーの設定が必要です
+
 #### ユーザーステータス管理
 
 Team Insightでは、ユーザーのログイン可否を`is_active`フラグで管理しています。
