@@ -8,7 +8,7 @@
 | URL | 説明 | 実装状況 |
 |-----|------|---------|
 | `/` | ランディングページ | ✅ ヒーローセクション、機能紹介、CTAセクション完備 |
-| `/auth/login` | ログイン画面 | ✅ Backlog OAuth専用認証（メール/パスワード認証は削除） |
+| `/auth/login` | ログイン画面 | ✅ Backlog OAuth専用認証 |
 | `/auth/callback` | OAuth認証コールバック | ✅ Backlog OAuth処理実装済み |
 | `/dashboard/personal` | 個人ダッシュボード | ✅ KPI、タスク状況、生産性トレンド表示、実データ連携済み |
 | `/projects` | プロジェクト一覧 | ✅ 一覧表示、同期機能付き |
@@ -198,7 +198,7 @@ graph TB
 | :----------------------- | :--------------------------------------------------- | :--------------------------------------------------------------------- |
 | **開発メンバー**         | 自身の生産性が不明確<br>改善点が分からない           | 個人ダッシュボードで作業効率を可視化<br>ボトルネックを特定し改善を促進 |
 | **プロジェクトリーダー** | チーム状況の把握が困難<br>問題の早期発見ができない   | リアルタイムでチーム健康度を監視<br>データに基づく適切な介入が可能     |
-| **管理者・CTO**          | 組織全体の効率が不透明<br>リソース配分の最適化が困難 | プロジェクト単位での分析<br>CLIツールによる権限管理（管理画面は次フェーズ） |
+| **管理者・CTO**          | 組織全体の効率が不透明<br>リソース配分の最適化が困難 | プロジェクト単位での分析<br>GUI管理画面とCLIツールによる権限管理 |
 
 ### 1.3 現在の実装状況（2025 年 7 月時点）
 
@@ -210,7 +210,7 @@ graph LR
         A3[個人ダッシュボード（完全動作）]
         A4[チーム管理・生産性ダッシュボード]
         A5[ユーザー設定（アカウント/セキュリティ）]
-        A6[管理画面（ユーザー/チーム管理）]
+        A6[管理画面GUI（ユーザー/チーム管理）]
         A7[自動トークンリフレッシュ]
         A8[Backlogタスク同期（定期実行）]
         A9[レポート配信システム]
@@ -330,7 +330,7 @@ graph TD
 
     A -->|全機能アクセス| E[全ダッシュボード]
     A -->|全機能アクセス| F[ユーザー/チーム管理]
-    A -->|GUI & CLI| G[ロール管理<br>（/admin/users）]
+    A -->|GUI管理画面| G[ロール管理<br>（/admin/users）]
     A -->|全データアクセス| H[レポート設定]
 
     B -->|プロジェクト・チーム管理| E
@@ -356,6 +356,7 @@ graph TD
   - GUI管理画面（/admin/users）で視覚的に管理
   - CLIツールも並行して利用可能
   - プロジェクト単位での権限設定
+- **ユーザーステータス管理**: is_activeフラグによるログイン可否制御 ✅
 - **アクティビティログ・監査機能**: 全操作履歴の自動記録 ✅
   - ログイン/ログアウト履歴
   - 操作ログ（誰が、いつ、何を）
@@ -428,7 +429,7 @@ graph TD
     E -->|Yes| F[適切なスペース？]
     F -->|Yes| G[ユーザー情報取得]
     G --> H[初回ユーザー？]
-    H -->|Yes| I[デフォルトロール付与]
+    H -->|Yes| I[アカウント作成・デフォルトロール付与]
     H -->|No| J[既存ユーザー]
     I --> K[ダッシュボード]
     J --> K
@@ -477,48 +478,46 @@ graph TD
 graph TD
     subgraph "公開エリア"
         A["/ ランディングページ ✅"]
-        B["/auth/signup サインアップ ✅"]
-        C["/auth/login ログインページ ✅"]
-        D["/auth/callback 認証コールバック ✅"]
-        E["/auth/verify-email メール確認 🚧"]
+        B["/auth/login ログインページ ✅"]
+        C["/auth/callback 認証コールバック ✅"]
     end
 
     subgraph "認証エリア"
-        F["/dashboard ダッシュボードホーム ✅"]
-        G["/dashboard/personal 個人ダッシュボード ✅"]
-        H["/projects プロジェクト一覧 ✅"]
-        I["/dashboard/project/:id プロジェクトダッシュボード 📋"]
-        J["/settings/backlog Backlog連携設定 🚧"]
+        D["/dashboard ダッシュボードホーム ✅"]
+        E["/dashboard/personal 個人ダッシュボード ✅"]
+        F["/projects プロジェクト一覧 ✅"]
+        G["/teams チーム生産性ダッシュボード ✅"]
+        H["/dashboard/project/:id プロジェクトダッシュボード 📋"]
+        I["/settings/* ユーザー設定 ✅"]
     end
 
     subgraph "管理エリア（実装済み）"
-        K["/admin/users ユーザー管理 ✅"]
+        J["/admin/users ユーザー管理 ✅"]
+        K["/admin/teams チーム管理 ✅"]
         L["/admin/settings システム設定 📋"]
-        M["✅ GUIとCLIツール両方で管理可能"]
+        M["✅ GUI管理画面とCLIツール両方で利用可能"]
     end
 
     A --> B
-    A --> C
-    B --> E
+    B --> C
     C --> D
+    D --> E
     D --> F
-    E --> F
-    F --> G
+    D --> G
+    D --> I
     F --> H
-    F --> J
-    H --> I
 
     style A fill:#c5e1a5,stroke:#01579b,stroke-width:2px
     style B fill:#c5e1a5,stroke:#01579b,stroke-width:2px
     style C fill:#c5e1a5,stroke:#01579b,stroke-width:2px
-    style D fill:#c5e1a5,stroke:#01579b,stroke-width:2px
-    style E fill:#fff9c4,stroke:#01579b,stroke-width:2px
+    style D fill:#c5e1a5,stroke:#1b5e20,stroke-width:2px
+    style E fill:#c5e1a5,stroke:#1b5e20,stroke-width:2px
     style F fill:#c5e1a5,stroke:#1b5e20,stroke-width:2px
-    style G fill:#fff9c4,stroke:#1b5e20,stroke-width:2px
-    style H fill:#c5e1a5,stroke:#1b5e20,stroke-width:2px
-    style J fill:#fff9c4,stroke:#1b5e20,stroke-width:2px
-    style I fill:#ffccbc,stroke:#f57f17,stroke-width:2px
-    style K fill:#ffccbc,stroke:#b71c1c,stroke-width:2px
+    style G fill:#c5e1a5,stroke:#1b5e20,stroke-width:2px
+    style H fill:#ffccbc,stroke:#f57f17,stroke-width:2px
+    style I fill:#c5e1a5,stroke:#1b5e20,stroke-width:2px
+    style J fill:#c5e1a5,stroke:#b71c1c,stroke-width:2px
+    style K fill:#c5e1a5,stroke:#b71c1c,stroke-width:2px
     style L fill:#ffccbc,stroke:#b71c1c,stroke-width:2px
     style M fill:#e0e0e0,stroke:#b71c1c,stroke-width:2px
 ```
@@ -528,92 +527,92 @@ graph TD
 | URL                                  | 画面名                     | 説明                                                                                                    | アクセス権限               | 実装状況 |
 | :----------------------------------- | :------------------------- | :------------------------------------------------------------------------------------------------------ | :------------------------- | :------- |
 | **`/`**                              | ランディングページ         | Team Insight の価値提案、主要機能の紹介、導入事例を表示。ログインへの明確な CTA（Call to Action）を配置 | 公開（誰でもアクセス可能） | ✅       |
-| **`/auth/signup`**                   | サインアップページ         | メール/パスワードまたは Backlog OAuth での新規登録。選択可能な認証方式を提供                            | 未認証ユーザー             | ✅       |
-| **`/auth/login`**                    | ログインページ             | ユーザーのログイン。メール/パスワードまたは Backlog OAuth 認証を選択。新規ユーザーはサインアップへ遷移    | 未認証ユーザー             | ✅       |
+| **`/auth/login`**                    | ログインページ             | Backlog OAuth認証によるログイン。Team Insightへの唯一の入口                                               | 未認証ユーザー             | ✅       |
 | **`/auth/callback`**                 | OAuth 認証コールバック     | Backlog OAuth 2.0 認証完了後の処理。ユーザーには表示されない内部処理用 URL                              | システム内部処理           | ✅       |
-| **`/auth/verify-email`**             | メール確認ページ           | メールアドレス確認用。トークンを検証してアカウントを有効化                                              | メール確認待ちユーザー     | 🚧       |
 | **`/dashboard`**                     | ダッシュボードホーム       | ログイン後の起点。ユーザーのロールに応じて、最も関連性の高い情報へのクイックアクセスを提供              | 要ログイン（全ロール）     | ✅       |
-| **`/dashboard/personal`**            | 個人ダッシュボード         | 個人の生産性指標、タスク状況、パフォーマンストレンドを表示                                              | 要ログイン（全ロール）     | 🚧       |
+| **`/dashboard/personal`**            | 個人ダッシュボード         | 個人の生産性指標、タスク状況、パフォーマンストレンドを表示                                              | 要ログイン（全ロール）     | ✅       |
 | **`/projects`**                      | プロジェクト一覧           | アクセス可能なプロジェクトをカード形式で表示。各プロジェクトの概要情報とクイックアクセスリンクを提供    | 要ログイン（全ロール）     | ✅       |
+| **`/teams`**                         | チーム生産性ダッシュボード | チーム別のKPI、メンバー分析、タスク分配、生産性推移を表示                                                | 要ログイン（全ロール）     | ✅       |
 | **`/dashboard/project/{projectId}`** | プロジェクトダッシュボード | 特定プロジェクトの詳細分析。チーム健康度、ボトルネック分析、メンバー別パフォーマンスを包括的に表示      | プロジェクトリーダー以上   | 📋       |
-| **`/settings/backlog`**              | Backlog 連携設定           | Backlog OAuth 連携の設定と再認証。接続テスト機能を含む                                                  | 要ログイン（全ロール）     | 🚧       |
+| **`/admin/users`**                   | ユーザー管理               | ユーザー一覧、ロール管理、ステータス管理。フィルタリング機能付き                                        | 管理者のみ                 | ✅       |
+| **`/admin/teams`**                   | チーム管理                 | チームの作成・編集・削除、メンバー管理                                                                  | 管理者/PROJECT_LEADER      | ✅       |
+| **`/settings/*`**                    | ユーザー設定               | アカウント設定、セキュリティ設定、プロフィール設定など                                                    | 要ログイン（全ロール）     | ✅       |
 | **`/403`**                           | アクセス拒否               | 権限不足時に表示されるエラーページ。適切な権限取得方法を案内                                            | 全ユーザー（エラー時）     | 📋       |
 
-**ロール管理**: GUI（/admin/users）とCLIツールの両方で管理可能:
-- `make set-admin EMAIL=user@example.com` - ユーザーを管理者に設定
-- `make set-role EMAIL=user@example.com ROLE=PROJECT_LEADER` - ロール設定
-- `make list-users` - ユーザー一覧表示
-- `make remove-role EMAIL=user@example.com ROLE=MEMBER` - ロール削除
+**ロール管理**: GUI管理画面（/admin/users）で視覚的に管理可能。CLIツールも並行して利用可能:
+- GUI: `/admin/users`でドロップダウンからロール変更、ステータス切り替え
+- CLI: `make set-admin EMAIL=user@example.com` - ユーザーを管理者に設定
+- CLI: `make set-role EMAIL=user@example.com ROLE=PROJECT_LEADER` - ロール設定
+- CLI: `make list-users` - ユーザー一覧表示
+- CLI: `make remove-role EMAIL=user@example.com ROLE=MEMBER` - ロール削除
 
 ### 4.3 API エンドポイント構成（拡張版）
 
 ```bash
 /api/v1/
 ├── auth/
-│   ├── signup                  # メール/パスワード登録 ✅
-│   ├── login                   # メール/パスワードログイン（新規ユーザーはsignupへ） ✅
-│   ├── verify-email            # メールアドレス確認 🚧
-│   ├── resend-verification     # 確認メール再送信 🚧
 │   ├── backlog/authorize       # OAuth認証開始 ✅
 │   ├── backlog/callback        # OAuth認証完了 ✅
-│   ├── logout                  # ログアウト 🚧
-
-│   └── me                      # 現在のユーザー情報 🚧
-├── backlog/
-│   ├── connection              # Backlog連携設定 🚧
-│   ├── test                    # 連携テスト 🚧
-│   └── disconnect              # 連携解除 📋
+│   ├── backlog/refresh         # Backlogトークンリフレッシュ ✅
+│   ├── verify                  # 認証確認 ✅
+│   ├── me                      # 現在のユーザー情報 ✅
+│   ├── refresh                 # JWTトークンリフレッシュ ✅
+│   └── logout                  # ログアウト ✅
+├── users/
+│   ├── /                       # ユーザー一覧（管理者のみ） ✅
+│   ├── /{id}                   # ユーザー詳細 ✅
+│   └── me/*                    # 個人設定API ✅
 ├── projects/
-│   ├── list                    # プロジェクト一覧 🚧
+│   ├── /                       # プロジェクト一覧 ✅
 │   └── {id}/
-│       ├── dashboard           # プロジェクトダッシュボードデータ 📋
-│       ├── members             # プロジェクトメンバー 📋
-│       └── analytics           # 詳細分析データ 📋
-└── personal/
-    ├── dashboard               # 個人ダッシュボードデータ 🚧
-    ├── tasks                   # 個人のタスク一覧 📋
-    └── performance             # パフォーマンス指標 📋
-
-# MVPでは管理機能はCLIツールで提供
-# 次フェーズで以下のAPIを実装予定：
-# - organization/* (組織ダッシュボード)
-# - admin/* (管理画面)
+│       ├── /                   # プロジェクト詳細 ✅
+│       ├── members             # プロジェクトメンバー ✅
+│       └── metrics             # メトリクスデータ ✅
+├── teams/
+│   ├── /                       # チーム一覧 ✅
+│   └── {id}/*                  # チーム詳細・管理 ✅
+├── analytics/
+│   ├── personal/*              # 個人分析データ ✅
+│   └── project/*               # プロジェクト分析 🚧
+└── sync/
+    ├── connection/status       # Backlog接続状態 ✅
+    ├── projects/all            # 全プロジェクト同期 ✅
+    └── user/tasks              # ユーザータスク同期 ✅
 ```
 
 ---
 
 ## 5. 主要画面と機能詳細
 
-### 5.1 認証関連画面（新規追加）
+### 5.1 認証関連画面
 
-#### サインアップ画面
+#### ログイン画面
 
 ```mermaid
 graph TD
-    subgraph "サインアップフロー"
-        A[認証方式選択]
-        B[メール/パスワード入力]
-        C[Backlog OAuth認証]
-        D[メール確認画面]
-        E[プロファイル設定]
-        F[Backlog連携画面]
+    subgraph "Backlog OAuth認証フロー"
+        A[ログインボタン]
+        B[Backlog OAuth認証ページ]
+        C[認証承認]
+        D[スペース確認]
+        E[アカウント作成/更新]
+        F[ダッシュボードへ]
     end
 
-    A -->|メール選択| B
-    A -->|Backlog選択| C
-    B --> D
-    D --> E
+    A --> B
+    B --> C
+    C --> D
+    D -->|適切なスペース| E
     E --> F
-    C --> F
 ```
 
 **主な機能:**
 
-- **デュアル認証**: メール/パスワードと Backlog OAuth の選択
-- **強固なバリデーション**: パスワード強度チェック、メール形式検証
-- **スムーズなオンボーディング**: ステップバイステップのガイド
+- **Backlog OAuth専用認証**: セキュアなOAuth 2.0フロー
+- **スペース検証**: 設定されたスペースへのアクセス権限確認
+- **自動アカウント作成**: 初回ログイン時のシームレスなアカウント作成
 
-#### Backlog 連携設定画面
+#### Backlog 連携設定画面（将来実装）
 
 **OAuth 認証による連携:**
 
@@ -623,20 +622,20 @@ graph TD
 - 定期的な自動更新
 - 接続テスト機能
 
-#### ロール管理（MVPではCLIツール）
+#### ロール管理（GUI管理画面実装済み）
 
-**MVPでのロール管理方法:**
+**ロール管理方法:**
 
-- 初期管理者は環境変数`INITIAL_ADMIN_EMAILS`で設定
-- CLIツールによるロール設定
-- 管理画面は次フェーズで実装
-
-**利用可能なコマンド:**
-
-- `make set-admin EMAIL=user@example.com`
-- `make set-role EMAIL=user@example.com ROLE=PROJECT_LEADER`
-- `make list-users`
-- `make remove-role EMAIL=user@example.com ROLE=MEMBER`
+- **GUI管理画面**: `/admin/users`で視覚的にロール管理
+  - ドロップダウンでロール変更
+  - ステータス切り替え（is_active）
+  - フィルタリング機能（プロジェクト/チーム）
+- **CLIツール**（並行して利用可能）:
+  - `make set-admin EMAIL=user@example.com`
+  - `make set-role EMAIL=user@example.com ROLE=PROJECT_LEADER`
+  - `make list-users`
+  - `make remove-role EMAIL=user@example.com ROLE=MEMBER`
+- **初期管理者**: 環境変数`INITIAL_ADMIN_EMAILS`で設定
 
 ### 5.2 個人ダッシュボード（拡張版）
 
@@ -661,20 +660,28 @@ graph TD
     G --> N[連携状態・最終同期時刻]
 ```
 
-### 5.3 管理画面（次フェーズで実装）
+### 5.3 管理画面（実装済み）
 
-**予定機能:**
+**実装済み機能:**
 
-- ユーザー一覧とロール管理
-- システム設定
-- 監査ログ閲覧
-- 統計情報表示
+- **ユーザー管理（/admin/users）**: 
+  - ユーザー一覧とロール管理
+  - フィルタリング機能（プロジェクト/チーム/ステータス）
+  - ロール変更（ドロップダウン選択）
+  - ステータス管理（is_active切り替え）
+- **チーム管理（/admin/teams）**:
+  - チーム一覧・作成・編集・削除
+  - チームメンバー管理
+  - チーム統計情報表示
 
-**MVPでは:**
+**部分実装:**
 
-- CLIツールで同等の機能を提供
-- 開発コストを削減し、コア機能に集中
-- 将来的にGUI化を容易に実現可能
+- システム設定（/admin/settings）- 基本構造のみ
+
+**CLIツールも並行して利用可能:**
+
+- コマンドラインからの管理も引き続きサポート
+- 自動化スクリプトなどでの利用に便利
 
 ---
 
@@ -788,30 +795,30 @@ erDiagram
 
 1. **認証・認可**
 
-   - 多要素認証対応（メール + Backlog OAuth）✅
+   - Backlog OAuth 2.0専用認証 ✅
    - JWT（HttpOnly Cookie）によるセッション管理 ✅
-   - リフレッシュトークンによる自動更新 🚧
-   - ロールベースアクセス制御（RBAC）🚧
+   - リフレッシュトークンによる自動更新 ✅
+   - ロールベースアクセス制御（RBAC）✅
 
 2. **データ保護**
 
    - 全通信の HTTPS 暗号化 ✅
-   - パスワードの bcrypt ハッシュ化 ✅
-   - OAuthトークンの暗号化保存 🚧
+   - OAuthトークンの暗号化保存 ✅
    - データベース暗号化（at rest）📋
    - 個人情報の適切なマスキング 📋
 
 3. **アカウント保護**
 
-   - メールアドレス確認必須 🚧
-   - パスワードポリシーの強制 🚧
+   - スペース単位でのアクセス制御 ✅
+   - is_activeフラグによるログイン可否制御 ✅
    - ログイン試行回数制限 📋
-   - 不審なアクセスの検知 📋
+   - 不審なアクセスの検知 ✅
 
 4. **監査・コンプライアンス**
-   - 全 API アクセスのロギング 🚧
-   - 認証イベントの記録 🚧
-   - 権限変更の監査証跡 📋
+   - 全 API アクセスのロギング ✅
+   - 認証イベントの記録 ✅
+   - 権限変更の監査証跡 ✅
+   - アクティビティログ・ログイン履歴管理 ✅
    - GDPR 準拠のデータ管理 📋
 
 ---
@@ -1053,10 +1060,10 @@ Team Insight MVP では、まず**個人とプロジェクトレベルの分析�
 A: いいえ、Team Insight は Backlog の既存データをそのまま活用します。運用変更は不要です。
 
 **Q: Backlog アカウントを持っていなくても使えますか？**
-A: Team Insightをフルに活用するにはBacklogアカウントとの連携が必要です。メールアドレスでアカウント作成後、Backlogアカウントを取得して連携してください。
+A: いいえ、Team InsightはBacklog OAuth認証専用のツールです。利用するにはBacklogアカウントと、設定されたBacklogスペースへのアクセス権限が必要です。
 
 **Q: データのセキュリティはどのように確保されていますか？**
-A: すべての通信は暗号化され、データはユーザーの権限に基づいてアクセス制御されます。パスワードは安全にハッシュ化され、OAuthトークンは暗号化して保存されます。
+A: すべての通信は暗号化され、データはユーザーの権限に基づいてアクセス制御されます。OAuthトークンは暗号化して保存され、アクティビティログにより全操作が記録されます。
 
 **Q: どのくらいの規模のチームまで対応できますか？**
 A: MVP では 100 名程度までのチームを想定していますが、アーキテクチャは水平スケーリングが可能な設計となっており、将来的により大規模な組織にも対応可能です。
@@ -1064,5 +1071,5 @@ A: MVP では 100 名程度までのチームを想定していますが、ア�
 **Q: Backlog 連携が失敗した場合はどうなりますか？**
 A: 自動リトライ機能により接続を試みます。継続的に失敗する場合は、管理者に通知されます。連携が復旧するまで新しいデータの同期は停止しますが、既存のデータは引き続き閲覧可能です。
 
-**Q: MVPではユーザーのロール管理はどのように行いますか？**
-A: MVPではCLIツールで管理します。`make set-admin EMAIL=user@example.com`などのコマンドでロールを設定できます。管理画面は次フェーズで実装予定です。
+**Q: ユーザーのロール管理はどのように行いますか？**
+A: GUI管理画面（/admin/users）で視覚的に管理できます。ドロップダウンからロールを選択して変更可能です。また、CLIツール（`make set-admin EMAIL=user@example.com`など）も並行して利用できます。

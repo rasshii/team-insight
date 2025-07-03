@@ -82,7 +82,6 @@ Team Insight は、Backlog API と連携してチームの開発プロセスを�
 - **Alembic**: データベースマイグレーション
 - **httpx**: 非同期 HTTP クライアント（Backlog API 連携用）
 - **python-jose[cryptography]**: JWT トークン処理
-- **passlib[bcrypt]**: パスワードハッシュ化
 
 ### フロントエンド
 
