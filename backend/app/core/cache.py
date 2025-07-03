@@ -129,6 +129,9 @@ class CacheMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # GETリクエストのみキャッシュ対象
         if request.method != "GET":
+            # POST/PUT/DELETEリクエストの場合、関連するキャッシュをクリア
+            if request.method in ["POST", "PUT", "DELETE", "PATCH"]:
+                await self._invalidate_related_cache(request)
             return await call_next(request)
 
         # パスチェック
@@ -150,9 +153,17 @@ class CacheMiddleware(BaseHTTPMiddleware):
 
         if cached_response is not None:
             logger.info(f"キャッシュヒット: {path}")
+            # CORSヘッダーを含む基本的なヘッダーを設定
+            headers = {
+                "X-Cache": "HIT",
+                "Access-Control-Allow-Origin": request.headers.get("Origin", "*"),
+                "Access-Control-Allow-Credentials": "true",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                "Access-Control-Allow-Headers": "*"
+            }
             return JSONResponse(
                 content=cached_response,
-                headers={"X-Cache": "HIT"}
+                headers=headers
             )
 
         # キャッシュミス - レスポンスを取得
@@ -173,10 +184,14 @@ class CacheMiddleware(BaseHTTPMiddleware):
                 # キャッシュに保存
                 await redis_client.set(cache_key, content, self.default_expire)
 
+                # 元のレスポンスのヘッダーを保持
+                response_headers = dict(response.headers)
+                response_headers["X-Cache"] = "MISS"
+                
                 # レスポンスを再構築
                 return JSONResponse(
                     content=content,
-                    headers={"X-Cache": "MISS"}
+                    headers=response_headers
                 )
 
             except Exception as e:
@@ -214,6 +229,29 @@ class CacheMiddleware(BaseHTTPMiddleware):
 
         key_string = "|".join(key_parts)
         return f"cache:http:{hashlib.md5(key_string.encode()).hexdigest()}"
+    
+    async def _invalidate_related_cache(self, request: Request):
+        """
+        変更操作時に関連するキャッシュを無効化
+        """
+        path = request.url.path
+        logger.info(f"キャッシュ無効化開始: {request.method} {path}")
+        
+        # パスベースで関連するすべてのHTTPキャッシュをクリア
+        try:
+            # 特定のパスに関連する変更の場合は、すべてのHTTPキャッシュをクリア
+            if any(keyword in path for keyword in ["/teams", "/users", "/projects", "/tasks"]):
+                pattern = "cache:http:*"
+                deleted_count = await redis_client.delete_pattern(pattern)
+                if deleted_count > 0:
+                    logger.info(f"キャッシュ無効化完了: {path} に関連する {deleted_count} 件のキャッシュを削除")
+                else:
+                    logger.info("削除対象のキャッシュがありません")
+            else:
+                logger.info(f"キャッシュ無効化スキップ: {path} は対象外")
+            
+        except Exception as e:
+            logger.error(f"キャッシュ無効化エラー: {e}", exc_info=True)
 
 # キャッシュ統計エンドポイント用のヘルパー関数
 async def get_cache_stats() -> Dict[str, Any]:

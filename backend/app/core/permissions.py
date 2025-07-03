@@ -2,11 +2,12 @@
 
 from enum import Enum
 from typing import List, Optional
-from fastapi import HTTPException, status, Depends
+from functools import wraps
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-from app.db.session import get_db
 from app.models.user import User
 from app.models.rbac import UserRole, Role
+from app.models.project import Project
 
 class RoleType(str, Enum):
     ADMIN = "ADMIN"
@@ -42,17 +43,41 @@ class PermissionChecker:
         return any(r.role.name == role.value for r in global_roles)
 
     @staticmethod
-    def check_project_access(user: User, project_id: int) -> bool:
-        """プロジェクトへのアクセス権限をチェック"""
+    def check_project_access(user: User, project_id: int, db: Session) -> bool:
+        """
+        プロジェクトへのアクセス権限をチェック
+        
+        注意: project_idに対応するProjectは、呼び出し元でeager loadingされていることを想定
+        """
         # 管理者は全プロジェクトにアクセス可能
         if user.is_admin:
             return True
 
         # プロジェクトメンバーかチェック
-        return any(
-            r.project_id == project_id
-            for r in user.roles
-        )
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            return False
+            
+        return user in project.members
+    
+    @staticmethod
+    def check_project_permission(
+        user: User, 
+        project_id: int, 
+        required_role: RoleType,
+        db: Session
+    ) -> bool:
+        """プロジェクト内での特定の権限をチェック"""
+        # 管理者は全権限を持つ
+        if user.is_admin:
+            return True
+            
+        # プロジェクトへのアクセス権限を確認
+        if not PermissionChecker.check_project_access(user, project_id, db):
+            return False
+            
+        # プロジェクト内での役割を確認
+        return PermissionChecker.has_role(user, required_role, project_id)
 
 def require_role(roles: List[RoleType]):
     """
@@ -65,6 +90,7 @@ def require_role(roles: List[RoleType]):
         ...
     """
     def decorator(func):
+        @wraps(func)
         async def wrapper(*args, **kwargs):
             # 現在のユーザーを取得
             current_user = kwargs.get('current_user')
@@ -89,8 +115,5 @@ def require_role(roles: List[RoleType]):
 
             return await func(*args, **kwargs)
 
-        # 関数のメタデータを保持
-        wrapper.__name__ = func.__name__
-        wrapper.__doc__ = func.__doc__
         return wrapper
     return decorator

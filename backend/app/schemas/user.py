@@ -8,10 +8,12 @@ class UserBase(BaseModel):
     is_active: Optional[bool] = True
 
 class UserCreate(UserBase):
-    password: str
+    """Backlog OAuth経由でユーザーを作成するため、パスワードは不要"""
+    pass
 
 class UserUpdate(UserBase):
-    password: Optional[str] = None
+    """ユーザー情報の更新用スキーマ"""
+    pass
 
 class UserInDBBase(UserBase):
     id: int
@@ -25,4 +27,5 @@ class User(UserInDBBase):
     pass
 
 class UserInDB(UserInDBBase):
-    hashed_password: str
+    """DB内のユーザー情報（Backlog OAuth専用のため、パスワードフィールドなし）"""
+    pass
