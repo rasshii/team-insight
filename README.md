@@ -369,7 +369,7 @@ cp frontend/.env.example frontend/.env
 - `BACKLOG_CLIENT_SECRET`: Backlog OAuth アプリケーションのクライアントシークレット（アプリケーション登録で取得）
 - `BACKLOG_SPACE_KEY`: 使用するBacklogスペースキー（URLの `[your-space]` 部分）
   - 例: `https://example.backlog.jp/` の場合は `example`
-- `BACKLOG_REDIRECT_URI`: `http://localhost:8000/api/v1/auth/callback`（本番環境では変更）
+- `BACKLOG_REDIRECT_URI`: `http://localhost/auth/callback`（本番環境では変更）
 - `SECRET_KEY`: JWT署名用の秘密鍵（32文字以上のランダムな文字列）
   - 生成例: `openssl rand -hex 32`
 
