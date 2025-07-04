@@ -63,5 +63,6 @@ claude-code-session/
 # Documentation (personal)
 docs/
 doc/
+!doc/.git  # docディレクトリ内のGitリポジトリは追跡しない
 Doc/
 doc/implementation-guide-junior.md
