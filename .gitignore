@@ -52,6 +52,9 @@ build/
 *.tmp
 *.bak
 .cache/
+cookies.txt
+*_cookies.txt
+auth_cookies.txt
 
 # Claude Code
 CLAUDE.md
