@@ -57,6 +57,10 @@ build/
 CLAUDE.md
 .claude/
 claude-code-session/
+.claudeignore
+.claudecodeignore
 
 # Documentation (personal)
+docs/
+doc/
 doc/implementation-guide-junior.md

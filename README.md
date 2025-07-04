@@ -314,7 +314,35 @@ curl -X POST http://localhost/api/v1/reports/test \
 
 - Docker Desktop
 - Git
-- Backlog OAuth アプリケーションの登録
+- Backlog OAuth アプリケーションの登録（下記参照）
+
+### Backlog OAuth アプリケーションの登録
+
+Team InsightはBacklog OAuth 2.0を使用して認証を行います。以下の手順でアプリケーションを登録してください：
+
+1. **Backlogにログイン**
+   - ご利用のBacklogスペース（`https://[your-space].backlog.jp/`）にログイン
+
+2. **アプリケーション登録画面へアクセス**
+   - 右上のプロフィールアイコン → 「個人設定」をクリック
+   - 左メニューの「アプリケーション」をクリック
+   - 「アプリケーションを追加」ボタンをクリック
+
+3. **アプリケーション情報の入力**
+   - **アプリケーション名**: Team Insight（任意の名前でOK）
+   - **アプリケーションの説明**: チーム分析ツール（任意）
+   - **リダイレクトURI**: `http://localhost:8000/api/v1/auth/callback`
+     - 本番環境では適切なドメインに変更してください
+     - 例: `https://your-domain.com/api/v1/auth/callback`
+   - **権限スコープ**: 以下を選択
+     - ✅ 課題の読み取り
+     - ✅ プロジェクトの読み取り
+     - ✅ ユーザー情報の読み取り
+
+4. **登録完了後の情報を保存**
+   - **クライアントID**: 環境変数 `BACKLOG_CLIENT_ID` に設定
+   - **クライアントシークレット**: 環境変数 `BACKLOG_CLIENT_SECRET` に設定
+   - **スペースキー**: URLの `[your-space]` 部分を環境変数 `BACKLOG_SPACE_KEY` に設定
 
 ### 初回セットアップ
 
@@ -337,14 +365,17 @@ cp frontend/.env.example frontend/.env
 ```
 
 **backend/.env** の必須設定項目:
-- `BACKLOG_CLIENT_ID`: Backlog OAuth アプリケーションのクライアントID
-- `BACKLOG_CLIENT_SECRET`: Backlog OAuth アプリケーションのクライアントシークレット
-- `BACKLOG_SPACE_KEY`: 使用するBacklogスペースキー（例: your-space）
+- `BACKLOG_CLIENT_ID`: Backlog OAuth アプリケーションのクライアントID（アプリケーション登録で取得）
+- `BACKLOG_CLIENT_SECRET`: Backlog OAuth アプリケーションのクライアントシークレット（アプリケーション登録で取得）
+- `BACKLOG_SPACE_KEY`: 使用するBacklogスペースキー（URLの `[your-space]` 部分）
+  - 例: `https://example.backlog.jp/` の場合は `example`
+- `BACKLOG_REDIRECT_URI`: `http://localhost:8000/api/v1/auth/callback`（本番環境では変更）
 - `SECRET_KEY`: JWT署名用の秘密鍵（32文字以上のランダムな文字列）
+  - 生成例: `openssl rand -hex 32`
 
 **frontend/.env** の必須設定項目:
 - `NEXT_PUBLIC_BACKLOG_CLIENT_ID`: Backlog OAuth アプリケーションのクライアントID（backend/.envと同じ値）
-- `NEXT_PUBLIC_BACKLOG_SPACE_NAME`: 使用するBacklogスペース名（例: your-space）
+- `NEXT_PUBLIC_BACKLOG_SPACE_NAME`: 使用するBacklogスペース名（backend/.envのBACKLOG_SPACE_KEYと同じ値）
 
 その他の設定項目はデフォルト値で動作します。詳細は各`.env.example`ファイルのコメントを参照してください。
 
