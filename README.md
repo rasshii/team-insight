@@ -349,7 +349,7 @@ Team InsightはBacklog OAuth 2.0を使用して認証を行います。以下の
 1. **リポジトリのクローン**
 
 ```bash
-git clone https://github.com/your-org/team-insight.git
+git clone https://github.com/rasshii/team-insight.git
 cd team-insight
 ```
 
