@@ -1,0 +1,26 @@
+name: Documentation CI
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - '**.md'
+      - '.github/workflows/docs-ci.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - '**.md'
+
+jobs:
+  markdownlint:
+    name: Markdown Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run markdownlint
+        uses: nosborn/github-action-markdown-cli@v3
+        with:
+          files: .
+          config_file: .markdownlint.json
+          ignore_files: node_modules/

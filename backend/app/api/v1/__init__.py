@@ -1,5 +1,19 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, projects, cache, test, sync, tasks, users, analytics, backlog, reports, teams, settings, user_settings
+from app.api.v1 import (
+    auth,
+    projects,
+    cache,
+    test,
+    sync,
+    tasks,
+    users,
+    analytics,
+    backlog,
+    reports,
+    teams,
+    settings,
+    user_settings,
+)
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["authentication"])

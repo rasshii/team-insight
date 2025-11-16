@@ -10,41 +10,34 @@ export async function GET(
 ) {
   const path = params.path.join('/');
   const url = `${BACKEND_URL}/api/v1/${path}`;
-  
-  // デバッグ: リクエストヘッダーを確認
+
   const cookieHeader = request.headers.get('cookie');
-  console.log('Incoming cookie:', cookieHeader);
-  
+
   try {
     // すべてのヘッダーを転送
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
     };
-    
+
     // Cookieヘッダーが存在する場合は転送
     if (cookieHeader) {
       headers['Cookie'] = cookieHeader;
     }
-    
+
     // Authorization ヘッダーも転送
     const authHeader = request.headers.get('authorization');
     if (authHeader) {
       headers['Authorization'] = authHeader;
     }
-    
-    console.log('Proxying to:', url);
-    console.log('Headers:', headers);
-    
+
     const response = await fetch(url, {
       method: 'GET',
       headers,
     });
 
     const data = await response.json();
-    
-    console.log('Backend response status:', response.status);
-    
-    return NextResponse.json(data, { 
+
+    return NextResponse.json(data, {
       status: response.status,
       headers: {
         'Content-Type': 'application/json',

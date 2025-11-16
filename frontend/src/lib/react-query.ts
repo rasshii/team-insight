@@ -1,4 +1,5 @@
 import { QueryClient } from '@tanstack/react-query'
+import { TIMING_CONSTANTS, calculateRetryDelay } from './constants/timing'
 
 /**
  * React Queryのグローバル設定
@@ -7,9 +8,9 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       // データの再取得設定
-      staleTime: 5 * 60 * 1000, // 5分間はデータを新鮮とみなす
-      gcTime: 10 * 60 * 1000, // 10分間キャッシュを保持（旧cacheTime）
-      
+      staleTime: TIMING_CONSTANTS.QUERY_STALE_TIME_MS,
+      gcTime: TIMING_CONSTANTS.QUERY_GC_TIME_MS,
+
       // エラーハンドリング
       retry: (failureCount, error: any) => {
         // 認証エラー（401）とバリデーションエラー（400）はリトライしない
@@ -19,7 +20,7 @@ export const queryClient = new QueryClient({
         // 最大3回までリトライ
         return failureCount < 3
       },
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+      retryDelay: calculateRetryDelay,
       
       // リフォーカス時の再取得
       refetchOnWindowFocus: false, // ウィンドウフォーカス時の自動再取得を無効化

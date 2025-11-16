@@ -1,3 +1,12 @@
+/**
+ * @fileoverview アプリケーション共通レイアウトコンポーネント
+ *
+ * ナビゲーションバー、ユーザーメニュー、モバイルメニューを含む、
+ * 認証済みユーザー向けの共通レイアウトを提供します。
+ *
+ * @module Layout
+ */
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,18 +25,59 @@ import { useAuth } from "../hooks/useAuth";
 import { PrivateRoute } from "./PrivateRoute";
 import { usePermissions } from "@/hooks/usePermissions";
 
+/**
+ * レイアウトコンポーネントのプロパティ型定義
+ */
 interface LayoutProps {
+  /** レイアウト内に表示するコンテンツ */
   children: React.ReactNode;
 }
 
+/**
+ * アプリケーション共通レイアウトコンポーネント
+ *
+ * 認証済みユーザー向けの共通レイアウトを提供します。
+ * ナビゲーションバー、ユーザーメニュー、モバイルメニューを含みます。
+ *
+ * ## 主要機能
+ * - グローバルナビゲーション（ダッシュボード、プロジェクト、チーム）
+ * - ユーザーメニュー（プロフィール、設定、ログアウト）
+ * - 管理者メニュー（ユーザー管理、チーム管理）
+ * - レスポンシブデザイン（モバイル/デスクトップ）
+ *
+ * ## 権限による表示制御
+ * - 管理者メニューは管理者のみ表示
+ * - 各メニュー項目は権限に応じて動的に表示/非表示
+ *
+ * @param {LayoutProps} props - コンポーネントのプロパティ
+ * @returns {JSX.Element} レイアウトコンポーネント
+ *
+ * @example
+ * ```tsx
+ * function DashboardPage() {
+ *   return (
+ *     <Layout>
+ *       <h1>ダッシュボード</h1>
+ *       <DashboardContent />
+ *     </Layout>
+ *   );
+ * }
+ * ```
+ *
+ * @remarks
+ * - このコンポーネントは必ずPrivateRouteでラップする必要があります
+ * - モバイルメニューは768px未満で表示されます
+ * - ユーザーアバターはDicebearを使用して自動生成されます
+ *
+ * @see {@link PrivateRoute} - 認証保護ラッパーコンポーネント
+ * @see {@link useAuth} - 認証状態管理フック
+ * @see {@link usePermissions} - 権限チェックフック
+ */
 export function Layout({ children }: LayoutProps) {
   const { user, logout, isAuthenticated, isInitialized } = useAuth();
   const permissions = usePermissions();
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  // 認証状態のログ出力
-  console.log("Layout useAuth:", { isAuthenticated, isInitialized, user });
 
   const handleLogout = () => {
     logout();

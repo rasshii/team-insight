@@ -28,6 +28,7 @@ from app.services.sync_scheduler import sync_scheduler
 setup_logging()
 logger = get_logger(__name__)
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -37,12 +38,12 @@ async def lifespan(app: FastAPI):
     """
     # 起動時の処理
     logger.info("アプリケーションを起動しています...")
-    
+
     # 設定の検証
     logger.info("設定を検証しています...")
     if not validate_settings():
         logger.warning("設定に問題がありますが、アプリケーションを続行します")
-    
+
     # Redis接続の初期化
     try:
         await redis_client.get_connection()
@@ -50,7 +51,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Redis接続エラー: {e}")
         # Redis接続エラーでもアプリケーションは起動を続行
-    
+
     # レポートスケジューラーの起動
     try:
         report_scheduler.start()
@@ -58,7 +59,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"レポートスケジューラー起動エラー: {e}")
         # スケジューラーエラーでもアプリケーションは起動を続行
-    
+
     # 同期スケジューラーの起動
     try:
         sync_scheduler.start()
@@ -71,14 +72,14 @@ async def lifespan(app: FastAPI):
 
     # シャットダウン時の処理
     logger.info("アプリケーションをシャットダウンしています...")
-    
+
     # 同期スケジューラーの停止
     try:
         sync_scheduler.stop()
         logger.info("同期スケジューラーを停止しました")
     except Exception as e:
         logger.error(f"同期スケジューラー停止エラー: {e}")
-    
+
     # レポートスケジューラーの停止
     try:
         report_scheduler.stop()
@@ -93,11 +94,9 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Redis接続クローズエラー: {e}")
 
+
 app = FastAPI(
-    title=settings.APP_NAME,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json",
-    lifespan=lifespan,
-    debug=settings.DEBUG
+    title=settings.APP_NAME, openapi_url=f"{settings.API_V1_STR}/openapi.json", lifespan=lifespan, debug=settings.DEBUG
 )
 
 # CORS設定
@@ -106,12 +105,14 @@ app = FastAPI(
 allowed_origins = [settings.FRONTEND_URL]
 if settings.DEBUG:
     # 開発環境では、localhost:3000とlocalhostの両方を許可
-    allowed_origins.extend([
-        "http://localhost",
-        "http://localhost:80",
-        "http://127.0.0.1",
-        "http://127.0.0.1:80",
-    ])
+    allowed_origins.extend(
+        [
+            "http://localhost",
+            "http://localhost:80",
+            "http://127.0.0.1",
+            "http://127.0.0.1:80",
+        ]
+    )
 
 app.add_middleware(
     CORSMiddleware,
@@ -129,19 +130,8 @@ app.add_middleware(RequestIDMiddleware)
 app.add_middleware(
     CacheMiddleware,
     default_expire=300,  # 5分
-    cacheable_paths=[
-        "/api/v1/projects",
-        "/api/v1/teams",
-        "/api/v1/dashboard",
-        "/api/v1/users",
-        "/api/v1/test"
-    ],
-    exclude_paths=[
-        "/api/v1/auth",
-        "/api/v1/cache",
-        "/docs",
-        "/openapi.json"
-    ]
+    cacheable_paths=["/api/v1/projects", "/api/v1/teams", "/api/v1/dashboard", "/api/v1/users", "/api/v1/test"],
+    exclude_paths=["/api/v1/auth", "/api/v1/cache", "/docs", "/openapi.json"],
 )
 
 # エラーハンドラーの登録
@@ -150,9 +140,11 @@ register_error_handlers(app)
 # APIルーターの登録
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
+
 @app.get("/")
 async def root():
     return {"message": "Welcome to Team Insight API"}
+
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check(db: Session = Depends(get_db_session)) -> HealthResponse:
@@ -161,12 +153,8 @@ async def health_check(db: Session = Depends(get_db_session)) -> HealthResponse:
 
     このエンドポイントは、アプリケーション全体の健全性を確認します。
     """
-    health_status = {
-        "api": "healthy",
-        "database": "unhealthy",
-        "redis": "unhealthy"
-    }
-    
+    health_status = {"api": "healthy", "database": "unhealthy", "redis": "unhealthy"}
+
     # データベース接続チェック
     try:
         # シンプルなクエリを実行してDBの応答を確認
@@ -174,7 +162,7 @@ async def health_check(db: Session = Depends(get_db_session)) -> HealthResponse:
         health_status["database"] = "healthy"
     except Exception as e:
         logger.error(f"データベース健全性チェックエラー: {e}")
-    
+
     # Redis接続チェック
     try:
         redis_conn = await redis_client.get_connection()
@@ -182,15 +170,13 @@ async def health_check(db: Session = Depends(get_db_session)) -> HealthResponse:
         health_status["redis"] = "healthy"
     except Exception as e:
         logger.error(f"Redis健全性チェックエラー: {e}")
-    
+
     # 全体のステータスを判定
-    overall_status = "healthy" if all(
-        status == "healthy" for status in health_status.values()
-    ) else "unhealthy"
-    
+    overall_status = "healthy" if all(status == "healthy" for status in health_status.values()) else "unhealthy"
+
     return HealthResponse(
         status=overall_status,
         services=ServiceStatus(**health_status),
         message="Team Insight API is running",
-        timestamp=datetime.now(timezone.utc)
+        timestamp=datetime.now(timezone.utc),
     )

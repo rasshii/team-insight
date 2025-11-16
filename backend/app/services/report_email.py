@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 class ReportEmailService:
     """レポート配信用メールサービスクラス"""
-    
+
     def __init__(self):
         self.smtp_host = settings.SMTP_HOST
         self.smtp_port = settings.SMTP_PORT
@@ -32,22 +32,22 @@ class ReportEmailService:
         self.from_name = settings.SMTP_FROM_NAME
         self.use_tls = settings.SMTP_TLS
         self.use_ssl = settings.SMTP_SSL
-    
+
     def _create_smtp_connection(self):
         """SMTP接続を作成"""
         if self.use_ssl:
             smtp = smtplib.SMTP_SSL(self.smtp_host, self.smtp_port)
         else:
             smtp = smtplib.SMTP(self.smtp_host, self.smtp_port)
-            
+
         if self.use_tls and not self.use_ssl:
             smtp.starttls()
-            
+
         if self.smtp_user and self.smtp_password:
             smtp.login(self.smtp_user, self.smtp_password)
-            
+
         return smtp
-    
+
     def send_report(
         self,
         to_email: str,
@@ -58,72 +58,72 @@ class ReportEmailService:
     ) -> bool:
         """
         分析レポートを送信
-        
+
         Args:
             to_email: 送信先メールアドレス
             report_type: レポートタイプ（weekly, monthly, daily）
             report_data: レポートデータ
             attachments: 添付ファイルリスト [{filename: str, content: bytes, mimetype: str}]
             cc: CCメールアドレスリスト
-            
+
         Returns:
             bool: 送信成功の場合True
         """
         try:
             # 件名を設定
             subject = self._get_report_subject(report_type, report_data)
-            
+
             # メールコンテンツを生成
             html_content = self._generate_html_report(report_type, report_data)
             text_content = self._generate_text_report(report_type, report_data)
-            
+
             # メールメッセージを作成
-            msg = MIMEMultipart('mixed')
-            msg['Subject'] = subject
-            msg['From'] = f"{self.from_name} <{self.from_email}>"
-            msg['To'] = to_email
-            
+            msg = MIMEMultipart("mixed")
+            msg["Subject"] = subject
+            msg["From"] = f"{self.from_name} <{self.from_email}>"
+            msg["To"] = to_email
+
             if cc:
-                msg['Cc'] = ', '.join(cc)
-            
+                msg["Cc"] = ", ".join(cc)
+
             # 本文部分を作成
-            msg_alternative = MIMEMultipart('alternative')
-            
+            msg_alternative = MIMEMultipart("alternative")
+
             # テキストパートを追加
-            text_part = MIMEText(text_content, 'plain', 'utf-8')
+            text_part = MIMEText(text_content, "plain", "utf-8")
             msg_alternative.attach(text_part)
-            
+
             # HTMLパートを追加
-            html_part = MIMEText(html_content, 'html', 'utf-8')
+            html_part = MIMEText(html_content, "html", "utf-8")
             msg_alternative.attach(html_part)
-            
+
             msg.attach(msg_alternative)
-            
+
             # 添付ファイルを追加
             if attachments:
                 for attachment in attachments:
                     self._attach_file(msg, attachment)
-            
+
             # 受信者リストを作成
             recipients = [to_email]
             if cc:
                 recipients.extend(cc)
-            
+
             # メール送信
             with self._create_smtp_connection() as smtp:
                 smtp.send_message(msg, from_addr=self.from_email, to_addrs=recipients)
-            
+
             logger.info(f"レポート送信成功: {to_email} - タイプ: {report_type}")
             return True
-            
+
         except Exception as e:
             logger.error(f"レポート送信エラー: {str(e)}", exc_info=True)
             return False
-    
+
     def _get_report_subject(self, report_type: str, report_data: Dict[str, Any]) -> str:
         """レポートの件名を生成"""
         date_str = datetime.now().strftime("%Y年%m月%d日")
-        
+
         if report_type == "daily":
             return f"[Team Insight] 日次レポート - {date_str}"
         elif report_type == "weekly":
@@ -134,31 +134,31 @@ class ReportEmailService:
             return f"[Team Insight] 月次レポート - {month_str}"
         else:
             return f"[Team Insight] 分析レポート - {date_str}"
-    
+
     def _generate_html_report(self, report_type: str, report_data: Dict[str, Any]) -> str:
         """HTMLレポートを生成"""
         template = self._get_html_template(report_type)
         return Template(template).render(**report_data)
-    
+
     def _generate_text_report(self, report_type: str, report_data: Dict[str, Any]) -> str:
         """テキストレポートを生成"""
         template = self._get_text_template(report_type)
         return Template(template).render(**report_data)
-    
+
     def _get_html_template(self, report_type: str) -> str:
         """HTMLテンプレートを取得"""
         import os
         from pathlib import Path
-        
+
         # テンプレートファイルのパスを構築
         template_dir = Path(__file__).parent.parent / "templates" / "reports"
         template_file = template_dir / f"personal_{report_type}.html"
-        
+
         # テンプレートファイルが存在する場合は読み込む
         if template_file.exists():
-            with open(template_file, 'r', encoding='utf-8') as f:
+            with open(template_file, "r", encoding="utf-8") as f:
                 return f.read()
-        
+
         # デフォルトテンプレート
         return """
         <!DOCTYPE html>
@@ -277,7 +277,7 @@ class ReportEmailService:
         </body>
         </html>
         """
-    
+
     def _get_text_template(self, report_type: str) -> str:
         """テキストテンプレートを取得"""
         # TODO: 実際のテンプレートファイルから読み込む
@@ -307,16 +307,13 @@ Team Insight {{ report_type_label }} レポート
 
 Team Insight
         """
-    
+
     def _attach_file(self, msg: MIMEMultipart, attachment: Dict[str, Any]):
         """ファイルを添付"""
-        part = MIMEBase('application', 'octet-stream')
-        part.set_payload(attachment['content'])
+        part = MIMEBase("application", "octet-stream")
+        part.set_payload(attachment["content"])
         encoders.encode_base64(part)
-        part.add_header(
-            'Content-Disposition',
-            f'attachment; filename="{attachment["filename"]}"'
-        )
+        part.add_header("Content-Disposition", f'attachment; filename="{attachment["filename"]}"')
         msg.attach(part)
 
 

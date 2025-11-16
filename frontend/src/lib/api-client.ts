@@ -1,12 +1,46 @@
+/**
+ * @fileoverview API通信クライアント
+ *
+ * 全てのバックエンドAPI通信で使用する統一されたaxiosクライアントです。
+ * 認証、エラーハンドリング、トークンリフレッシュ、ログ出力などの共通処理を提供します。
+ *
+ * @module apiClient
+ */
+
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios'
 import { env } from '@/config/env'
 import { ApiError, ErrorResponse } from '@/types/error'
 import { authEventEmitter } from './auth-event-emitter'
+import { TIMING_CONSTANTS } from './constants/timing'
 
 /**
  * 統一されたAPIクライアント
- * 
- * 全てのAPI通信で使用する共通のaxiosインスタンス
+ *
+ * アプリケーション全体で使用する共通のaxiosインスタンスを管理するクラスです。
+ *
+ * ## 主要機能
+ * - HTTPリクエストのインターセプター（認証トークンの自動付与）
+ * - HTTPレスポンスのインターセプター（エラーハンドリング、自動リフレッシュ）
+ * - トークン自動リフレッシュ機能（401エラー時）
+ * - リクエスト/レスポンスのデバッグログ出力
+ * - Cookie経由のJWT認証サポート
+ *
+ * ## 認証フロー
+ * 1. リクエスト送信
+ * 2. 401エラー受信 → トークンリフレッシュ試行
+ * 3. リフレッシュ成功 → 元のリクエストを再実行
+ * 4. リフレッシュ失敗 → ログアウトイベント発火、ログインページへリダイレクト
+ *
+ * ## エラーハンドリング
+ * - 401エラー: 自動リフレッシュ → 失敗時はログアウト
+ * - その他のエラー: ApiErrorクラスに変換して返却
+ *
+ * @remarks
+ * - シングルトンパターンで実装されています
+ * - withCredentials: true でCookieベースの認証をサポート
+ * - タイムアウト: 30秒（デフォルト）
+ *
+ * @see {@link authEventEmitter} - 認証イベント通知
  */
 class ApiClient {
   private axiosInstance: AxiosInstance
@@ -19,7 +53,7 @@ class ApiClient {
   constructor() {
     this.axiosInstance = axios.create({
       baseURL: env.get('NEXT_PUBLIC_API_URL'),
-      timeout: 30000, // 30秒に増やす（デバッグ用）
+      timeout: TIMING_CONSTANTS.API_TIMEOUT_MS,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -231,11 +265,44 @@ class ApiClient {
   }
 }
 
-// シングルトンインスタンス
+/**
+ * APIクライアントのシングルトンインスタンス
+ *
+ * アプリケーション全体でこのインスタンスを使用してAPIリクエストを行います。
+ *
+ * @example
+ * ```typescript
+ * // GET リクエスト
+ * const users = await apiClient.get('/api/v1/users');
+ *
+ * // POST リクエスト
+ * const newUser = await apiClient.post('/api/v1/users', { name: 'John' });
+ *
+ * // PUT リクエスト
+ * const updated = await apiClient.put('/api/v1/users/1', { name: 'Jane' });
+ *
+ * // DELETE リクエスト
+ * await apiClient.delete('/api/v1/users/1');
+ * ```
+ */
 export const apiClient = new ApiClient()
 
 /**
  * APIエラーかどうかを判定するタイプガード（AxiosError）
+ *
+ * @param {unknown} error - 判定対象のエラーオブジェクト
+ * @returns {boolean} AxiosErrorの場合true
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await apiClient.get('/api/users');
+ * } catch (error) {
+ *   if (isAxiosError(error)) {
+ *     console.log('HTTPステータス:', error.response?.status);
+ *   }
+ * }
+ * ```
  */
 export const isAxiosError = (error: unknown): error is AxiosError => {
   return axios.isAxiosError(error)
@@ -243,13 +310,61 @@ export const isAxiosError = (error: unknown): error is AxiosError => {
 
 /**
  * APIエラーかどうかを判定するタイプガード（ApiError）
+ *
+ * @param {unknown} error - 判定対象のエラーオブジェクト
+ * @returns {boolean} ApiErrorの場合true
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await apiClient.post('/api/users', data);
+ * } catch (error) {
+ *   if (isApiError(error)) {
+ *     console.log('エラーコード:', error.code);
+ *     console.log('エラーメッセージ:', error.message);
+ *   }
+ * }
+ * ```
  */
 export const isApiError = (error: unknown): error is ApiError => {
   return error instanceof ApiError
 }
 
 /**
- * APIエラーの詳細を取得
+ * APIエラーの詳細メッセージを取得
+ *
+ * 様々な形式のエラーオブジェクトから、ユーザーに表示するための
+ * わかりやすいエラーメッセージを抽出します。
+ *
+ * ## エラーメッセージの優先順位
+ * 1. ApiError のメッセージ
+ * 2. AxiosError のレスポンスデータ（error.message, detail, message）
+ * 3. HTTPステータスコードに基づくデフォルトメッセージ
+ * 4. Error オブジェクトのメッセージ
+ * 5. 汎用エラーメッセージ
+ *
+ * @param {unknown} error - エラーオブジェクト
+ * @returns {string} ユーザーに表示するエラーメッセージ
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await apiClient.post('/api/users', data);
+ * } catch (error) {
+ *   const message = getApiErrorMessage(error);
+ *   toast.error(message); // 「入力内容に誤りがあります」など
+ * }
+ * ```
+ *
+ * @remarks
+ * - 400: 不正なリクエストです
+ * - 401: 認証が必要です
+ * - 403: アクセス権限がありません
+ * - 404: リソースが見つかりません
+ * - 409: リソースが既に存在します
+ * - 422: 入力内容に誤りがあります
+ * - 500: サーバーエラーが発生しました
+ * - 502/503/504: サーバーが一時的に利用できません
  */
 export const getApiErrorMessage = (error: unknown): string => {
   // ApiErrorの場合

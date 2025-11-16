@@ -1,3 +1,12 @@
+/**
+ * @fileoverview プロジェクト一覧ページ
+ *
+ * Backlogプロジェクトの一覧表示と同期機能を提供するページコンポーネント。
+ * プロジェクトの基本情報（名前、キー、ステータス、説明）を表形式で表示します。
+ *
+ * @module ProjectsPage
+ */
+
 "use client";
 
 import { Layout } from "@/components/Layout";
@@ -32,10 +41,53 @@ import { ja } from "date-fns/locale/ja";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
+/**
+ * プロジェクト一覧ページ
+ *
+ * ユーザーがアクセス可能なBacklogプロジェクトの一覧を表示します。
+ *
+ * ## 主要機能
+ * - プロジェクト一覧の表形式表示
+ *   - プロジェクト名
+ *   - プロジェクトキー
+ *   - ステータス（アクティブ/アーカイブ）
+ *   - 説明
+ * - Backlogプロジェクト同期機能（管理者/プロジェクトリーダーのみ）
+ * - Backlog接続状態の表示
+ * - プロジェクト詳細ページへの遷移
+ *
+ * ## データフェッチ戦略
+ * - React Queryでプロジェクトデータを取得
+ * - 同期状態は1分ごとに更新（staleTime: 60秒）
+ * - プロジェクト同期後は強制的にページをリロード
+ *
+ * ## 権限
+ * - 認証必須（PrivateRouteでラップ）
+ * - 全ユーザーが自身がアクセス可能なプロジェクトを閲覧可能
+ * - プロジェクト同期は管理者またはプロジェクトリーダーのみ実行可能
+ *
+ * @example
+ * ```tsx
+ * // App Routerでの使用
+ * // app/projects/page.tsx
+ * export default ProjectsPage
+ * ```
+ *
+ * @returns {JSX.Element} プロジェクト一覧ページのUIコンポーネント
+ *
+ * @remarks
+ * - プロジェクトが存在しない場合、Backlog同期を促すメッセージを表示します
+ * - Backlog接続がない場合、連携設定ページへのリンクを表示します
+ * - 同期完了後、1秒後に自動的にページがリロードされます
+ *
+ * @see {@link useProjects} - プロジェクト一覧取得フック
+ * @see {@link useSyncAllProjects} - プロジェクト同期フック
+ * @see {@link syncService.getConnectionStatus} - Backlog接続状態取得サービス
+ */
 export default function ProjectsPage() {
   const router = useRouter();
   const { user } = useAuth();
-  
+
   // React Queryフックでプロジェクトデータを取得
   const { data: projectsData, isLoading, error } = useProjects();
   
@@ -49,42 +101,37 @@ export default function ProjectsPage() {
   // プロジェクト同期のミューテーション
   const syncProjectsMutation = useSyncAllProjects();
 
+  /**
+   * 管理者またはプロジェクトリーダー判定
+   *
+   * ユーザーのロール情報から、プロジェクト同期権限を持つかどうかを判定します。
+   */
   const isAdminOrLeader = user?.user_roles?.some(
     (role) => role.role.name === "ADMIN" || role.role.name === "PROJECT_LEADER"
   );
 
-  // Monitor projects data changes
-  useEffect(() => {
-    console.log('Projects data updated:', {
-      fullData: projectsData,
-      projectsArray: projectsData?.projects,
-      projectCount: projectsData?.projects?.length || 0,
-      projectKeys: projectsData?.projects?.map((p: any) => p.project_key) || [],
-      sampleProject: projectsData?.projects?.[0] || null
-    });
-  }, [projectsData]);
-
+  /**
+   * プロジェクト同期ハンドラー
+   *
+   * Backlogから全プロジェクトを同期し、
+   * 完了後にページを強制リロードします。
+   */
   const handleSyncProjects = () => {
-    console.log('Sync button clicked');
-    console.log('Connection status:', connectionStatus);
-    console.log('Is admin or leader:', isAdminOrLeader);
-    console.log('Mutation is pending:', syncProjectsMutation.isPending);
-    
     syncProjectsMutation.mutate(undefined, {
       onSuccess: (data) => {
-        console.log('Sync successful:', data);
-        console.log('Projects after sync:', projectsData);
         // Force a hard refresh of the page after a short delay to bypass any caching
         setTimeout(() => {
           window.location.reload();
         }, 1000);
       },
-      onError: (error) => {
-        console.error('Sync failed:', error);
-      }
     });
   };
 
+  /**
+   * プロジェクト詳細ページへの遷移
+   *
+   * @param {number} projectId - 遷移先のプロジェクトID
+   */
   const navigateToProject = (projectId: number) => {
     router.push(`/dashboard/project/${projectId}`);
   };
@@ -124,11 +171,6 @@ export default function ProjectsPage() {
   }
 
   const projects = projectsData?.projects || [];
-  
-  // Debug logging
-  console.log('Projects data:', projectsData);
-  console.log('Projects array:', projects);
-  console.log('User roles:', user?.user_roles);
 
   return (
     <PrivateRoute>

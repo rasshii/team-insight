@@ -10,16 +10,16 @@ from fastapi import Request
 
 class ResponseFormatter:
     """レスポンスフォーマッタークラス"""
-    
+
     def __init__(self, request: Request):
         self.request = request
-    
+
     def __call__(self, response: Dict[str, Any]) -> Dict[str, Any]:
         """レスポンスをフォーマット"""
         # リクエストIDがあれば追加
         if hasattr(self.request.state, "request_id"):
             response["request_id"] = self.request.state.request_id
-        
+
         return response
 
 

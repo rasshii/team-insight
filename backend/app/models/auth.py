@@ -20,8 +20,9 @@ class OAuthToken(Base):
     各ユーザーのOAuth2.0アクセストークンとリフレッシュトークンを
     プロバイダー（Backlogなど）ごとに保存します。
     """
+
     __tablename__ = "oauth_tokens"
-    __table_args__ = {'schema': 'team_insight'}
+    __table_args__ = {"schema": "team_insight"}
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("team_insight.users.id"), nullable=False)
@@ -29,12 +30,12 @@ class OAuthToken(Base):
     access_token = Column(Text, nullable=False)  # アクセストークン
     refresh_token = Column(Text, nullable=True)  # リフレッシュトークン
     expires_at = Column(DateTime, nullable=True)  # トークンの有効期限
-    
+
     # Backlog固有のフィールド
     backlog_space_key = Column(String(100), nullable=True)  # Backlogスペースキー
     backlog_user_id = Column(String(100), nullable=True)  # BacklogユーザーID
     backlog_user_email = Column(String(255), nullable=True)  # Backlogメールアドレス
-    
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_used_at = Column(DateTime, nullable=True)  # 最終使用日時
@@ -64,8 +65,9 @@ class OAuthState(Base):
     CSRF攻撃を防ぐため、認証フロー開始時に生成したstateを
     一時的に保存し、コールバック時に検証します。
     """
+
     __tablename__ = "oauth_states"
-    __table_args__ = {'schema': 'team_insight'}
+    __table_args__ = {"schema": "team_insight"}
 
     id = Column(Integer, primary_key=True, index=True)
     state = Column(String(255), unique=True, nullable=False, index=True)

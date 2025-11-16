@@ -14,7 +14,7 @@ class JSTJSONEncoder(json.JSONEncoder):
     """
     日時を日本時間に変換するJSONエンコーダー
     """
-    
+
     def default(self, obj: Any) -> Any:
         if isinstance(obj, datetime):
             # 日本時間に変換してISO形式で出力
@@ -23,17 +23,17 @@ class JSTJSONEncoder(json.JSONEncoder):
                 # ISO形式に"+09:00"のタイムゾーン情報を含める
                 return jst_dt.isoformat()
             return None
-        
+
         return super().default(obj)
 
 
 def datetime_to_jst_str(dt: datetime) -> str:
     """
     Pydanticのfield_serializer用のヘルパー関数
-    
+
     Args:
         dt: 変換するdatetime
-        
+
     Returns:
         JST形式の文字列
     """

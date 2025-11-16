@@ -14,6 +14,7 @@ class AuthorizationResponse(BaseModel):
     """
     認証URL生成のレスポンススキーマ
     """
+
     authorization_url: str = Field(..., description="Backlogの認証URL")
     state: str = Field(..., description="CSRF対策用のランダムな文字列")
     expected_space: Optional[str] = Field(None, description="期待されるBacklogスペースキー")
@@ -23,7 +24,7 @@ class AuthorizationResponse(BaseModel):
             "example": {
                 "authorization_url": "https://example.backlog.jp/OAuth2AccessRequest.action?response_type=code&client_id=xxx&redirect_uri=xxx&state=xxx",
                 "state": "random_state_string",
-                "expected_space": "example-space"
+                "expected_space": "example-space",
             }
         }
 
@@ -32,22 +33,19 @@ class CallbackRequest(BaseModel):
     """
     OAuth2.0コールバックのリクエストスキーマ
     """
+
     code: str = Field(..., description="Backlogから受け取った認証コード")
     state: str = Field(..., description="認証開始時に生成したstate")
 
     class Config:
-        json_schema_extra = {
-            "example": {
-                "code": "authorization_code_from_backlog",
-                "state": "random_state_string"
-            }
-        }
+        json_schema_extra = {"example": {"code": "authorization_code_from_backlog", "state": "random_state_string"}}
 
 
 class RoleResponse(BaseModel):
     """
     ロール情報のレスポンススキーマ
     """
+
     id: int = Field(..., description="ロールID")
     name: str = Field(..., description="ロール名")
     description: Optional[str] = Field(None, description="ロールの説明")
@@ -60,6 +58,7 @@ class UserRoleResponse(BaseModel):
     """
     ユーザーロール情報のレスポンススキーマ
     """
+
     id: int = Field(..., description="ユーザーロールID")
     role_id: int = Field(..., description="ロールID")
     project_id: Optional[int] = Field(None, description="プロジェクトID（NULLの場合はグローバルロール）")
@@ -73,6 +72,7 @@ class UserInfoResponse(BaseModel):
     """
     ユーザー情報のレスポンススキーマ
     """
+
     id: int = Field(..., description="内部ユーザーID")
     backlog_id: Optional[int] = Field(None, description="BacklogのユーザーID")
     email: Optional[str] = Field(None, description="メールアドレス")
@@ -95,13 +95,9 @@ class UserInfoResponse(BaseModel):
                         "id": 1,
                         "role_id": 1,
                         "project_id": None,
-                        "role": {
-                            "id": 1,
-                            "name": "ADMIN",
-                            "description": "システム管理者"
-                        }
+                        "role": {"id": 1, "name": "ADMIN", "description": "システム管理者"},
                     }
-                ]
+                ],
             }
         }
 
@@ -110,6 +106,7 @@ class TokenResponse(BaseModel):
     """
     トークンレスポンススキーマ
     """
+
     access_token: str = Field(..., description="アプリケーション用のJWTアクセストークン")
     refresh_token: str = Field(..., description="JWTリフレッシュトークン")
     token_type: str = Field(default="bearer", description="トークンタイプ")
@@ -121,13 +118,7 @@ class TokenResponse(BaseModel):
                 "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
                 "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
                 "token_type": "bearer",
-                "user": {
-                    "id": 1,
-                    "backlog_id": 12345,
-                    "email": "user@example.com",
-                    "name": "山田太郎",
-                    "user_id": "yamada"
-                }
+                "user": {"id": 1, "backlog_id": 12345, "email": "user@example.com", "name": "山田太郎", "user_id": "yamada"},
             }
         }
 
@@ -136,6 +127,7 @@ class TokenRefreshResponse(BaseModel):
     """
     トークンリフレッシュレスポンススキーマ
     """
+
     access_token: str = Field(..., description="新しいJWTアクセストークン")
     refresh_token: str = Field(..., description="新しいJWTリフレッシュトークン")
     token_type: str = Field(default="bearer", description="トークンタイプ")
@@ -145,7 +137,7 @@ class TokenRefreshResponse(BaseModel):
             "example": {
                 "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
                 "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-                "token_type": "bearer"
+                "token_type": "bearer",
             }
         }
 
@@ -154,6 +146,7 @@ class BacklogTokenInfo(BaseModel):
     """
     Backlogトークン情報のスキーマ（内部使用）
     """
+
     access_token: str
     refresh_token: str
     token_type: str
@@ -167,8 +160,6 @@ class BacklogTokenInfo(BaseModel):
                 "refresh_token": "backlog_refresh_token",
                 "token_type": "Bearer",
                 "expires_in": 3600,
-                "expires_at": "2024-01-01T00:00:00"
+                "expires_at": "2024-01-01T00:00:00",
             }
         }
-
-

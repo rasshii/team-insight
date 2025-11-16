@@ -1,5 +1,10 @@
 /**
- * 権限チェック用のカスタムフック
+ * @fileoverview 権限チェック用のカスタムフック
+ *
+ * ユーザーのロールと権限を検証し、機能へのアクセス制御を行うカスタムフックです。
+ * RBAC（ロールベースアクセス制御）システムを実装しています。
+ *
+ * @module usePermissions
  */
 
 import { useMemo } from 'react';
@@ -8,7 +13,59 @@ import { selectCurrentUser } from '@/store/slices/authSlice';
 import { RoleType, PermissionCheck, ROLE_HIERARCHY, ROLE_PERMISSIONS } from '@/types/rbac';
 
 /**
- * 現在のユーザーの権限をチェックするフック
+ * 現在のユーザーの権限をチェックするカスタムフック
+ *
+ * ログイン中のユーザーのロールと権限を検証し、
+ * 各種機能へのアクセス制御を行うためのユーティリティ関数群を提供します。
+ *
+ * ## ロール階層
+ * - ADMIN: 全機能へのアクセス権限を持つ最上位ロール
+ * - PROJECT_LEADER: プロジェクト管理権限を持つロール
+ * - MEMBER: 基本的なメンバー権限
+ *
+ * ## 権限スコープ
+ * - グローバルロール: システム全体に適用される権限（project_id = null）
+ * - プロジェクトロール: 特定プロジェクトにのみ適用される権限（project_id指定）
+ *
+ * @returns {PermissionCheck} 権限チェック関数群を含むオブジェクト
+ *
+ * @example
+ * ```tsx
+ * function AdminPanel() {
+ *   const permissions = usePermissions();
+ *
+ *   if (!permissions.isAdmin()) {
+ *     return <AccessDenied />;
+ *   }
+ *
+ *   return <AdminDashboard />;
+ * }
+ * ```
+ *
+ * @example
+ * ```tsx
+ * function ProjectSettings({ projectId }) {
+ *   const permissions = usePermissions();
+ *
+ *   // プロジェクト管理権限のチェック
+ *   const canManage = permissions.canManageProject(projectId);
+ *
+ *   return (
+ *     <div>
+ *       {canManage && <EditButton />}
+ *     </div>
+ *   );
+ * }
+ * ```
+ *
+ * @remarks
+ * - 管理者（ADMIN）ロールは全ての権限チェックでtrueを返します
+ * - ユーザーが未認証の場合、全ての権限チェックでfalseを返します
+ * - パフォーマンス最適化のため、useMemoで結果をメモ化しています
+ *
+ * @see {@link PermissionCheck} - 権限チェック関数の型定義
+ * @see {@link RoleType} - ロールの型定義
+ * @see {@link ROLE_PERMISSIONS} - ロールごとの権限マッピング
  */
 export const usePermissions = (): PermissionCheck => {
   const currentUser = useAppSelector(selectCurrentUser);

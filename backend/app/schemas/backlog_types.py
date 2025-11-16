@@ -3,6 +3,7 @@ Backlog API レスポンスの型定義
 
 Backlog API v2のレスポンス構造を表す型定義を提供します。
 """
+
 from typing import Optional, List, Any
 from datetime import datetime
 from pydantic import BaseModel
@@ -10,6 +11,7 @@ from pydantic import BaseModel
 
 class BacklogUser(BaseModel):
     """Backlogユーザー情報"""
+
     id: int
     userId: str
     name: str
@@ -22,6 +24,7 @@ class BacklogUser(BaseModel):
 
 class BacklogStatus(BaseModel):
     """課題ステータス"""
+
     id: int
     projectId: int
     name: str
@@ -31,12 +34,14 @@ class BacklogStatus(BaseModel):
 
 class BacklogPriority(BaseModel):
     """課題優先度"""
+
     id: int
     name: str
 
 
 class BacklogIssueType(BaseModel):
     """課題種別"""
+
     id: int
     projectId: int
     name: str
@@ -46,6 +51,7 @@ class BacklogIssueType(BaseModel):
 
 class BacklogCategory(BaseModel):
     """カテゴリー"""
+
     id: int
     name: str
     displayOrder: Optional[int] = None
@@ -53,6 +59,7 @@ class BacklogCategory(BaseModel):
 
 class BacklogMilestone(BaseModel):
     """マイルストーン"""
+
     id: int
     projectId: int
     name: str
@@ -65,6 +72,7 @@ class BacklogMilestone(BaseModel):
 
 class BacklogCustomField(BaseModel):
     """カスタムフィールド"""
+
     id: int
     fieldTypeId: int
     name: str
@@ -73,6 +81,7 @@ class BacklogCustomField(BaseModel):
 
 class BacklogAttachment(BaseModel):
     """添付ファイル"""
+
     id: int
     name: str
     size: int
@@ -82,6 +91,7 @@ class BacklogAttachment(BaseModel):
 
 class BacklogStar(BaseModel):
     """スター"""
+
     id: int
     comment: Optional[str] = None
     url: str
@@ -92,6 +102,7 @@ class BacklogStar(BaseModel):
 
 class BacklogChangeLog(BaseModel):
     """変更ログ"""
+
     field: str
     newValue: Optional[str] = None
     originalValue: Optional[str] = None
@@ -102,6 +113,7 @@ class BacklogChangeLog(BaseModel):
 
 class BacklogComment(BaseModel):
     """コメント"""
+
     id: int
     content: Optional[str] = None
     changeLog: Optional[List[BacklogChangeLog]] = None
@@ -114,6 +126,7 @@ class BacklogComment(BaseModel):
 
 class BacklogIssue(BaseModel):
     """Backlog課題"""
+
     id: int
     projectId: int
     issueKey: str
@@ -145,6 +158,7 @@ class BacklogIssue(BaseModel):
 
 class BacklogProject(BaseModel):
     """Backlogプロジェクト"""
+
     id: int
     projectKey: str
     name: str
@@ -164,6 +178,7 @@ class BacklogProject(BaseModel):
 
 class BacklogProjectWithDetails(BacklogProject):
     """詳細情報付きBacklogプロジェクト"""
+
     issueTypes: List[BacklogIssueType]
     categories: List[BacklogCategory]
     versions: List[dict]
@@ -173,6 +188,7 @@ class BacklogProjectWithDetails(BacklogProject):
 
 class BacklogActivity(BaseModel):
     """アクティビティ"""
+
     id: int
     project: BacklogProject
     type: int
@@ -184,6 +200,7 @@ class BacklogActivity(BaseModel):
 
 class BacklogWiki(BaseModel):
     """Wiki"""
+
     id: int
     projectId: int
     name: str
@@ -200,6 +217,7 @@ class BacklogWiki(BaseModel):
 
 class BacklogWebhook(BaseModel):
     """Webhook"""
+
     id: int
     name: str
     description: Optional[str] = None
@@ -215,6 +233,7 @@ class BacklogWebhook(BaseModel):
 # OAuth関連の型定義
 class BacklogTokenResponse(BaseModel):
     """Backlog OAuthトークンレスポンス"""
+
     access_token: str
     token_type: str
     expires_in: int
@@ -225,6 +244,7 @@ class BacklogTokenResponse(BaseModel):
 # API呼び出し時のパラメータ型定義
 class IssueQueryParams(BaseModel):
     """課題検索パラメータ"""
+
     projectId: Optional[List[int]] = None
     issueTypeId: Optional[List[int]] = None
     categoryId: Optional[List[int]] = None

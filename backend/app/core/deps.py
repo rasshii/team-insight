@@ -10,10 +10,10 @@ from app.core.response_builder import ResponseFormatter
 def get_request_id(request: Request) -> Optional[str]:
     """
     リクエストIDを取得
-    
+
     Args:
         request: FastAPIのリクエストオブジェクト
-        
+
     Returns:
         リクエストID（存在しない場合はNone）
     """
@@ -23,10 +23,10 @@ def get_request_id(request: Request) -> Optional[str]:
 def get_response_formatter(request_id: Optional[str] = Depends(get_request_id)) -> ResponseFormatter:
     """
     ResponseFormatterインスタンスを取得
-    
+
     Args:
         request_id: リクエストID
-        
+
     Returns:
         ResponseFormatterインスタンス
     """

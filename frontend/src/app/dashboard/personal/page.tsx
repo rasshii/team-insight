@@ -1,3 +1,12 @@
+/**
+ * @fileoverview 個人ダッシュボードページ
+ *
+ * ログイン中のユーザーの生産性メトリクス、タスク進捗、パフォーマンス分析を表示するページコンポーネント。
+ * Backlogからのタスクデータを可視化し、個人のパフォーマンス指標を提供します。
+ *
+ * @module PersonalDashboardPage
+ */
+
 "use client";
 
 import { Layout } from "@/components/Layout";
@@ -36,11 +45,58 @@ import { queryKeys } from "@/lib/react-query";
 import { getTaskStatusLabel } from "@/lib/task-utils";
 import { MetricTooltip, MetricLabel } from "@/components/ui/metric-tooltip";
 
+/**
+ * 個人ダッシュボードページ
+ *
+ * ログイン中のユーザーの生産性メトリクス、タスク進捗、パフォーマンス分析を表示します。
+ *
+ * ## 主要機能
+ * - KPIカードの表示（総タスク数、完了タスク数、進行中タスク数、期限切れタスク数）
+ * - 完了率と平均処理時間の可視化
+ * - 生産性トレンドグラフ（過去30日間の完了タスク数推移）
+ * - ワークフロー分析（各ステータスでの平均滞留時間）
+ * - タスクタイプ別効率分析（機能開発、バグ修正など）
+ * - 最近完了したタスクの一覧表示
+ * - Backlogタスクの手動同期機能
+ *
+ * ## データフェッチ戦略
+ * - React Queryを使用してサーバーステートを管理
+ * - staleTime: 5分（データの鮮度保証期間）
+ * - 同期ボタンクリック時に関連クエリを無効化して再取得
+ *
+ * ## 権限
+ * - 認証必須（PrivateRouteでラップ）
+ * - 自分自身のデータのみ閲覧可能
+ *
+ * @example
+ * ```tsx
+ * // App Routerでの使用
+ * // app/dashboard/personal/page.tsx
+ * export default PersonalDashboardPage
+ * ```
+ *
+ * @returns {JSX.Element} 個人ダッシュボードページのUIコンポーネント
+ *
+ * @remarks
+ * - 初回レンダリング時に自動的にダッシュボードデータを取得します
+ * - タスク同期ボタンをクリックすると、Backlogから最新データを同期します
+ * - 完了率が80%以上かつ期限切れタスクが0件の場合、褒めメッセージが表示されます
+ *
+ * @see {@link usePersonalDashboard} - 個人ダッシュボードデータ取得フック
+ * @see {@link syncService.syncUserTasks} - タスク同期サービス
+ * @see {@link Layout} - 共通レイアウトコンポーネント
+ * @see {@link PrivateRoute} - 認証保護ラッパーコンポーネント
+ */
 export default function PersonalDashboardPage() {
   const { data: dashboard, isLoading, error } = usePersonalDashboard();
   const queryClient = useQueryClient();
-  
-  // タスク同期ミューテーション
+
+  /**
+   * タスク同期ミューテーション
+   *
+   * Backlogから最新のタスクデータを同期し、
+   * 関連するクエリを無効化して再取得します。
+   */
   const syncTasksMutation = useMutation({
     mutationFn: () => syncService.syncUserTasks(),
     onSuccess: () => {
@@ -58,13 +114,8 @@ export default function PersonalDashboardPage() {
         description: "タスクの同期に失敗しました。",
         variant: "destructive",
       });
-      console.error('Sync error:', error);
     }
   });
-  
-  console.log('Dashboard data:', dashboard);
-  console.log('Loading state:', isLoading);
-  console.log('Error state:', error);
 
   if (isLoading) {
     return (

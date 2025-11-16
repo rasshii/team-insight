@@ -10,16 +10,11 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     ENVIRONMENT: str = Field(default="development", env="ENVIRONMENT")
 
-
     # セキュリティ設定
     SECRET_KEY: str = Field(default="your-secret-key-here", env="SECRET_KEY")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
-        default=10080, env="ACCESS_TOKEN_EXPIRE_MINUTES"  # 7 days in minutes
-    )
-    REFRESH_TOKEN_EXPIRE_DAYS: int = Field(
-        default=30, env="REFRESH_TOKEN_EXPIRE_DAYS"  # 30 days
-    )
-    
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=10080, env="ACCESS_TOKEN_EXPIRE_MINUTES")  # 7 days in minutes
+    REFRESH_TOKEN_EXPIRE_DAYS: int = Field(default=30, env="REFRESH_TOKEN_EXPIRE_DAYS")  # 30 days
+
     # データベース設定
     DATABASE_URL: str = Field(
         default="postgresql://postgres:postgres@localhost:5432/team_insight",
@@ -29,29 +24,23 @@ class Settings(BaseSettings):
     # Redis設定
     REDIS_URL: str = Field(default="redis://redis:6379", env="REDIS_URL")
     REDISCLI_AUTH: str = Field(default="redis_password", env="REDISCLI_AUTH")
-    CACHE_DEFAULT_EXPIRE: int = Field(
-        default=300, env="CACHE_DEFAULT_EXPIRE"
-    )  # デフォルト5分
+    CACHE_DEFAULT_EXPIRE: int = Field(default=300, env="CACHE_DEFAULT_EXPIRE")  # デフォルト5分
     CACHE_MAX_CONNECTIONS: int = Field(default=20, env="CACHE_MAX_CONNECTIONS")
-    CACHE_HEALTH_CHECK_INTERVAL: int = Field(
-        default=30, env="CACHE_HEALTH_CHECK_INTERVAL"
-    )
+    CACHE_HEALTH_CHECK_INTERVAL: int = Field(default=30, env="CACHE_HEALTH_CHECK_INTERVAL")
 
     # Backlog OAuth2.0設定
     BACKLOG_CLIENT_ID: str = Field(default="", env="BACKLOG_CLIENT_ID")
     BACKLOG_CLIENT_SECRET: str = Field(default="", env="BACKLOG_CLIENT_SECRET")
-    BACKLOG_REDIRECT_URI: str = Field(
-        default="http://localhost/auth/callback", env="BACKLOG_REDIRECT_URI"
-    )
+    BACKLOG_REDIRECT_URI: str = Field(default="http://localhost/auth/callback", env="BACKLOG_REDIRECT_URI")
     BACKLOG_SPACE_KEY: str = Field(default="", env="BACKLOG_SPACE_KEY")
-    
+
     # Backlogアクセス制御設定
     ALLOWED_BACKLOG_SPACES: str = Field(default="", env="ALLOWED_BACKLOG_SPACES")  # カンマ区切りのスペースリスト
-    ALLOWED_EMAIL_DOMAINS: str = Field(default="", env="ALLOWED_EMAIL_DOMAINS")    # カンマ区切りのドメインリスト
-    
+    ALLOWED_EMAIL_DOMAINS: str = Field(default="", env="ALLOWED_EMAIL_DOMAINS")  # カンマ区切りのドメインリスト
+
     # CORS設定
     FRONTEND_URL: str = Field(default="http://localhost", env="FRONTEND_URL")
-    
+
     # Email設定（レポート配信用）
     SMTP_HOST: str = Field(default="", env="SMTP_HOST")
     SMTP_PORT: int = Field(default=587, env="SMTP_PORT")
@@ -61,14 +50,14 @@ class Settings(BaseSettings):
     SMTP_FROM_NAME: str = Field(default="Team Insight Report", env="SMTP_FROM_NAME")
     SMTP_TLS: bool = Field(default=True, env="SMTP_TLS")
     SMTP_SSL: bool = Field(default=False, env="SMTP_SSL")
-    
+
     # 初期管理者設定
     INITIAL_ADMIN_EMAILS: str = Field(default="", env="INITIAL_ADMIN_EMAILS")
 
     class Config:
         case_sensitive = True
         env_file = ".env"
-        
+
         @classmethod
         def parse_env_var(cls, field_name: str, raw_val: str) -> any:
             # INITIAL_ADMIN_EMAILSをカンマ区切りリストとして解析

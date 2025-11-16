@@ -1,9 +1,72 @@
 """
 キャッシュ機能
 
-このモジュールは、APIレスポンスのキャッシュ機能を提供します。
-デコレータとミドルウェアを使用して、FastAPIエンドポイントの
-レスポンスを自動的にキャッシュします。
+このモジュールは、Redisを使用したAPIレスポンスのキャッシュ機能を提供します。
+デコレータとミドルウェアを使用して、FastAPIエンドポイントのレスポンスを
+自動的にキャッシュし、パフォーマンスを向上させます。
+
+主要な機能:
+    1. レスポンスキャッシュ
+       - デコレータベースのキャッシュ（@cache_response）
+       - ミドルウェアベースのキャッシュ（CacheMiddleware）
+       - 自動的なキャッシュキー生成
+
+    2. キャッシュ無効化
+       - パターンマッチングによる一括削除
+       - データ変更時の自動キャッシュクリア
+       - デコレータベースの無効化（@cache_invalidate）
+
+    3. キャッシュ統計
+       - ヒット率の計算
+       - キャッシュサイズの監視
+
+主要なクラス・関数:
+    - cache_response(): レスポンスキャッシュデコレータ
+    - cache_invalidate(): キャッシュ無効化デコレータ
+    - CacheMiddleware: HTTPキャッシュミドルウェア
+    - get_cache_stats(): キャッシュ統計取得
+    - clear_cache(): キャッシュクリア
+
+キャッシュ戦略:
+    - GETリクエストのみキャッシュ（読み取り専用）
+    - POST/PUT/DELETE時に関連キャッシュを自動削除
+    - TTL（Time To Live）でキャッシュの有効期限を管理
+    - キーにユーザーIDを含めて個別キャッシュ
+
+使用例:
+    ```python
+    from app.core.cache import cache_response, cache_invalidate
+
+    # デコレータでキャッシュ（5分間）
+    @router.get("/users/{user_id}")
+    @cache_response("user_profile", expire=300)
+    async def get_user(user_id: int):
+        return get_user_from_db(user_id)
+
+    # データ更新時にキャッシュを無効化
+    @router.put("/users/{user_id}")
+    @cache_invalidate("cache:user_profile:*")
+    async def update_user(user_id: int, data: UserUpdate):
+        return update_user_in_db(user_id, data)
+
+    # ミドルウェアの設定
+    app.add_middleware(
+        CacheMiddleware,
+        default_expire=300,  # 5分
+        cacheable_paths=["/api/v1/"],
+        exclude_paths=["/api/v1/auth/"]
+    )
+    ```
+
+パフォーマンスの改善:
+    - データベースクエリの削減
+    - レスポンス時間の短縮
+    - サーバー負荷の軽減
+
+セキュリティの考慮事項:
+    - 個人情報を含むレスポンスは慎重にキャッシュ
+    - 認証トークンをキャッシュキーに含めてユーザー分離
+    - 機密データはキャッシュしない、またはTTLを短く設定
 """
 
 import functools
@@ -20,10 +83,9 @@ from app.core.redis_client import redis_client
 
 logger = logging.getLogger(__name__)
 
+
 def cache_response(
-    prefix: str,
-    expire: Union[int, timedelta] = 300,  # デフォルト5分
-    key_generator: Optional[Callable] = None
+    prefix: str, expire: Union[int, timedelta] = 300, key_generator: Optional[Callable] = None  # デフォルト5分
 ):
     """
     APIレスポンスをキャッシュするデコレータ
@@ -39,6 +101,7 @@ def cache_response(
             # この関数の結果がキャッシュされる
             pass
     """
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
@@ -77,7 +140,9 @@ def cache_response(
             return result
 
         return wrapper
+
     return decorator
+
 
 def cache_invalidate(pattern: str):
     """
@@ -92,6 +157,7 @@ def cache_invalidate(pattern: str):
             # この関数実行後にuser_profile関連のキャッシュが無効化される
             pass
     """
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
@@ -105,7 +171,9 @@ def cache_invalidate(pattern: str):
             return result
 
         return wrapper
+
     return decorator
+
 
 class CacheMiddleware(BaseHTTPMiddleware):
     """
@@ -115,11 +183,7 @@ class CacheMiddleware(BaseHTTPMiddleware):
     """
 
     def __init__(
-        self,
-        app,
-        default_expire: int = 300,
-        cacheable_paths: Optional[list] = None,
-        exclude_paths: Optional[list] = None
+        self, app, default_expire: int = 300, cacheable_paths: Optional[list] = None, exclude_paths: Optional[list] = None
     ):
         super().__init__(app)
         self.default_expire = default_expire
@@ -159,12 +223,9 @@ class CacheMiddleware(BaseHTTPMiddleware):
                 "Access-Control-Allow-Origin": request.headers.get("Origin", "*"),
                 "Access-Control-Allow-Credentials": "true",
                 "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-                "Access-Control-Allow-Headers": "*"
+                "Access-Control-Allow-Headers": "*",
             }
-            return JSONResponse(
-                content=cached_response,
-                headers=headers
-            )
+            return JSONResponse(content=cached_response, headers=headers)
 
         # キャッシュミス - レスポンスを取得
         logger.info(f"キャッシュミス: {path}")
@@ -187,21 +248,14 @@ class CacheMiddleware(BaseHTTPMiddleware):
                 # 元のレスポンスのヘッダーを保持
                 response_headers = dict(response.headers)
                 response_headers["X-Cache"] = "MISS"
-                
+
                 # レスポンスを再構築
-                return JSONResponse(
-                    content=content,
-                    headers=response_headers
-                )
+                return JSONResponse(content=content, headers=response_headers)
 
             except Exception as e:
                 logger.error(f"キャッシュ保存エラー: {e}")
                 # エラー時は元のレスポンスを返す
-                return Response(
-                    content=body,
-                    status_code=response.status_code,
-                    headers=dict(response.headers)
-                )
+                return Response(content=body, status_code=response.status_code, headers=dict(response.headers))
 
         return response
 
@@ -216,11 +270,7 @@ class CacheMiddleware(BaseHTTPMiddleware):
             生成されたキャッシュキー
         """
         # パスとクエリパラメータを結合
-        key_parts = [
-            request.method,
-            request.url.path,
-            str(sorted(request.query_params.items()))
-        ]
+        key_parts = [request.method, request.url.path, str(sorted(request.query_params.items()))]
 
         # ヘッダーからユーザー情報を取得（認証済みユーザーの場合）
         user_id = request.headers.get("X-User-ID")
@@ -229,14 +279,14 @@ class CacheMiddleware(BaseHTTPMiddleware):
 
         key_string = "|".join(key_parts)
         return f"cache:http:{hashlib.md5(key_string.encode()).hexdigest()}"
-    
+
     async def _invalidate_related_cache(self, request: Request):
         """
         変更操作時に関連するキャッシュを無効化
         """
         path = request.url.path
         logger.info(f"キャッシュ無効化開始: {request.method} {path}")
-        
+
         # パスベースで関連するすべてのHTTPキャッシュをクリア
         try:
             # 特定のパスに関連する変更の場合は、すべてのHTTPキャッシュをクリア
@@ -249,9 +299,10 @@ class CacheMiddleware(BaseHTTPMiddleware):
                     logger.info("削除対象のキャッシュがありません")
             else:
                 logger.info(f"キャッシュ無効化スキップ: {path} は対象外")
-            
+
         except Exception as e:
             logger.error(f"キャッシュ無効化エラー: {e}", exc_info=True)
+
 
 # キャッシュ統計エンドポイント用のヘルパー関数
 async def get_cache_stats() -> Dict[str, Any]:
@@ -277,6 +328,7 @@ async def get_cache_stats() -> Dict[str, Any]:
 
     return stats
 
+
 # キャッシュクリア用のヘルパー関数
 async def clear_cache(pattern: str = "cache:*") -> Dict[str, Any]:
     """
@@ -290,8 +342,4 @@ async def clear_cache(pattern: str = "cache:*") -> Dict[str, Any]:
     """
     deleted_count = await redis_client.delete_pattern(pattern)
 
-    return {
-        "message": f"キャッシュクリア完了",
-        "pattern": pattern,
-        "deleted_count": deleted_count
-    }
+    return {"message": f"キャッシュクリア完了", "pattern": pattern, "deleted_count": deleted_count}

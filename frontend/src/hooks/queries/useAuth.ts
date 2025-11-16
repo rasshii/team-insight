@@ -1,3 +1,12 @@
+/**
+ * @fileoverview 認証関連のReact Queryフック
+ *
+ * 認証APIエンドポイントへのアクセスをReact Queryで管理するカスタムフック集です。
+ * ユーザー情報の取得、ログアウト、認証URL取得、トークンリフレッシュなどの機能を提供します。
+ *
+ * @module useAuthQueries
+ */
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { queryKeys } from '@/lib/react-query'
@@ -9,6 +18,32 @@ import { getApiErrorMessage } from '@/lib/api-client'
 
 /**
  * 現在のユーザー情報を取得するフック
+ *
+ * ログイン中のユーザーの詳細情報を取得し、React Queryでキャッシュします。
+ * 取得したユーザー情報はReduxストアにも自動的に保存されます。
+ *
+ * @returns {UseQueryResult<UserInfoResponse>} React Queryの結果オブジェクト
+ *
+ * @example
+ * ```tsx
+ * function UserProfile() {
+ *   const { data: user, isLoading, error } = useCurrentUser();
+ *
+ *   if (isLoading) return <Spinner />;
+ *   if (error) return <ErrorMessage />;
+ *
+ *   return <div>ようこそ、{user.name}さん</div>;
+ * }
+ * ```
+ *
+ * @remarks
+ * - staleTime: 10分（データの鮮度保証期間）
+ * - retry: false（認証エラーの場合はリトライしない）
+ * - 未認証の場合は401エラーが返されます
+ * - 取得したユーザー情報は自動的にReduxストアにも保存されます
+ *
+ * @see {@link authService.getCurrentUser} - ユーザー情報取得API
+ * @see {@link queryKeys.auth.me} - React Queryのクエリキー
  */
 export const useCurrentUser = () => {
   const dispatch = useAppDispatch()
@@ -28,6 +63,38 @@ export const useCurrentUser = () => {
 
 /**
  * ログアウト処理のミューテーションフック
+ *
+ * ユーザーをログアウトし、全てのキャッシュとReduxストアをクリアします。
+ * ログアウト完了後、ルートページに強制リダイレクトします。
+ *
+ * @returns {UseMutationResult<void>} React Queryのミューテーション結果オブジェクト
+ *
+ * @example
+ * ```tsx
+ * function LogoutButton() {
+ *   const logoutMutation = useLogout();
+ *
+ *   return (
+ *     <button
+ *       onClick={() => logoutMutation.mutate()}
+ *       disabled={logoutMutation.isPending}
+ *     >
+ *       {logoutMutation.isPending ? 'ログアウト中...' : 'ログアウト'}
+ *     </button>
+ *   );
+ * }
+ * ```
+ *
+ * @remarks
+ * - 成功時の処理:
+ *   1. React Queryの全キャッシュをクリア
+ *   2. Reduxストアをクリア（dispatch(logoutAction())）
+ *   3. トーストメッセージを表示
+ *   4. window.location.href = '/' でルートページへリダイレクト
+ * - window.location.hrefを使用することで、完全なページリロードを実行
+ *
+ * @see {@link authService.logout} - ログアウトAPI
+ * @see {@link useAuth} - 認証状態管理フック
  */
 export const useLogout = () => {
   const queryClient = useQueryClient()

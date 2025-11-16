@@ -15,6 +15,7 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+
 class RedisClient:
     """
     Redis接続とキャッシュ操作を管理するクラス
@@ -46,7 +47,7 @@ class RedisClient:
                     retry_on_timeout=True,
                     socket_keepalive=True,
                     socket_keepalive_options={},
-                    health_check_interval=30
+                    health_check_interval=30,
                 )
 
             self._redis_client = redis.Redis(connection_pool=self._redis_pool)
@@ -122,12 +123,7 @@ class RedisClient:
             logger.error(f"キャッシュ取得エラー (key: {key}): {e}")
             return None
 
-    async def set(
-        self,
-        key: str,
-        value: Any,
-        expire: Optional[Union[int, timedelta]] = None
-    ) -> bool:
+    async def set(self, key: str, value: Any, expire: Optional[Union[int, timedelta]] = None) -> bool:
         """
         キャッシュに値を設定します
 
@@ -248,6 +244,7 @@ class RedisClient:
         except Exception as e:
             logger.error(f"キャッシュ統計取得エラー: {e}")
             return {}
+
 
 # グローバルRedisクライアントインスタンス
 redis_client = RedisClient()

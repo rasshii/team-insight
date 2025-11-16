@@ -1,3 +1,12 @@
+/**
+ * @fileoverview プロジェクト関連のReact Queryフック
+ *
+ * プロジェクトのCRUD操作とタスク同期をReact Queryで管理するカスタムフック集です。
+ * プロジェクト一覧・詳細取得、作成・更新・削除、メンバー管理、Backlog同期などの機能を提供します。
+ *
+ * @module useProjectsQueries
+ */
+
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/react-query'
 import { projectService, type Project, type ProjectCreateRequest, type ProjectUpdateRequest } from '@/services/project.service'
@@ -5,6 +14,40 @@ import { useApiMutation, useDeleteMutation } from '@/hooks/useApiMutation'
 
 /**
  * プロジェクト一覧を取得するフック
+ *
+ * ユーザーがアクセス可能な全プロジェクトの一覧をReact Queryで取得します。
+ * 検索、ステータスフィルター、ページネーションをサポートします。
+ *
+ * @param {Object} [params] - クエリパラメータ
+ * @param {number} [params.page] - ページ番号（1から開始）
+ * @param {number} [params.per_page] - 1ページあたりの件数
+ * @param {string} [params.search] - 検索キーワード（プロジェクト名で検索）
+ * @param {'active' | 'archived'} [params.status] - ステータスフィルター
+ * @returns {UseQueryResult<ProjectListResponse>} React Queryの結果オブジェクト
+ *
+ * @example
+ * ```tsx
+ * function ProjectList() {
+ *   const { data, isLoading } = useProjects({ status: 'active' });
+ *
+ *   if (isLoading) return <Skeleton />;
+ *
+ *   return (
+ *     <ul>
+ *       {data.projects.map(project => (
+ *         <li key={project.id}>{project.name}</li>
+ *       ))}
+ *     </ul>
+ *   );
+ * }
+ * ```
+ *
+ * @remarks
+ * - staleTime: 5分（データの鮮度保証期間）
+ * - パラメータが変更されると自動的に再取得されます
+ *
+ * @see {@link projectService.getProjects} - プロジェクト一覧取得API
+ * @see {@link queryKeys.projects.list} - React Queryのクエリキー
  */
 export const useProjects = (params?: {
   page?: number
@@ -15,9 +58,7 @@ export const useProjects = (params?: {
   return useQuery({
     queryKey: queryKeys.projects.list(params),
     queryFn: async () => {
-      console.log('Fetching projects with params:', params);
       const result = await projectService.getProjects(params);
-      console.log('Projects service returned:', result);
       return result;
     },
     staleTime: 5 * 60 * 1000, // 5分
@@ -124,6 +165,37 @@ export const useSyncProjectTasks = () => {
 
 /**
  * すべてのプロジェクトを同期するミューテーションフック
+ *
+ * Backlogから全プロジェクトを同期し、データベースに保存します。
+ * 同期完了後、プロジェクト一覧を自動的に再取得します。
+ *
+ * @returns {UseMutationResult} React Queryのミューテーション結果オブジェクト
+ *
+ * @example
+ * ```tsx
+ * function SyncProjectsButton() {
+ *   const syncMutation = useSyncAllProjects();
+ *
+ *   return (
+ *     <button
+ *       onClick={() => syncMutation.mutate()}
+ *       disabled={syncMutation.isPending}
+ *     >
+ *       {syncMutation.isPending ? '同期中...' : 'プロジェクトを同期'}
+ *     </button>
+ *   );
+ * }
+ * ```
+ *
+ * @remarks
+ * - 成功時の処理:
+ *   1. 成功メッセージをトースト表示（新規/更新/合計件数）
+ *   2. プロジェクト一覧とBacklog同期状態のキャッシュを無効化
+ *   3. プロジェクト一覧を強制的に再取得
+ * - 管理者またはプロジェクトリーダーのみ実行可能
+ *
+ * @see {@link projectService.syncAllProjects} - プロジェクト同期API
+ * @see {@link useApiMutation} - ミューテーション共通処理ラッパー
  */
 export const useSyncAllProjects = () => {
   const queryClient = useQueryClient()
@@ -140,10 +212,8 @@ export const useSyncAllProjects = () => {
       errorMessage: 'プロジェクトの同期に失敗しました。',
       invalidateQueries: [queryKeys.projects.all, queryKeys.sync.status],
       onSuccessCallback: async (result) => {
-        console.log('Sync success callback result:', result);
         // プロジェクト一覧を強制的に再取得
         await queryClient.refetchQueries({ queryKey: queryKeys.projects.all })
-        console.log('Projects refetched');
       }
     }
   )

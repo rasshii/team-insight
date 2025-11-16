@@ -1,3 +1,12 @@
+/**
+ * @fileoverview ユーザー管理ページ
+ *
+ * システムに登録されているユーザーの一覧表示、検索、フィルタリング、編集を行う管理者向けページ。
+ * Backlogからのユーザー一括インポート機能も提供します。
+ *
+ * @module AdminUsersPage
+ */
+
 "use client";
 
 import { useState, useMemo } from 'react';
@@ -75,6 +84,58 @@ import {
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 
+/**
+ * ユーザー管理ページ
+ *
+ * システムに登録されているユーザーを管理する管理者専用ページです。
+ *
+ * ## 主要機能
+ * - ユーザー一覧の表形式表示
+ *   - ユーザー名とメールアドレス
+ *   - グローバルロールとプロジェクトロール
+ *   - ログイン可/不可ステータス
+ *   - 登録日時と最終ログイン日時
+ * - 高度な検索とフィルタリング
+ *   - テキスト検索（名前/メール）
+ *   - ステータスフィルター（ログイン可/不可）
+ *   - プロジェクトフィルター
+ *   - チームフィルター
+ *   - ソート機能（名前、メール、登録日、最終ログイン）
+ * - ユーザー編集機能
+ *   - ロール変更
+ *   - ログイン可/不可の切り替え
+ * - Backlogユーザー一括インポート
+ *   - アクティブユーザーのみ/全ユーザー選択可能
+ *   - デフォルトロール自動付与オプション
+ * - ページネーション（20件/ページ）
+ *
+ * ## データフェッチ戦略
+ * - React Queryでユーザーデータを取得
+ * - デバウンス検索（300ms）でAPI呼び出しを最適化
+ * - フィルター変更時に自動的に再取得
+ *
+ * ## 権限
+ * - 管理者（ADMIN）ロールのみアクセス可能（AdminOnlyでラップ）
+ *
+ * @example
+ * ```tsx
+ * // App Routerでの使用
+ * // app/admin/users/page.tsx
+ * export default AdminUsersPage
+ * ```
+ *
+ * @returns {JSX.Element} ユーザー管理ページのUIコンポーネント
+ *
+ * @remarks
+ * - 検索テキストは300msのデバウンス処理が適用されます
+ * - ユーザー一覧は20件ずつページネーション表示されます
+ * - Backlogインポートは全プロジェクトからユーザーを収集します
+ *
+ * @see {@link useUsers} - ユーザー一覧取得フック
+ * @see {@link useImportBacklogUsers} - Backlogユーザーインポートフック
+ * @see {@link UserEditDialog} - ユーザー編集ダイアログコンポーネント
+ * @see {@link AdminOnly} - 管理者権限チェックコンポーネント
+ */
 export default function AdminUsersPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -93,12 +154,19 @@ export default function AdminUsersPage() {
 
   const debouncedSearch = useDebounce(search, 300);
   const importUsersMutation = useImportBacklogUsers();
-  
+
   // プロジェクトとチームのデータを取得
   const { data: projectsData } = useProjects();
   const { data: teamsData } = useTeams();
 
-  // フィルター構築
+  /**
+   * フィルター構築
+   *
+   * ユーザーが選択したフィルター条件をまとめて、
+   * APIリクエスト用のフィルターオブジェクトを生成します。
+   *
+   * @returns {UserFilters} APIリクエスト用フィルターオブジェクト
+   */
   const filters = useMemo<UserFilters>(() => {
     const f: UserFilters = {};
     if (debouncedSearch) f.search = debouncedSearch;
@@ -117,7 +185,14 @@ export default function AdminUsersPage() {
     return f;
   }, [debouncedSearch, selectedStatus, selectedRole, selectedProject, selectedTeam]);
 
-  // ソートオプション
+  /**
+   * ソートオプション
+   *
+   * ユーザーが選択したソート条件をまとめて、
+   * APIリクエスト用のソートオプションを生成します。
+   *
+   * @returns {UserSortOptions} APIリクエスト用ソートオプション
+   */
   const sort = useMemo<UserSortOptions>(() => ({
     sort_by: sortBy,
     sort_order: sortOrder,
@@ -125,11 +200,27 @@ export default function AdminUsersPage() {
 
   const { data, isLoading } = useUsers({ page, page_size: pageSize, filters, sort });
 
+  /**
+   * ユーザー編集ハンドラー
+   *
+   * 編集対象のユーザーを設定し、編集ダイアログを開きます。
+   *
+   * @param {User} user - 編集対象のユーザーオブジェクト
+   */
   const handleEdit = (user: User) => {
     setEditingUser(user);
     setEditDialogOpen(true);
   };
 
+  /**
+   * ロールバッジの生成
+   *
+   * ユーザーのロール情報（グローバルロールとプロジェクトロール）を
+   * バッジ形式で表示するためのJSX要素を生成します。
+   *
+   * @param {User} user - ロール情報を持つユーザーオブジェクト
+   * @returns {JSX.Element} ロールバッジのJSX要素
+   */
   const getRoleBadges = (user: User) => {
     // グローバルロールとプロジェクトロールを分けて整理
     const globalRoles = user.user_roles.filter(ur => !ur.project_id);
@@ -175,6 +266,14 @@ export default function AdminUsersPage() {
     );
   };
 
+  /**
+   * ステータスバッジの生成
+   *
+   * ユーザーのログイン可/不可ステータスをバッジ形式で表示します。
+   *
+   * @param {User} user - ステータス情報を持つユーザーオブジェクト
+   * @returns {JSX.Element} ステータスバッジのJSX要素
+   */
   const getStatusBadge = (user: User) => {
     if (!user.is_active) {
       return <Badge variant="destructive">ログイン不可</Badge>;

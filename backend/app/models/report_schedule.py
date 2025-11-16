@@ -9,6 +9,7 @@ from app.db.base_class import BaseModel
 
 class ReportSchedule(BaseModel):
     """レポート配信スケジュール"""
+
     __tablename__ = "report_schedules"
     __table_args__ = {"schema": "team_insight"}
 
@@ -20,7 +21,7 @@ class ReportSchedule(BaseModel):
     send_time = Column(Time, nullable=True)  # 送信時刻（HH:MM）
     last_sent_at = Column(DateTime, nullable=True)
     next_send_at = Column(DateTime, nullable=True)
-    
+
     # リレーション
     user = relationship("User", back_populates="report_schedules")
     project = relationship("Project", back_populates="report_schedules")
@@ -29,6 +30,7 @@ class ReportSchedule(BaseModel):
 
 class ReportDeliveryHistory(BaseModel):
     """レポート配信履歴"""
+
     __tablename__ = "report_delivery_history"
     __table_args__ = {"schema": "team_insight"}
 
@@ -41,7 +43,7 @@ class ReportDeliveryHistory(BaseModel):
     status = Column(String, nullable=False)  # success, failed
     error_message = Column(String, nullable=True)
     sent_at = Column(DateTime, nullable=False)
-    
+
     # リレーション
     schedule = relationship("ReportSchedule", back_populates="delivery_history")
     user = relationship("User")

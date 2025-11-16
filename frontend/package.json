@@ -48,6 +48,9 @@
     "type-check": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "generate:types": "openapi-typescript http://localhost/api/v1/openapi.json -o ./src/types/api.d.ts"
   },
   "devDependencies": {

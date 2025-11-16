@@ -1,3 +1,12 @@
+/**
+ * @fileoverview チーム生産性ダッシュボードページ
+ *
+ * チームごとの生産性指標、メンバーパフォーマンス、タスク分配状況を可視化するページコンポーネント。
+ * 複数チームの比較分析や、チーム内メンバーの詳細分析を提供します。
+ *
+ * @module TeamsProductivityPage
+ */
+
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
@@ -18,6 +27,52 @@ import { usePermissions } from '@/hooks/usePermissions'
 import Link from 'next/link'
 import { MetricTooltip, MetricLabel } from '@/components/ui/metric-tooltip'
 
+/**
+ * チーム生産性ダッシュボードページ
+ *
+ * 全チームの生産性指標を一覧表示し、選択したチームの詳細分析を提供します。
+ *
+ * ## 主要機能
+ * - 全チーム統計サマリー（総チーム数、総メンバー数、アクティブタスク数、今月の完了タスク数）
+ * - チーム選択ドロップダウン
+ * - 選択チームの詳細情報表示
+ *   - チーム概要（メンバー数、アクティブタスク数、完了タスク数、効率性スコア）
+ *   - メンバー別パフォーマンス分析
+ *   - タスク分配チャート
+ *   - 生産性推移グラフ
+ *   - アクティビティタイムライン
+ * - 管理者向けチーム管理ページへのリンク
+ *
+ * ## データフェッチ戦略
+ * - チーム一覧: `with_stats=true`で統計情報を含めて取得
+ * - チーム詳細: 選択時に個別に取得
+ * - staleTime: デフォルト設定（React Query）
+ *
+ * ## 権限
+ * - 認証必須
+ * - 全ユーザーが閲覧可能
+ * - チーム管理機能は管理者またはプロジェクトリーダーのみアクセス可能
+ *
+ * @example
+ * ```tsx
+ * // App Routerでの使用
+ * // app/teams/page.tsx
+ * export default TeamsProductivityPage
+ * ```
+ *
+ * @returns {JSX.Element} チーム生産性ダッシュボードページのUIコンポーネント
+ *
+ * @remarks
+ * - チームが存在しない場合、チーム作成を促すメッセージを表示します
+ * - チームを選択するまでは全体統計のみ表示されます
+ * - 選択したチームの詳細は、タブで切り替えて表示します
+ *
+ * @see {@link useTeams} - チーム一覧取得フック
+ * @see {@link useTeam} - チーム詳細取得フック
+ * @see {@link usePermissions} - 権限チェックフック
+ * @see {@link TeamMemberPerformance} - メンバーパフォーマンスコンポーネント
+ * @see {@link TeamProductivityChart} - 生産性推移チャートコンポーネント
+ */
 export default function TeamsProductivityPage() {
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null)
   const permissions = usePermissions()
@@ -25,11 +80,25 @@ export default function TeamsProductivityPage() {
   const { data: teamsData, isLoading: teamsLoading } = useTeams({ with_stats: true })
   const { data: teamDetail, isLoading: teamLoading } = useTeam(selectedTeamId || 0)
 
+  /**
+   * チーム選択変更ハンドラー
+   *
+   * ドロップダウンで選択したチームIDを状態に保存します。
+   *
+   * @param {string} value - 選択されたチームのID（文字列）
+   */
   const handleTeamChange = (value: string) => {
     setSelectedTeamId(parseInt(value))
   }
 
-  // 全体統計の計算
+  /**
+   * 全体統計の計算
+   *
+   * 全チームのデータから、総チーム数、総メンバー数、
+   * アクティブタスク数、完了タスク数を集計します。
+   *
+   * @returns {Object} 全体統計オブジェクト
+   */
   const totalStats = useMemo(() => {
     if (!teamsData || !teamsData.teams || teamsData.teams.length === 0) {
       return {

@@ -35,7 +35,9 @@ class BacklogOAuthService:
         # BacklogのベースURL（スペースキーに基づいて構築）
         self.base_url = f"https://{self.space_key}.backlog.jp"
 
-    def get_authorization_url(self, space_key: Optional[str] = None, state: Optional[str] = None, force_account_selection: bool = False) -> str:
+    def get_authorization_url(
+        self, space_key: Optional[str] = None, state: Optional[str] = None, force_account_selection: bool = False
+    ) -> str:
         """
         認証URLを生成します
 
@@ -63,13 +65,13 @@ class BacklogOAuthService:
             "redirect_uri": self.redirect_uri,
             "state": state,
         }
-        
+
         # アカウント選択を強制する場合
         if force_account_selection:
             # セッションをクリアするためのパラメータを追加
             params["prompt"] = "login"  # 再ログインを強制
-            params["max_age"] = "0"     # セッションの最大有効期限を0に
-        
+            params["max_age"] = "0"  # セッションの最大有効期限を0に
+
         # OAuth認証URLを生成
         auth_url = f"{base_url}/OAuth2AccessRequest.action?{urlencode(params)}"
         return auth_url, state
@@ -93,7 +95,7 @@ class BacklogOAuthService:
             base_url = f"https://{space_key}.backlog.jp"
         else:
             base_url = self.base_url
-            
+
         token_url = f"{base_url}/api/v2/oauth2/token"
 
         data = {
@@ -146,7 +148,7 @@ class BacklogOAuthService:
             base_url = f"https://{space_key}.backlog.jp"
         else:
             base_url = self.base_url
-            
+
         token_url = f"{base_url}/api/v2/oauth2/token"
 
         data = {
@@ -198,22 +200,18 @@ class BacklogOAuthService:
             base_url = f"https://{space_key}.backlog.jp"
         else:
             base_url = self.base_url
-            
+
         user_url = f"{base_url}/api/v2/users/myself"
 
         async with httpx.AsyncClient() as client:
-            response = await client.get(
-                user_url, headers={"Authorization": f"Bearer {access_token}"}
-            )
+            response = await client.get(user_url, headers={"Authorization": f"Bearer {access_token}"})
 
             if response.status_code != 200:
                 raise Exception(f"ユーザー情報の取得に失敗しました: {response.text}")
 
             return response.json()
 
-    def save_token(
-        self, db: Session, user_id: int, token_data: Dict[str, any], space_key: Optional[str] = None
-    ) -> OAuthToken:
+    def save_token(self, db: Session, user_id: int, token_data: Dict[str, any], space_key: Optional[str] = None) -> OAuthToken:
         """
         トークンをデータベースに保存します
 
@@ -227,11 +225,7 @@ class BacklogOAuthService:
             保存されたOAuthTokenオブジェクト
         """
         # 既存のトークンを確認
-        existing_token = (
-            db.query(OAuthToken)
-            .filter(OAuthToken.user_id == user_id, OAuthToken.provider == "backlog")
-            .first()
-        )
+        existing_token = db.query(OAuthToken).filter(OAuthToken.user_id == user_id, OAuthToken.provider == "backlog").first()
 
         if existing_token:
             # 既存のトークンを更新
@@ -240,11 +234,11 @@ class BacklogOAuthService:
             existing_token.expires_at = token_data["expires_at"]
             existing_token.updated_at = datetime.utcnow()
             existing_token.last_used_at = datetime.utcnow()
-            
+
             # Backlog固有のフィールドを更新（提供されている場合）
             if space_key:
                 existing_token.backlog_space_key = space_key
-            
+
             db.commit()
             return existing_token
         else:
@@ -256,7 +250,7 @@ class BacklogOAuthService:
                 refresh_token=token_data["refresh_token"],
                 expires_at=token_data["expires_at"],
                 backlog_space_key=space_key if space_key else None,
-                last_used_at=datetime.utcnow()
+                last_used_at=datetime.utcnow(),
             )
             db.add(new_token)
             db.commit()

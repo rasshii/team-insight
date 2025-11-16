@@ -57,24 +57,14 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
   // 認証状態に応じたリダイレクト
   useEffect(() => {
     if (isLoading) return;
-    
+
     const isAuthPage = pathname === "/auth/login" || pathname === "/auth/callback";
     const isRootPage = pathname === "/";
     const isAuthenticated = !!user;
-    
-    console.log('[AuthInitializer] Redirect check:', {
-      pathname,
-      isLoading,
-      isAuthenticated,
-      isAuthPage,
-      isRootPage
-    });
-    
+
     if (!isAuthenticated && !isAuthPage && !isRootPage) {
-      console.log('[AuthInitializer] Redirecting to login...');
       router.replace("/auth/login");
     } else if (isAuthenticated && isRootPage) {
-      console.log('[AuthInitializer] Redirecting to dashboard...');
       router.replace("/dashboard/personal");
     }
   }, [isLoading, user, pathname, router]);
@@ -110,9 +100,7 @@ function useCurrentUser() {
     queryKey: queryKeys.auth.me,
     queryFn: async () => {
       try {
-        console.log('[AuthInitializer] Fetching current user...');
         const user = await authService.getCurrentUser();
-        console.log('[AuthInitializer] User fetched successfully:', user);
         dispatch(setUser(user));
         return user;
       } catch (error: any) {
@@ -121,8 +109,6 @@ function useCurrentUser() {
           dispatch(initializeAuth());
           return null;
         }
-        // その他のエラーの場合のみエラーログを出力
-        console.error('[AuthInitializer] Error fetching user:', error);
         dispatch(initializeAuth());
         return null;
       }

@@ -22,7 +22,6 @@ export function ProjectSelector() {
 
   // プロジェクト切り替え時の処理
   const handleProjectChange = (projectId: string) => {
-    console.log(`📁 プロジェクトを切り替え: ${projectId}`);
     setSelectedProjectId(projectId);
   };
 

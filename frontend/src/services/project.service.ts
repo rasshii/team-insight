@@ -1,6 +1,19 @@
+/**
+ * @fileoverview プロジェクト管理APIサービス
+ *
+ * Backlogプロジェクトの一覧取得、詳細取得、CRUD操作、メンバー管理、
+ * タスク同期などのプロジェクト関連機能を提供します。
+ *
+ * @module projectService
+ */
+
 import { apiClient } from '@/lib/api-client'
 
-// プロジェクトの型定義
+/**
+ * プロジェクトの型定義
+ *
+ * Backlogプロジェクトの基本情報を表します。
+ */
 export interface Project {
   id: number
   backlog_id: number
@@ -42,12 +55,41 @@ export interface ProjectUpdateRequest {
 
 /**
  * プロジェクト関連のAPIサービス
- * 
- * React Queryと組み合わせて使用するためのシンプルな関数群
+ *
+ * Backlogプロジェクトの管理とタスク同期機能を提供します。
+ * React Queryと組み合わせて使用することで、効率的なデータフェッチを実現します。
+ *
+ * ## 主要機能
+ * - プロジェクト一覧・詳細取得
+ * - プロジェクト作成・更新・削除
+ * - プロジェクトメンバー一覧取得
+ * - Backlogとのタスク同期
+ *
+ * @see {@link apiClient} - 全APIリクエストで使用する共通クライアント
  */
 export const projectService = {
   /**
    * プロジェクト一覧を取得
+   *
+   * ユーザーがアクセス可能な全プロジェクトの一覧を取得します。
+   * 検索、ステータスフィルター、ページネーションをサポートします。
+   *
+   * @param {Object} [params] - クエリパラメータ
+   * @param {number} [params.page] - ページ番号（1から開始）
+   * @param {number} [params.per_page] - 1ページあたりの件数
+   * @param {string} [params.search] - 検索キーワード（プロジェクト名で検索）
+   * @param {'active' | 'archived'} [params.status] - ステータスフィルター
+   * @returns {Promise<ProjectListResponse>} プロジェクト一覧と総数
+   * @throws {AxiosError} APIリクエストが失敗した場合
+   *
+   * @example
+   * ```typescript
+   * // アクティブなプロジェクトのみ取得
+   * const { projects } = await projectService.getProjects({ status: 'active' });
+   *
+   * // 名前で検索
+   * const result = await projectService.getProjects({ search: 'Team' });
+   * ```
    */
   async getProjects(params?: {
     page?: number

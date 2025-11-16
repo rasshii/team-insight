@@ -93,3 +93,37 @@ export interface TeamMemberRemoveResponse {
   success: boolean
   message: string
 }
+
+/**
+ * チームメンバーのパフォーマンスデータ
+ */
+export interface TeamMemberPerformance {
+  user_id: number
+  user_name: string
+  completed_tasks: number
+  average_completion_time: number
+  efficiency_score: number
+}
+
+/**
+ * チームの生産性推移データポイント
+ */
+export interface TeamProductivityDataPoint {
+  date: string
+  completed_tasks: number
+  total_tasks: number
+  efficiency: number
+}
+
+/**
+ * チームのアクティビティログ
+ */
+export interface TeamActivity {
+  id: number
+  type: 'task_completed' | 'task_created' | 'member_added' | 'member_removed' | 'team_updated'
+  user_id: number
+  user_name: string
+  description: string
+  timestamp: string
+  metadata?: Record<string, any>
+}

@@ -17,10 +17,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+
 @router.get("/stats")
-async def get_cache_statistics(
-    current_user: User = Depends(get_current_active_superuser)
-) -> Dict[str, Any]:
+async def get_cache_statistics(current_user: User = Depends(get_current_active_superuser)) -> Dict[str, Any]:
     """
     キャッシュの統計情報を取得します
 
@@ -43,32 +42,17 @@ async def get_cache_statistics(
         stats_with_description = {
             "total_connections_received": {
                 "value": stats.get("total_connections_received", 0),
-                "description": "Redisへの総接続数"
+                "description": "Redisへの総接続数",
             },
             "total_commands_processed": {
                 "value": stats.get("total_commands_processed", 0),
-                "description": "処理された総コマンド数"
+                "description": "処理された総コマンド数",
             },
-            "keyspace_hits": {
-                "value": stats.get("keyspace_hits", 0),
-                "description": "キャッシュヒット数"
-            },
-            "keyspace_misses": {
-                "value": stats.get("keyspace_misses", 0),
-                "description": "キャッシュミス数"
-            },
-            "hit_rate_percent": {
-                "value": stats.get("hit_rate_percent", 0),
-                "description": "キャッシュヒット率（%）"
-            },
-            "used_memory_human": {
-                "value": stats.get("used_memory_human", "0B"),
-                "description": "使用メモリ量"
-            },
-            "connected_clients": {
-                "value": stats.get("connected_clients", 0),
-                "description": "現在の接続クライアント数"
-            }
+            "keyspace_hits": {"value": stats.get("keyspace_hits", 0), "description": "キャッシュヒット数"},
+            "keyspace_misses": {"value": stats.get("keyspace_misses", 0), "description": "キャッシュミス数"},
+            "hit_rate_percent": {"value": stats.get("hit_rate_percent", 0), "description": "キャッシュヒット率（%）"},
+            "used_memory_human": {"value": stats.get("used_memory_human", "0B"), "description": "使用メモリ量"},
+            "connected_clients": {"value": stats.get("connected_clients", 0), "description": "現在の接続クライアント数"},
         }
 
         logger.info(f"キャッシュ統計取得: ユーザー {current_user.email}")
@@ -79,21 +63,17 @@ async def get_cache_statistics(
             "summary": {
                 "hit_rate": f"{stats.get('hit_rate_percent', 0)}%",
                 "total_requests": stats.get("keyspace_hits", 0) + stats.get("keyspace_misses", 0),
-                "memory_usage": stats.get("used_memory_human", "0B")
-            }
+                "memory_usage": stats.get("used_memory_human", "0B"),
+            },
         }
 
     except Exception as e:
         logger.error(f"キャッシュ統計取得エラー: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="キャッシュ統計の取得に失敗しました"
-        )
+        raise HTTPException(status_code=500, detail="キャッシュ統計の取得に失敗しました")
+
 
 @router.delete("/clear")
-async def clear_all_cache(
-    current_user: User = Depends(get_current_active_superuser)
-) -> Dict[str, Any]:
+async def clear_all_cache(current_user: User = Depends(get_current_active_superuser)) -> Dict[str, Any]:
     """
     全キャッシュをクリアします
 
@@ -118,21 +98,16 @@ async def clear_all_cache(
             "message": "全キャッシュをクリアしました",
             "deleted_count": result["deleted_count"],
             "pattern": result["pattern"],
-            "warning": "この操作により、全てのキャッシュが削除されました。次回のリクエストはデータベースから取得されます。"
+            "warning": "この操作により、全てのキャッシュが削除されました。次回のリクエストはデータベースから取得されます。",
         }
 
     except Exception as e:
         logger.error(f"キャッシュクリアエラー: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="キャッシュのクリアに失敗しました"
-        )
+        raise HTTPException(status_code=500, detail="キャッシュのクリアに失敗しました")
+
 
 @router.delete("/clear/{pattern}")
-async def clear_cache_by_pattern(
-    pattern: str,
-    current_user: User = Depends(get_current_active_superuser)
-) -> Dict[str, Any]:
+async def clear_cache_by_pattern(pattern: str, current_user: User = Depends(get_current_active_superuser)) -> Dict[str, Any]:
     """
     指定されたパターンに一致するキャッシュをクリアします
 
@@ -156,20 +131,20 @@ async def clear_cache_by_pattern(
 
         result = await clear_cache(pattern)
 
-        logger.info(f"パターンキャッシュクリア実行: ユーザー {current_user.email}, パターン: {pattern}, 削除件数: {result['deleted_count']}")
+        logger.info(
+            f"パターンキャッシュクリア実行: ユーザー {current_user.email}, パターン: {pattern}, 削除件数: {result['deleted_count']}"
+        )
 
         return {
             "message": f"パターン '{pattern}' に一致するキャッシュをクリアしました",
             "deleted_count": result["deleted_count"],
-            "pattern": result["pattern"]
+            "pattern": result["pattern"],
         }
 
     except Exception as e:
         logger.error(f"パターンキャッシュクリアエラー: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="キャッシュのクリアに失敗しました"
-        )
+        raise HTTPException(status_code=500, detail="キャッシュのクリアに失敗しました")
+
 
 @router.get("/health")
 async def cache_health_check() -> Dict[str, Any]:
@@ -196,13 +171,9 @@ async def cache_health_check() -> Dict[str, Any]:
             "status": "healthy",
             "message": "Redisキャッシュは正常に動作しています",
             "connected_clients": stats.get("connected_clients", 0),
-            "memory_usage": stats.get("used_memory_human", "0B")
+            "memory_usage": stats.get("used_memory_human", "0B"),
         }
 
     except Exception as e:
         logger.error(f"キャッシュ健全性チェックエラー: {e}")
-        return {
-            "status": "unhealthy",
-            "message": "Redisキャッシュに接続できません",
-            "error": str(e)
-        }
+        return {"status": "unhealthy", "message": "Redisキャッシュに接続できません", "error": str(e)}
