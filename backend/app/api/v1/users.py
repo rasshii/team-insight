@@ -298,7 +298,7 @@ async def update_user(
 
     注意: ロールの変更は別のエンドポイントを使用してください
     """
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(User).options(joinedload(User.user_roles).joinedload(UserRole.role)).filter(User.id == user_id).first()
 
     if not user:
         raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
@@ -310,9 +310,6 @@ async def update_user(
 
     db.commit()
     db.refresh(user)
-
-    # ロール情報を含めて返す
-    user = db.query(User).options(joinedload(User.user_roles).joinedload(UserRole.role)).filter(User.id == user_id).first()
 
     user_roles = []
     for ur in user.user_roles:

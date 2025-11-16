@@ -61,7 +61,7 @@ export const userSettingsService = {
     page: number
     page_size: number
   }> {
-    const params: any = { page, page_size: pageSize }
+    const params: Record<string, string | number> = { page, page_size: pageSize }
     if (action) {
       params.action = action
     }

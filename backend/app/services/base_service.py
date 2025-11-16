@@ -7,6 +7,7 @@
 
 from typing import TypeVar, Generic, Type, Optional, List, Dict, Any, Union
 from sqlalchemy.orm import Session, Query
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from pydantic import BaseModel
 from datetime import datetime, timezone
 import logging
@@ -65,7 +66,7 @@ class BaseService(ABC, Generic[ModelT, SchemaT, CreateSchemaT, UpdateSchemaT]):
         """
         try:
             return self.get_base_query(db).filter(self.model.id == id).first()
-        except Exception as e:
+        except SQLAlchemyError as e:
             self.logger.error(f"Error getting {self.model.__name__} with id {id}: {str(e)}")
             raise DatabaseException(f"{self.model.__name__}の取得に失敗しました")
 
@@ -122,7 +123,7 @@ class BaseService(ABC, Generic[ModelT, SchemaT, CreateSchemaT, UpdateSchemaT]):
                 query = self._apply_order_by(query, order_by)
 
             return query.offset(skip).limit(limit).all()
-        except Exception as e:
+        except SQLAlchemyError as e:
             self.logger.error(f"Error getting multiple {self.model.__name__}: {str(e)}")
             raise DatabaseException(f"{self.model.__name__}一覧の取得に失敗しました")
 
@@ -144,7 +145,7 @@ class BaseService(ABC, Generic[ModelT, SchemaT, CreateSchemaT, UpdateSchemaT]):
                 query = self._apply_filters(query, filters)
 
             return query.count()
-        except Exception as e:
+        except SQLAlchemyError as e:
             self.logger.error(f"Error counting {self.model.__name__}: {str(e)}")
             raise DatabaseException(f"{self.model.__name__}のカウントに失敗しました")
 
@@ -165,7 +166,11 @@ class BaseService(ABC, Generic[ModelT, SchemaT, CreateSchemaT, UpdateSchemaT]):
             db.commit()
             db.refresh(db_obj)
             return db_obj
-        except Exception as e:
+        except IntegrityError as e:
+            db.rollback()
+            self.logger.error(f"Integrity error creating {self.model.__name__}: {str(e)}")
+            raise DatabaseException(f"{self.model.__name__}の作成に失敗しました（制約違反）")
+        except SQLAlchemyError as e:
             db.rollback()
             self.logger.error(f"Error creating {self.model.__name__}: {str(e)}")
             raise DatabaseException(f"{self.model.__name__}の作成に失敗しました")
@@ -199,7 +204,11 @@ class BaseService(ABC, Generic[ModelT, SchemaT, CreateSchemaT, UpdateSchemaT]):
             db.commit()
             db.refresh(db_obj)
             return db_obj
-        except Exception as e:
+        except IntegrityError as e:
+            db.rollback()
+            self.logger.error(f"Integrity error updating {self.model.__name__}: {str(e)}")
+            raise DatabaseException(f"{self.model.__name__}の更新に失敗しました（制約違反）")
+        except SQLAlchemyError as e:
             db.rollback()
             self.logger.error(f"Error updating {self.model.__name__}: {str(e)}")
             raise DatabaseException(f"{self.model.__name__}の更新に失敗しました")
@@ -222,7 +231,11 @@ class BaseService(ABC, Generic[ModelT, SchemaT, CreateSchemaT, UpdateSchemaT]):
             return obj
         except NotFoundException:
             raise
-        except Exception as e:
+        except IntegrityError as e:
+            db.rollback()
+            self.logger.error(f"Integrity error deleting {self.model.__name__}: {str(e)}")
+            raise DatabaseException(f"{self.model.__name__}の削除に失敗しました（制約違反）")
+        except SQLAlchemyError as e:
             db.rollback()
             self.logger.error(f"Error deleting {self.model.__name__}: {str(e)}")
             raise DatabaseException(f"{self.model.__name__}の削除に失敗しました")
@@ -240,7 +253,7 @@ class BaseService(ABC, Generic[ModelT, SchemaT, CreateSchemaT, UpdateSchemaT]):
         """
         try:
             return self.get_base_query(db).filter(self.model.id == id).exists().scalar()
-        except Exception as e:
+        except SQLAlchemyError as e:
             self.logger.error(f"Error checking existence of {self.model.__name__}: {str(e)}")
             return False
 

@@ -60,10 +60,14 @@ export const healthUtils = {
   /**
    * エラーメッセージを取得
    */
-  getErrorMessage(error: any): string {
-    if (error?.response?.status === 503) {
+  getErrorMessage(error: unknown): string {
+    const errorWithResponse = error as {
+      response?: { status?: number }
+      message?: string
+    }
+    if (errorWithResponse?.response?.status === 503) {
       return "APIサーバーに接続できません";
     }
-    return error?.message || "システムエラーが発生しました";
+    return errorWithResponse?.message || "システムエラーが発生しました";
   },
 }

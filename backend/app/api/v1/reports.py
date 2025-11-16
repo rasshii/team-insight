@@ -8,7 +8,7 @@ import logging
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi import status as http_status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.api import deps
 from app.models.user import User
@@ -50,7 +50,7 @@ async def send_test_report(
                     status_code=http_status.HTTP_400_BAD_REQUEST, detail="プロジェクトレポートにはproject_idが必要です"
                 )
 
-            project = db.query(Project).filter(Project.id == request.project_id).first()
+            project = db.query(Project).options(joinedload(Project.members)).filter(Project.id == request.project_id).first()
 
             if not project:
                 raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="プロジェクトが見つかりません")
