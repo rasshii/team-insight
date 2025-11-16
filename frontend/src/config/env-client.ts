@@ -4,6 +4,8 @@
  * Next.jsのビルド時に環境変数が静的に置換される
  */
 
+import { logger } from '@/lib/logger'
+
 interface ClientEnvConfig {
   NEXT_PUBLIC_API_URL: string;
   NEXT_PUBLIC_APP_URL: string;
@@ -26,10 +28,10 @@ function validateEnv(): void {
   const missing = required.filter(key => !clientEnv[key]);
   
   if (missing.length > 0) {
-    console.error("Missing required environment variables:", missing);
+    logger.error("Missing required environment variables", undefined, { missing });
     // 開発環境ではデフォルト値を使用して続行
     if (process.env.NODE_ENV !== "production") {
-      console.warn("Using default values for missing environment variables");
+      logger.warn("Using default values for missing environment variables");
     } else {
       throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
     }

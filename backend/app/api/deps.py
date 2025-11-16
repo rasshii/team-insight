@@ -160,17 +160,18 @@ class ProjectAccessChecker:
         Raises:
             HTTPException: アクセス権限がない場合
         """
-        # プロジェクトへのアクセス権限をチェック
-        if not PermissionChecker.check_project_access(current_user, project.id, db):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="このプロジェクトへのアクセス権限がありません")
-
-        # 特定の役割が必要な場合
+        # 特定の役割が必要な場合は、check_project_permission を使用
+        # （内部で check_project_access もチェックされる）
         if self.required_role:
             if not PermissionChecker.check_project_permission(current_user, project.id, self.required_role, db):
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail=f"このプロジェクトでの{self.required_role.value}権限が必要です",
                 )
+        else:
+            # 役割指定がない場合は、アクセス権限のみをチェック
+            if not PermissionChecker.check_project_access(current_user, project.id, db):
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="このプロジェクトへのアクセス権限がありません")
 
         return project
 

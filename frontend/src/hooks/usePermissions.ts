@@ -11,6 +11,7 @@ import { useMemo } from 'react';
 import { useAppSelector } from '@/store/hooks';
 import { selectCurrentUser } from '@/store/slices/authSlice';
 import { RoleType, PermissionCheck, ROLE_HIERARCHY, ROLE_PERMISSIONS } from '@/types/rbac';
+import { logger } from '@/lib/logger';
 
 /**
  * 現在のユーザーの権限をチェックするカスタムフック
@@ -71,11 +72,9 @@ export const usePermissions = (): PermissionCheck => {
   const currentUser = useAppSelector(selectCurrentUser);
 
   return useMemo(() => {
-    // デバッグ用ログ（本番環境では削除してください）
-    if (process.env.NODE_ENV === 'development') {
-      console.log('usePermissions - currentUser:', currentUser);
-    }
-    
+    // デバッグ用ログ
+    logger.debug('usePermissions - currentUser', { currentUser });
+
     // ユーザーが存在しない場合のデフォルト権限オブジェクト
     if (!currentUser) {
       return {

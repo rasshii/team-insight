@@ -12,6 +12,7 @@ import { env } from '@/config/env'
 import { ApiError, ErrorResponse } from '@/types/error'
 import { authEventEmitter } from './auth-event-emitter'
 import { TIMING_CONSTANTS } from './constants/timing'
+import { logger } from './logger'
 
 /**
  * 統一されたAPIクライアント
@@ -79,14 +80,11 @@ class ApiClient {
     // リクエストインターセプター
     this.axiosInstance.interceptors.request.use(
       (config: InternalAxiosRequestConfig) => {
-        // デバッグ用ログ（本番環境では無効化）
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`)
-          if (config.data) {
-            console.log('[API Request Data]', config.data)
-          }
-        }
-        
+        // デバッグ用ログ
+        logger.debug(`API Request: ${config.method?.toUpperCase()} ${config.url}`, {
+          data: config.data,
+        })
+
         return config
       },
       (error) => {
@@ -98,31 +96,27 @@ class ApiClient {
     this.axiosInstance.interceptors.response.use(
       (response) => {
         // デバッグ用ログ
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[API Response] ${response.config.method?.toUpperCase()} ${response.config.url} - ${response.status}`)
-          console.log('[API Response Data]', response.data)
-        }
-        
+        logger.debug(`API Response: ${response.config.method?.toUpperCase()} ${response.config.url} - ${response.status}`, {
+          data: response.data,
+        })
+
         return response
       },
       async (error: AxiosError) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
         
         // エラーログ（401エラーは特別扱い）
-        if (process.env.NODE_ENV === 'development') {
-          const isAuthEndpoint = error.config?.url?.includes('/auth/me')
-          const is401Error = error.response?.status === 401
-          
-          if (is401Error && isAuthEndpoint) {
-            // /auth/meの401エラーは正常な未認証状態なのでinfoレベル
-            console.info(`[API Info] ${error.config?.method?.toUpperCase()} ${error.config?.url} - 401 (Not authenticated)`)
-          } else {
-            // その他のエラーは通常通りエラーログ
-            console.error(`[API Error] ${error.config?.method?.toUpperCase()} ${error.config?.url} - ${error.response?.status}`)
-            if (error.response?.data) {
-              console.error('[API Error Details]', error.response.data)
-            }
-          }
+        const isAuthEndpoint = error.config?.url?.includes('/auth/me')
+        const is401Error = error.response?.status === 401
+
+        if (is401Error && isAuthEndpoint) {
+          // /auth/meの401エラーは正常な未認証状態なのでinfoレベル
+          logger.info(`API ${error.config?.method?.toUpperCase()} ${error.config?.url} - 401 (Not authenticated)`)
+        } else {
+          // その他のエラーはエラーログ
+          logger.error(`API ${error.config?.method?.toUpperCase()} ${error.config?.url} - ${error.response?.status}`, error, {
+            responseData: error.response?.data,
+          })
         }
 
         // 401エラー（認証エラー）の場合
@@ -131,22 +125,18 @@ class ApiClient {
           const currentPath = typeof window !== 'undefined' ? window.location.pathname : ''
           const isRootPage = currentPath === '/'
           const isAuthPage = currentPath.startsWith('/auth/')
-          
-          console.log('[API Client] 401 error handling:', {
+
+          logger.debug('401 error handling', {
             url: originalRequest.url,
             currentPath,
             isRootPage,
-            isAuthPage
+            isAuthPage,
           })
-          
+
           // 認証が不要なエンドポイントの場合は、リフレッシュを試みない
-          const publicEndpoints = [
-            '/auth/login',
-            '/auth/backlog/authorize',
-            '/auth/backlog/callback'
-          ]
+          const publicEndpoints = ['/auth/login', '/auth/backlog/authorize', '/auth/backlog/callback']
           if (publicEndpoints.some(endpoint => originalRequest.url?.includes(endpoint))) {
-            console.log('[API Client] Public endpoint 401 error - no refresh attempt')
+            logger.info('Public endpoint 401 error - no refresh attempt')
             return Promise.reject(error)
           }
           
@@ -154,10 +144,10 @@ class ApiClient {
           if (originalRequest.url?.includes('/auth/refresh') || originalRequest.url?.includes('/auth/backlog/refresh')) {
             // ログアウトイベントを発火
             authEventEmitter.emit('logout')
-            
+
             // ルートページや認証ページ以外の場合のみリダイレクト
             if (typeof window !== 'undefined' && !isRootPage && !isAuthPage) {
-              console.log('[API Client] Redirecting to login page...')
+              logger.info('Redirecting to login page...')
               window.location.href = '/auth/login'
             }
             return Promise.reject(error)
@@ -166,7 +156,7 @@ class ApiClient {
           // /auth/me エンドポイントの401エラーで、ルートページや認証ページからの場合は、
           // リダイレクトせずにエラーをそのまま返す（未認証状態として扱う）
           if (originalRequest.url?.includes('/auth/me') && (isRootPage || isAuthPage)) {
-            console.log('[API Client] /auth/me 401 error on root/auth page - no redirect')
+            logger.debug('/auth/me 401 error on root/auth page - no redirect')
             return Promise.reject(error)
           }
 
@@ -202,10 +192,10 @@ class ApiClient {
                 const currentPath = typeof window !== 'undefined' ? window.location.pathname : ''
                 const isRootPage = currentPath === '/'
                 const isAuthPage = currentPath.startsWith('/auth/')
-                
+
                 // ルートページや認証ページ以外の場合のみリダイレクト
                 if (typeof window !== 'undefined' && !isRootPage && !isAuthPage) {
-                  console.log('[API Client] Refresh failed, redirecting to login page...')
+                  logger.warn('Refresh failed, redirecting to login page...')
                   window.location.href = '/auth/login'
                 }
                 reject(refreshError)
