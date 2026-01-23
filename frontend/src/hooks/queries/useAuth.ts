@@ -16,6 +16,8 @@ import { setUser, logout as logoutAction } from '@/store/slices/authSlice'
 import { useToast } from '@/hooks/use-toast'
 import { getApiErrorMessage } from '@/lib/api-client'
 
+const SPACE_NAME = process.env.NEXT_PUBLIC_BACKLOG_SPACE_NAME || 'your-space'
+
 /**
  * 現在のユーザー情報を取得するフック
  *
@@ -196,7 +198,7 @@ export const useHandleAuthCallback = () => {
       // スペースアクセスエラーの判定
       if (errorField === 'space' || errorDetail.includes('スペース') || errorDetail.includes('space')) {
         errorType = 'space_not_allowed'
-        errorMessage = 'このBacklogスペースへのアクセス権限がありません。nulab-examスペースのメンバーアカウントでログインしてください。'
+        errorMessage = `このBacklogスペースへのアクセス権限がありません。${SPACE_NAME}スペースのメンバーアカウントでログインしてください。`
       }
       // ドメイン制限エラーの判定
       else if (errorField === 'email' || errorDetail.includes('ドメイン') || errorDetail.includes('domain')) {

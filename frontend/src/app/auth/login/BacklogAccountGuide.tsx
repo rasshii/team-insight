@@ -5,15 +5,17 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ExternalLink, Info } from 'lucide-react'
 
+const SPACE_NAME = process.env.NEXT_PUBLIC_BACKLOG_SPACE_NAME || 'your-space'
+
 export function BacklogAccountGuide() {
-  const spaceUrl = 'https://nulab-exam.backlog.jp'
+  const spaceUrl = `https://${SPACE_NAME}.backlog.com`
   
   return (
     <Card className="w-full max-w-2xl mx-auto shadow-xl">
       <CardHeader>
-        <CardTitle className="text-2xl">Team Insight - nulab-examスペース専用</CardTitle>
+        <CardTitle className="text-2xl">Team Insight - {SPACE_NAME}スペース専用</CardTitle>
         <CardDescription>
-          このツールはnulab-examスペースのメンバー専用です
+          このツールは{SPACE_NAME}スペースのメンバー専用です
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -22,7 +24,7 @@ export function BacklogAccountGuide() {
           <AlertTitle>別のBacklogアカウントでログイン中の場合</AlertTitle>
           <AlertDescription className="mt-2 space-y-2">
             <p>現在、別のBacklogスペースのアカウントでログインしているようです。</p>
-            <p>Team Insightを使用するには、<strong>nulab-examスペース</strong>のアカウントでログインする必要があります。</p>
+            <p>Team Insightを使用するには、<strong>{SPACE_NAME}スペース</strong>のアカウントでログインする必要があります。</p>
           </AlertDescription>
         </Alert>
         
@@ -56,9 +58,9 @@ export function BacklogAccountGuide() {
                 2
               </div>
               <div className="flex-1">
-                <p className="font-medium">nulab-examスペースにログイン</p>
+                <p className="font-medium">{SPACE_NAME}スペースにログイン</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  ログアウト後、nulab-examスペースのアカウントでログインしてください。
+                  ログアウト後、{SPACE_NAME}スペースのアカウントでログインしてください。
                 </p>
                 <Button
                   variant="outline"
@@ -67,7 +69,7 @@ export function BacklogAccountGuide() {
                   onClick={() => window.open(spaceUrl, '_blank')}
                 >
                   <ExternalLink className="mr-2 h-4 w-4" />
-                  nulab-examスペースへ
+                  {SPACE_NAME}スペースへ
                 </Button>
               </div>
             </div>
@@ -79,7 +81,7 @@ export function BacklogAccountGuide() {
               <div className="flex-1">
                 <p className="font-medium">Team Insightに再アクセス</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  nulab-examスペースにログイン後、このページに戻ってログインボタンをクリックしてください。
+                  {SPACE_NAME}スペースにログイン後、このページに戻ってログインボタンをクリックしてください。
                 </p>
               </div>
             </div>
@@ -88,7 +90,7 @@ export function BacklogAccountGuide() {
         
         <div className="border-t pt-4">
           <p className="text-sm text-muted-foreground">
-            nulab-examスペースのアカウントをお持ちでない方は、スペース管理者にお問い合わせください。
+            {SPACE_NAME}スペースのアカウントをお持ちでない方は、スペース管理者にお問い合わせください。
           </p>
         </div>
       </CardContent>

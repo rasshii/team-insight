@@ -93,7 +93,7 @@ async def connect_with_oauth(
         "state": f"user_{current_user.id}",  # ユーザーIDを状態に含める
     }
 
-    auth_url = f"https://{settings.BACKLOG_SPACE_KEY}.backlog.jp/OAuth2/authorize?{urlencode(params)}"
+    auth_url = f"https://{settings.BACKLOG_SPACE_KEY}.{settings.BACKLOG_DOMAIN}/OAuth2/authorize?{urlencode(params)}"
 
     return formatter.success(data={"auth_url": auth_url}, message="Backlog認証ページへリダイレクトしてください")
 
@@ -116,7 +116,7 @@ async def test_connection(
         )
 
     # APIリクエストを送信
-    url = f"https://{oauth_token.backlog_space_key}.backlog.jp/api/v2/users/myself"
+    url = f"https://{oauth_token.backlog_space_key}.{settings.BACKLOG_DOMAIN}/api/v2/users/myself"
     headers = {"Authorization": f"Bearer {oauth_token.access_token}"}
 
     try:

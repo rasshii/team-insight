@@ -112,8 +112,8 @@ class BacklogClient:
             - マルチテナント環境ではspace_keyを動的に変更する必要がある
         """
         # Backlog APIのベースURLを構築
-        # 例: BACKLOG_SPACE_KEY="mycompany" → "https://mycompany.backlog.jp/api/v2"
-        self.base_url = f"https://{settings.BACKLOG_SPACE_KEY}.backlog.jp/api/v2"
+        # 例: BACKLOG_SPACE_KEY="mycompany" → "https://mycompany.backlog.com/api/v2"
+        self.base_url = f"https://{settings.BACKLOG_SPACE_KEY}.{settings.BACKLOG_DOMAIN}/api/v2"
         # タイムアウト設定（接続: 10秒、読み取り: 30秒）
         self.timeout = httpx.Timeout(30.0, connect=10.0)
 

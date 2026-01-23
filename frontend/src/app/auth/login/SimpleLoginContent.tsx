@@ -9,6 +9,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { authService } from '@/services/auth.service'
 import { useToast } from '@/hooks/use-toast'
 
+const SPACE_NAME = process.env.NEXT_PUBLIC_BACKLOG_SPACE_NAME || 'your-space'
+
 export function SimpleLoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -48,7 +50,7 @@ export function SimpleLoginContent() {
           {/* スペース情報 */}
           <Alert>
             <AlertDescription className="text-center">
-              <strong>nulab-exam</strong> スペースのメンバー専用
+              <strong>{SPACE_NAME}</strong> スペースのメンバー専用
             </AlertDescription>
           </Alert>
 
@@ -81,7 +83,7 @@ export function SimpleLoginContent() {
             <AlertTitle className="text-orange-800 dark:text-orange-200">ログイン前の確認事項</AlertTitle>
             <AlertDescription className="mt-2 space-y-2 text-sm text-orange-700 dark:text-orange-300">
               <p className="font-semibold">別のBacklogスペースのアカウントでログイン中の方へ：</p>
-              <p>Team Insightは<strong>nulab-examスペース専用</strong>のツールです。</p>
+              <p>Team Insightは<strong>{SPACE_NAME}スペース専用</strong>のツールです。</p>
               <p>別のスペースのアカウントでログイン中の場合は、以下のいずれかの方法をお試しください：</p>
               <div className="space-y-3 ml-2">
                 <div className="border-l-2 border-orange-400 pl-3">

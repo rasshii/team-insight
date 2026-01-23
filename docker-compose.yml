@@ -82,7 +82,6 @@ services:
       REDIS_URL: redis://:team_insight_redis_password@redis:6379/0
       REDISCLI_AUTH: team_insight_redis_password
       PYTHONPATH: /app
-      SECRET_KEY: ${SECRET_KEY:-your-secret-key-here}
       DEBUG: ${DEBUG:-True}
       BACKEND_CORS_ORIGINS: http://localhost,http://frontend:3000
       LOG_LEVEL: DEBUG

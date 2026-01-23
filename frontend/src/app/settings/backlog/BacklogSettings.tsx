@@ -254,7 +254,7 @@ export default function BacklogSettingsPage() {
                       placeholder="your-space"
                     />
                     <p className="text-xs text-muted-foreground">
-                      https://your-space.backlog.jp の "your-space" 部分
+                      https://your-space.backlog.com の "your-space" 部分
                     </p>
                   </div>
 

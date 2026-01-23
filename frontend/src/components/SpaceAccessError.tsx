@@ -54,7 +54,7 @@ export function SpaceAccessError({ requiredSpace, userSpace }: SpaceAccessErrorP
             <Button
               onClick={() => {
                 // Backlogからログアウトして再ログイン
-                window.open(`https://${requiredSpace}.backlog.jp/Logout.action`, '_blank');
+                window.open(`https://${requiredSpace}.backlog.com/Logout.action`, '_blank');
                 router.push("/auth/login");
               }}
               className="w-full"

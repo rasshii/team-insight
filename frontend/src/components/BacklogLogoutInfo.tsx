@@ -4,12 +4,14 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Info } from "lucide-react";
 
+const DEFAULT_SPACE_NAME = process.env.NEXT_PUBLIC_BACKLOG_SPACE_NAME || 'your-space';
+
 interface BacklogLogoutInfoProps {
   spaceKey?: string;
 }
 
-export function BacklogLogoutInfo({ spaceKey = "nulab-exam" }: BacklogLogoutInfoProps) {
-  const backlogUrl = `https://${spaceKey}.backlog.jp`;
+export function BacklogLogoutInfo({ spaceKey = DEFAULT_SPACE_NAME }: BacklogLogoutInfoProps) {
+  const backlogUrl = `https://${spaceKey}.backlog.com`;
   
   return (
     <Alert className="mb-4">

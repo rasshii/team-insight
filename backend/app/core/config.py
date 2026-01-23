@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     BACKLOG_CLIENT_SECRET: str = Field(default="", env="BACKLOG_CLIENT_SECRET")
     BACKLOG_REDIRECT_URI: str = Field(default="http://localhost/auth/callback", env="BACKLOG_REDIRECT_URI")
     BACKLOG_SPACE_KEY: str = Field(default="", env="BACKLOG_SPACE_KEY")
+    BACKLOG_DOMAIN: str = Field(default="backlog.com", env="BACKLOG_DOMAIN")  # backlog.jp または backlog.com
 
     # Backlogアクセス制御設定
     ALLOWED_BACKLOG_SPACES: str = Field(default="", env="ALLOWED_BACKLOG_SPACES")  # カンマ区切りのスペースリスト

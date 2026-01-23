@@ -6,15 +6,17 @@ Backlog OAuth2.0認証サービス
 """
 
 import httpx
+import logging
 from typing import Dict, Optional
 from urllib.parse import urlencode
 import secrets
-import base64
 from datetime import datetime, timedelta
 
 from app.core.config import settings
 from app.models.auth import OAuthToken
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 
 class BacklogOAuthService:
@@ -33,7 +35,7 @@ class BacklogOAuthService:
         self.space_key = settings.BACKLOG_SPACE_KEY
 
         # BacklogのベースURL（スペースキーに基づいて構築）
-        self.base_url = f"https://{self.space_key}.backlog.jp"
+        self.base_url = f"https://{self.space_key}.{settings.BACKLOG_DOMAIN}"
 
     def get_authorization_url(
         self, space_key: Optional[str] = None, state: Optional[str] = None, force_account_selection: bool = False
@@ -55,7 +57,7 @@ class BacklogOAuthService:
 
         # space_keyが指定されている場合は、そのspace_keyのURLを使用
         if space_key:
-            base_url = f"https://{space_key}.backlog.jp"
+            base_url = f"https://{space_key}.{settings.BACKLOG_DOMAIN}"
         else:
             base_url = self.base_url
 
@@ -92,12 +94,13 @@ class BacklogOAuthService:
         """
         # space_keyが指定されている場合は、そのspace_keyのURLを使用
         if space_key:
-            base_url = f"https://{space_key}.backlog.jp"
+            base_url = f"https://{space_key}.{settings.BACKLOG_DOMAIN}"
         else:
             base_url = self.base_url
 
         token_url = f"{base_url}/api/v2/oauth2/token"
 
+        # リクエストボディ（Backlog公式ドキュメントに従いclient_id/client_secretを含める）
         data = {
             "grant_type": "authorization_code",
             "code": code,
@@ -106,14 +109,27 @@ class BacklogOAuthService:
             "client_secret": self.client_secret,
         }
 
+        # デバッグログ: リクエスト情報を出力（機密情報はマスク）
+        logger.info(f"Token exchange request - URL: {token_url}")
+        logger.info(f"Token exchange request - redirect_uri: {self.redirect_uri}")
+        logger.info(f"Token exchange request - client_id: {self.client_id[:10]}...{self.client_id[-5:]}")
+        logger.info(f"Token exchange request - code: {code[:10]}...{code[-5:] if len(code) > 15 else code}")
+
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 token_url,
                 data=data,
-                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                headers={
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
             )
 
+            # デバッグログ: レスポンス情報を出力
+            logger.info(f"Token exchange response - status: {response.status_code}")
+            logger.info(f"Token exchange response - headers: {dict(response.headers)}")
+
             if response.status_code != 200:
+                logger.error(f"Token exchange failed - response body: {response.text}")
                 raise Exception(f"トークンの取得に失敗しました: {response.text}")
 
             token_data = response.json()
@@ -145,7 +161,7 @@ class BacklogOAuthService:
         """
         # space_keyが指定されている場合は、そのspace_keyのURLを使用
         if space_key:
-            base_url = f"https://{space_key}.backlog.jp"
+            base_url = f"https://{space_key}.{settings.BACKLOG_DOMAIN}"
         else:
             base_url = self.base_url
 
@@ -162,10 +178,13 @@ class BacklogOAuthService:
             response = await client.post(
                 token_url,
                 data=data,
-                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                headers={
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
             )
 
             if response.status_code != 200:
+                logger.error(f"Token refresh failed - response body: {response.text}")
                 raise Exception(f"トークンの更新に失敗しました: {response.text}")
 
             token_data = response.json()
@@ -197,7 +216,7 @@ class BacklogOAuthService:
         """
         # space_keyが指定されている場合は、そのspace_keyのURLを使用
         if space_key:
-            base_url = f"https://{space_key}.backlog.jp"
+            base_url = f"https://{space_key}.{settings.BACKLOG_DOMAIN}"
         else:
             base_url = self.base_url
 
