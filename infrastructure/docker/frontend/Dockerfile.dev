@@ -12,9 +12,9 @@ RUN corepack enable
 
 # パッケージマネージャーの設定
 COPY package.json yarn.lock .yarnrc.yml ./
-COPY .yarn ./.yarn
 
 # 依存関係のインストール（Yarn v4）
+# corepack が Yarn v4 を自動的にダウンロードして使用する
 RUN yarn install
 
 # ポートの公開
