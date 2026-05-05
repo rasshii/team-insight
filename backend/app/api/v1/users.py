@@ -83,7 +83,6 @@ async def list_users(
             "users": [
                 {
                     "id": 1,
-                    "backlog_id": "user123",
                     "email": "user@example.com",
                     "name": "山田太郎",
                     "user_id": "yamada",
@@ -128,7 +127,6 @@ async def list_users(
                 "users": [
                     {
                         "id": 1,
-                        "backlog_id": "user123",
                         "email": "yamada@example.com",
                         "name": "山田太郎",
                         "user_id": "yamada",
@@ -231,10 +229,8 @@ async def list_users(
         user_responses.append(
             UserResponse(
                 id=user.id,
-                backlog_id=user.backlog_id,
                 email=user.email,
                 name=user.name,
-                user_id=user.user_id,
                 is_active=user.is_active,
                 user_roles=user_roles,
                 created_at=user.created_at,
@@ -274,10 +270,8 @@ async def get_user(
 
     return UserResponse(
         id=user.id,
-        backlog_id=user.backlog_id,
         email=user.email,
         name=user.name,
-        user_id=user.user_id,
         is_active=user.is_active,
         user_roles=user_roles,
         created_at=user.created_at,
@@ -324,10 +318,8 @@ async def update_user(
 
     return UserResponse(
         id=user.id,
-        backlog_id=user.backlog_id,
         email=user.email,
         name=user.name,
-        user_id=user.user_id,
         is_active=user.is_active,
         user_roles=user_roles,
         created_at=user.created_at,
@@ -377,7 +369,6 @@ async def assign_roles(
         UserResponse: 更新されたユーザー情報（ロール情報を含む）
         {
             "id": 5,
-            "backlog_id": "user123",
             "email": "user@example.com",
             "name": "佐藤次郎",
             "user_id": "sato",

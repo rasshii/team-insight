@@ -66,8 +66,6 @@ async def get_tasks(
     for task in tasks:
         task_data = {
             "id": task.id,
-            "backlog_id": task.backlog_id,
-            "backlog_key": task.backlog_key,
             "title": task.title,
             "description": task.description,
             "status": task.status.value if task.status else None,
@@ -92,7 +90,6 @@ async def get_tasks(
                 "id": task.project.id,
                 "name": task.project.name,
                 "project_key": task.project.project_key,
-                "backlog_id": task.project.backlog_id,
             }
         else:
             task_data["project"] = None
@@ -102,7 +99,6 @@ async def get_tasks(
                 "id": task.assignee.id,
                 "name": task.assignee.name,
                 "email": task.assignee.email,
-                "backlog_id": task.assignee.backlog_id,
             }
         else:
             task_data["assignee"] = None
@@ -112,7 +108,6 @@ async def get_tasks(
                 "id": task.reporter.id,
                 "name": task.reporter.name,
                 "email": task.reporter.email,
-                "backlog_id": task.reporter.backlog_id,
             }
         else:
             task_data["reporter"] = None
@@ -174,32 +169,6 @@ async def get_task(
         db.query(Task)
         .options(joinedload(Task.project), joinedload(Task.assignee), joinedload(Task.reporter))
         .filter(Task.id == task_id)
-        .first()
-    )
-
-    if not task:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="タスクが見つかりません")
-
-    # アクセス権限チェック
-    if not current_user.is_admin:
-        user_project_ids = [p.id for p in current_user.projects]
-        if task.project_id not in user_project_ids:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="このタスクへのアクセス権限がありません")
-
-    return TaskResponse.model_validate(task)
-
-
-@router.get("/backlog/{backlog_key}", response_model=TaskResponse)
-async def get_task_by_backlog_key(
-    backlog_key: str, current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db_session)
-) -> TaskResponse:
-    """
-    Backlogキーでタスクを取得
-    """
-    task = (
-        db.query(Task)
-        .options(joinedload(Task.project), joinedload(Task.assignee), joinedload(Task.reporter))
-        .filter(Task.backlog_key == backlog_key)
         .first()
     )
 

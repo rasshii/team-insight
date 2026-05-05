@@ -237,8 +237,6 @@ class TaskService:
 
             {
                 "id": int,
-                "backlog_id": int,
-                "backlog_key": str,
                 "title": str,
                 "description": str,
                 "status": str,
@@ -252,8 +250,7 @@ class TaskService:
                 "completed_date": str (ISO format) または None,
                 "project": {
                     "id": int,
-                    "name": str,
-                    "backlog_id": int
+                    "name": str
                 } または None,
                 "assignee": {
                     "id": int,
