@@ -40,22 +40,12 @@ export default function ProfileSettingsPage() {
                   <User className="h-5 w-5" />
                   基本情報
                 </CardTitle>
-                <CardDescription>Backlogアカウントから取得した情報</CardDescription>
+                <CardDescription>ユーザー基本情報</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
                   <Label>名前</Label>
                   <p className="text-lg font-medium mt-1">{user.name}</p>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <Label>ユーザーID</Label>
-                    <p className="text-sm text-muted-foreground mt-1">{user.user_id}</p>
-                  </div>
-                  <div>
-                    <Label>BacklogID</Label>
-                    <p className="text-sm text-muted-foreground mt-1">{user.backlog_id}</p>
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -68,24 +58,16 @@ export default function ProfileSettingsPage() {
                   メールアドレス
                 </CardTitle>
                 <CardDescription>
-                  Backlogアカウントに登録されているメールアドレス
+                  登録されているメールアドレス
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-lg font-medium">{user.email || "未設定"}</p>
-                    {user.email && (
-                      <p className="text-sm text-muted-foreground">
-                        レポート配信やシステム通知はこのアドレスに送信されます
-                      </p>
-                    )}
-                  </div>
+                <div className="space-y-1">
+                  <p className="text-lg font-medium">{user.email || "未設定"}</p>
                   {user.email && (
-                    <Badge variant="default" className="flex items-center gap-1">
-                      <CheckCircle className="h-3 w-3" />
-                      Backlog連携
-                    </Badge>
+                    <p className="text-sm text-muted-foreground">
+                      レポート配信やシステム通知はこのアドレスに送信されます
+                    </p>
                   )}
                 </div>
               </CardContent>
@@ -210,17 +192,6 @@ export default function ProfileSettingsPage() {
                   </div>
                   <Badge variant={user.is_active ? "default" : "destructive"}>
                     {user.is_active ? "有効" : "無効"}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>連携状態</Label>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Backlog APIとの接続状態
-                    </p>
-                  </div>
-                  <Badge variant="default">
-                    接続済み
                   </Badge>
                 </div>
               </CardContent>

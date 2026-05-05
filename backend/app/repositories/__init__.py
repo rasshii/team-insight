@@ -39,8 +39,6 @@ from app.repositories.user_repository import UserRepository
 from app.repositories.project_repository import ProjectRepository
 from app.repositories.task_repository import TaskRepository
 from app.repositories.team_repository import TeamRepository
-from app.repositories.oauth_token_repository import OAuthTokenRepository
-from app.repositories.sync_history_repository import SyncHistoryRepository
 
 __all__ = [
     # 基底クラス
@@ -50,6 +48,4 @@ __all__ = [
     "ProjectRepository",
     "TaskRepository",
     "TeamRepository",
-    "OAuthTokenRepository",
-    "SyncHistoryRepository",
 ]

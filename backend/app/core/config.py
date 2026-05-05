@@ -29,17 +29,6 @@ class Settings(BaseSettings):
     CACHE_MAX_CONNECTIONS: int = Field(default=20, env="CACHE_MAX_CONNECTIONS")
     CACHE_HEALTH_CHECK_INTERVAL: int = Field(default=30, env="CACHE_HEALTH_CHECK_INTERVAL")
 
-    # Backlog OAuth2.0設定
-    BACKLOG_CLIENT_ID: str = Field(default="", env="BACKLOG_CLIENT_ID")
-    BACKLOG_CLIENT_SECRET: str = Field(default="", env="BACKLOG_CLIENT_SECRET")
-    BACKLOG_REDIRECT_URI: str = Field(default="http://localhost/auth/callback", env="BACKLOG_REDIRECT_URI")
-    BACKLOG_SPACE_KEY: str = Field(default="", env="BACKLOG_SPACE_KEY")
-    BACKLOG_DOMAIN: str = Field(default="backlog.com", env="BACKLOG_DOMAIN")  # backlog.jp または backlog.com
-
-    # Backlogアクセス制御設定
-    ALLOWED_BACKLOG_SPACES: str = Field(default="", env="ALLOWED_BACKLOG_SPACES")  # カンマ区切りのスペースリスト
-    ALLOWED_EMAIL_DOMAINS: str = Field(default="", env="ALLOWED_EMAIL_DOMAINS")  # カンマ区切りのドメインリスト
-
     # CORS設定
     FRONTEND_URL: str = Field(default="http://localhost", env="FRONTEND_URL")
 
@@ -150,13 +139,8 @@ def validate_settings():
     logger = logging.getLogger(__name__)
     issues = []
 
-    # Backlog認証の検証
-    if not settings.BACKLOG_CLIENT_ID or not settings.BACKLOG_CLIENT_SECRET:
-        issues.append("Backlog OAuth認証が設定されていません (BACKLOG_CLIENT_IDまたはBACKLOG_CLIENT_SECRETが未設定)")
-
-    # Backlogスペースキーの検証
-    if not settings.BACKLOG_SPACE_KEY:
-        issues.append("Backlogスペースキーが設定されていません (BACKLOG_SPACE_KEYが未設定)")
+    # 現状はビジネスロジック検証なし。
+    # 将来的に組織別設定や認証関連の検証を追加する場合はここに記述する。
 
     if issues:
         logger.error(f"設定に問題が検出されました: {'; '.join(issues)}")

@@ -6,12 +6,11 @@
 """
 
 from typing import Dict, Any, Optional
-from datetime import datetime, timedelta
+from datetime import timedelta
 from fastapi import Response, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.models.user import User
-from app.models.auth import OAuthToken
 from app.core.config import settings
 from app.core.security import create_access_token, create_refresh_token
 from app.core.query_optimizer import QueryBuilder
@@ -49,9 +48,7 @@ class AuthResponseBuilder:
         }
 
     @staticmethod
-    def build_auth_response(
-        user: User, access_token: str, refresh_token: str, backlog_connected: bool = False
-    ) -> Dict[str, Any]:
+    def build_auth_response(user: User, access_token: str, refresh_token: str) -> Dict[str, Any]:
         """
         認証成功時のレスポンスを構築
 
@@ -59,7 +56,6 @@ class AuthResponseBuilder:
             user: ユーザーモデル
             access_token: アクセストークン
             refresh_token: リフレッシュトークン
-            backlog_connected: Backlog連携状態
 
         Returns:
             認証情報を含む辞書
@@ -69,7 +65,6 @@ class AuthResponseBuilder:
             "refresh_token": refresh_token,
             "token_type": "bearer",
             "user": AuthResponseBuilder.build_user_response(user),
-            "backlog_connected": backlog_connected,
         }
 
 
@@ -145,27 +140,6 @@ class TokenManager:
         )
         return access_token, refresh_token
 
-    @staticmethod
-    def refresh_oauth_token(oauth_token: OAuthToken, db: Session) -> Optional[OAuthToken]:
-        """
-        OAuthトークンをリフレッシュ
-
-        Args:
-            oauth_token: OAuthトークンモデル
-            db: データベースセッション
-
-        Returns:
-            更新されたOAuthトークン、失敗時はNone
-        """
-        from app.core.token_refresh import token_refresh_service
-
-        try:
-            space_key = oauth_token.backlog_space_key or settings.BACKLOG_SPACE_KEY
-            refreshed_token = token_refresh_service.refresh_token(oauth_token, db, space_key)
-            return refreshed_token
-        except Exception:
-            return None
-
 
 class AuthService:
     """認証関連の共通処理を提供するサービス"""
@@ -186,29 +160,6 @@ class AuthService:
         return QueryBuilder.with_user_roles(query).first()
 
     @staticmethod
-    def check_backlog_connection(user_id: int, db: Session) -> bool:
-        """
-        Backlog連携状態を確認
-
-        Args:
-            user_id: ユーザーID
-            db: データベースセッション
-
-        Returns:
-            連携済みの場合True
-        """
-        oauth_token = db.query(OAuthToken).filter(OAuthToken.user_id == user_id, OAuthToken.provider == "backlog").first()
-
-        if not oauth_token:
-            return False
-
-        # トークンの有効期限をチェック
-        if oauth_token.expires_at and oauth_token.expires_at < datetime.utcnow():
-            return False
-
-        return True
-
-    @staticmethod
     def validate_user_active(user: User) -> None:
         """
         ユーザーがアクティブかどうかを検証
@@ -221,22 +172,3 @@ class AuthService:
         """
         if not user.is_active:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="アカウントが無効化されています")
-
-    @staticmethod
-    def validate_user_verified(user: User, skip_if_backlog: bool = True) -> None:
-        """
-        ユーザーのメール認証状態を検証
-
-        Args:
-            user: ユーザーモデル
-            skip_if_backlog: Backlogユーザーの場合はスキップ
-
-        Raises:
-            HTTPException: メール未認証の場合
-        """
-        if skip_if_backlog and user.password_hash is None:
-            # Backlogユーザーはメール認証不要
-            return
-
-        if not user.is_verified:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="メールアドレスの認証が必要です")

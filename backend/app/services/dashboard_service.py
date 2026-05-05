@@ -35,11 +35,8 @@ from sqlalchemy import func, case, and_
 
 from app.models.task import Task, TaskStatus
 from app.models.user import User
-from app.models.project import Project, project_members
-from app.models.auth import OAuthToken
 from app.repositories.task_repository import TaskRepository
 from app.repositories.user_repository import UserRepository
-from app.services.backlog_client import backlog_client
 
 logger = logging.getLogger(__name__)
 
@@ -335,32 +332,10 @@ class DashboardService:
         Raises:
             Exception: データベースエラーが発生した場合
         """
-        # ユーザーの所属プロジェクトを取得
-        user_projects = self.db.query(Project).join(project_members).filter(project_members.c.user_id == self.user_id).all()
-
         # ステータスIDと名前のマッピングを作成
-        status_name_map = {}
-
-        # OAuth トークンを取得してBacklog APIからカスタムステータス名を取得
-        oauth_token = (
-            self.db.query(OAuthToken).filter(OAuthToken.user_id == self.user_id, OAuthToken.provider == "backlog").first()
-        )
-
-        # Backlog APIからカスタムステータス名を取得
-        if oauth_token and user_projects:
-            for project in user_projects:
-                try:
-                    statuses = await backlog_client.get_issue_statuses(
-                        project_id=project.backlog_id, access_token=oauth_token.access_token
-                    )
-                    for status in statuses:
-                        # ステータス名をキーにしてマッピング（大文字小文字を無視）
-                        status_name_map[status["name"].upper()] = status["name"]
-                        # IDベースのマッピングも作成
-                        status_name_map[str(status["id"])] = status["name"]
-                except Exception as e:
-                    # Backlog API呼び出しが失敗しても処理を継続
-                    logger.warning(f"Failed to get statuses for project {project.id}: {str(e)}")
+        # NOTE: Backlog 連携削除 (Phase 6) によりカスタムステータス名取得は廃止。
+        # Phase 2 で組織別ステータス設定を実装する際にここで参照する想定。
+        status_name_map: Dict[str, str] = {}
 
         # デフォルトのステータス名マッピング
         default_status_names = {"TODO": "未対応", "IN_PROGRESS": "処理中", "RESOLVED": "処理済み", "CLOSED": "完了"}

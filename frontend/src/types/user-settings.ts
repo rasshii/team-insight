@@ -7,7 +7,6 @@ export interface UserSettings {
   id: number
   email?: string
   name?: string
-  backlog_id?: number
   is_active: boolean
   
   // 設定

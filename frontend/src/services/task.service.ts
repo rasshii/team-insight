@@ -5,8 +5,6 @@ export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED'
 
 export interface Task {
   id: number
-  backlog_id: number
-  backlog_key: string
   title: string
   description?: string
   status: TaskStatus

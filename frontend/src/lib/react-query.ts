@@ -63,12 +63,6 @@ export const queryKeys = {
     byUser: (userId: string | number) => ['tasks', 'byUser', userId] as const,
   },
 
-  // 同期関連
-  sync: {
-    status: ['sync', 'status'] as const,
-    history: (filters?: Record<string, unknown>) => ['sync', 'history', filters] as const,
-  },
-
   // 分析関連
   analytics: {
     all: ['analytics'] as const,
@@ -86,12 +80,6 @@ export const queryKeys = {
     list: (filters?: Record<string, unknown>) => ['users', 'list', filters] as const,
     detail: (id: string | number) => ['users', 'detail', id] as const,
     roles: (id: string | number) => ['users', id, 'roles'] as const,
-  },
-  
-  // Backlog連携
-  backlog: {
-    all: ['backlog'] as const,
-    connection: ['backlog', 'connection'] as const,
   },
 } as const
 

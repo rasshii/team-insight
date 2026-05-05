@@ -17,7 +17,6 @@ export interface TeamMember {
   joined_at: string
   user: {
     id: number
-    backlog_id?: number
     name: string
     email?: string
   }

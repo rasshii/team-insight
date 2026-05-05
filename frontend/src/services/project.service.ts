@@ -11,12 +11,9 @@ import { apiClient } from '@/lib/api-client'
 
 /**
  * プロジェクトの型定義
- *
- * Backlogプロジェクトの基本情報を表します。
  */
 export interface Project {
   id: number
-  backlog_id: number
   name: string
   project_key: string
   description?: string
@@ -27,8 +24,6 @@ export interface Project {
 
 export interface ProjectMember {
   id: number
-  backlog_id: number
-  user_id?: string
   name: string
   email?: string
   is_active: boolean

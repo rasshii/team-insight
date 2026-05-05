@@ -123,19 +123,6 @@ export default function AccountSettingsPage() {
               disabled
               className="bg-muted"
             />
-            <p className="text-sm text-muted-foreground">
-              メールアドレスはBacklogアカウントから取得されます
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="backlog-id">Backlog ID</Label>
-            <Input
-              id="backlog-id"
-              value={userSettings.backlog_id?.toString() || "未設定"}
-              disabled
-              className="bg-muted"
-            />
           </div>
         </CardContent>
       </Card>

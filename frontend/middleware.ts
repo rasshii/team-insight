@@ -6,7 +6,7 @@ import { env } from "@/config/env";
 const protectedPaths = ["/dashboard", "/projects", "/team", "/organization"];
 
 // 認証不要なパス（公開ページ）
-const publicPaths = ["/", "/auth/login", "/auth/callback", "/about", "/contact"];
+const publicPaths = ["/", "/auth/login", "/about", "/contact"];
 
 /**
  * 認証トークンの有効性をバックエンドAPIで確認

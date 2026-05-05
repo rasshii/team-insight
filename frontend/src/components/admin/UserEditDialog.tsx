@@ -180,7 +180,6 @@ export function UserEditDialog({ user, open, onOpenChange }: UserEditDialogProps
             <div className="space-y-2">
               <Label>その他の情報</Label>
               <div className="space-y-1 text-sm text-muted-foreground">
-                <div>Backlog ID: {user.backlog_id || 'なし'}</div>
                 <div>登録日: {new Date(user.created_at).toLocaleDateString('ja-JP')}</div>
                 {user.last_login_at && (
                   <div>最終ログイン: {new Date(user.last_login_at).toLocaleDateString('ja-JP')}</div>

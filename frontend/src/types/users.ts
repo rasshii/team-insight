@@ -4,8 +4,6 @@ export interface User {
   id: number;
   email: string | null;
   name: string;
-  backlog_id: number | null;
-  user_id: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
