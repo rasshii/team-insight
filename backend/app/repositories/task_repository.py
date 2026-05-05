@@ -72,54 +72,6 @@ class TaskRepository(BaseRepository[Task]):
         """
         super().__init__(Task, db)
 
-    def get_by_backlog_key(self, backlog_key: str) -> Optional[Task]:
-        """
-        Backlogキーでタスクを検索
-
-        Backlogキー（例: "PROJECT-123"）は一意制約があり、
-        タスクを識別する主要な方法です。
-
-        Args:
-            backlog_key (str): Backlogキー（例: "PROJECT-123"）
-
-        Returns:
-            Optional[Task]: 見つかった場合はTaskインスタンス、見つからない場合はNone
-
-        Example:
-            >>> task = task_repo.get_by_backlog_key("PROJECT-123")
-            >>> if task:
-            ...     print(f"Task: {task.title}")
-
-        Note:
-            - Backlogキーは一意制約
-            - インデックスによる高速検索
-        """
-        return self.db.query(Task).filter(Task.backlog_key == backlog_key).first()
-
-    def get_by_backlog_id(self, backlog_id: int) -> Optional[Task]:
-        """
-        Backlog IDでタスクを検索
-
-        BacklogシステムのタスクIDで検索します。
-        backlog_idは一意制約があり、高速な検索が可能です。
-
-        Args:
-            backlog_id (int): BacklogタスクID
-
-        Returns:
-            Optional[Task]: 見つかった場合はTaskインスタンス、見つからない場合はNone
-
-        Example:
-            >>> task = task_repo.get_by_backlog_id(12345)
-            >>> if task:
-            ...     print(f"Backlog task: {task.title}")
-
-        Note:
-            - Backlog連携タスクのみ保持
-            - インデックスによる高速検索
-        """
-        return self.db.query(Task).filter(Task.backlog_id == backlog_id).first()
-
     def get_with_relations(self, task_id: int) -> Optional[Task]:
         """
         関連情報を含めてタスクを取得（N+1問題対策）

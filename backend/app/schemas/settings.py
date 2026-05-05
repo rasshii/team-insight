@@ -84,15 +84,6 @@ class SecuritySettings(BaseModel):
     token_expiry: int = Field(default=24, description="トークン有効期限（時間）")
 
 
-class SyncSettings(BaseModel):
-    """同期設定"""
-
-    backlog_sync_interval: int = Field(default=60, description="Backlog同期間隔（分）")
-    backlog_cache_timeout: int = Field(default=300, description="Backlogキャッシュタイムアウト（秒）")
-    api_timeout: int = Field(default=30, description="APIタイムアウト（秒）")
-    max_retry_count: int = Field(default=3, description="最大リトライ回数")
-
-
 class SystemSettings(BaseModel):
     """システム設定"""
 

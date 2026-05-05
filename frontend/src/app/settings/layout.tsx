@@ -4,12 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Layout } from "@/components/Layout";
-import { UserCircle, Settings, Shield, Link2 } from "lucide-react";
+import { UserCircle, Settings, Shield } from "lucide-react";
 
 const settingsNavigation = [
   { name: "プロフィール", href: "/settings/profile", icon: UserCircle },
   { name: "アカウント設定", href: "/settings/account", icon: Settings },
-  { name: "Backlog連携", href: "/settings/backlog", icon: Link2 },
   { name: "セキュリティ", href: "/settings/security", icon: Shield },
 ];
 

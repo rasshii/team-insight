@@ -10,7 +10,7 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    """Backlog OAuth経由でユーザーを作成するため、パスワードは不要"""
+    """ユーザー作成用 (Phase 1 で hashed_password / 招待トークンを追加予定)"""
 
     pass
 
@@ -35,6 +35,6 @@ class User(UserInDBBase):
 
 
 class UserInDB(UserInDBBase):
-    """DB内のユーザー情報（Backlog OAuth専用のため、パスワードフィールドなし）"""
+    """DB内のユーザー情報"""
 
     pass

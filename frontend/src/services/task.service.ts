@@ -131,30 +131,4 @@ export const taskService = {
     })
   },
 
-  /**
-   * ユーザーのタスクを同期
-   */
-  async syncUserTasks(projectId?: string | number): Promise<{
-    success: boolean
-    created: number
-    updated: number
-    total: number
-  }> {
-    const endpoint = projectId 
-      ? `/api/v1/sync/tasks/user/?project_id=${projectId}`
-      : '/api/v1/sync/tasks/user/'
-    return await apiClient.post(endpoint)
-  },
-
-  /**
-   * プロジェクトのタスクを同期
-   */
-  async syncProjectTasks(projectId: string | number): Promise<{
-    success: boolean
-    created: number
-    updated: number
-    total: number
-  }> {
-    return await apiClient.post(`/api/v1/sync/tasks/${projectId}/`)
-  },
 }

@@ -118,7 +118,7 @@ class ExternalAPIException(AppException):
 
     def __init__(
         self,
-        service: str = "Backlog",
+        service: str = "External",
         detail: Optional[str] = None,
         data: Optional[Dict[str, Any]] = None,
         status_code: int = status.HTTP_503_SERVICE_UNAVAILABLE,

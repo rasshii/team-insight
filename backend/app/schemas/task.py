@@ -44,7 +44,6 @@ class UserBrief(BaseModel):
     id: int
     name: Optional[str]
     email: Optional[str]
-    backlog_id: Optional[int]
 
     class Config:
         from_attributes = True
@@ -56,7 +55,6 @@ class ProjectBrief(BaseModel):
     id: int
     name: str
     project_key: str
-    backlog_id: int
 
     class Config:
         from_attributes = True
@@ -66,8 +64,6 @@ class TaskResponse(BaseModel):
     """タスクレスポンス用スキーマ"""
 
     id: int
-    backlog_id: int
-    backlog_key: str
     title: str
     description: Optional[str]
     status: TaskStatus

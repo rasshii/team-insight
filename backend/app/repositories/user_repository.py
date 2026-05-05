@@ -91,54 +91,6 @@ class UserRepository(BaseRepository[User]):
         """
         return self.db.query(User).filter(User.email == email).first()
 
-    def get_by_backlog_id(self, backlog_id: int) -> Optional[User]:
-        """
-        Backlog IDでユーザーを検索
-
-        Backlogシステムから連携されたユーザーを識別するためのメソッドです。
-        backlog_idは一意制約があり、高速な検索が可能です。
-
-        Args:
-            backlog_id (int): BacklogユーザーID
-
-        Returns:
-            Optional[User]: 見つかった場合はUserインスタンス、見つからない場合はNone
-
-        Example:
-            >>> user = user_repo.get_by_backlog_id(12345)
-            >>> if user:
-            ...     print(f"Backlog user: {user.name}")
-
-        Note:
-            - Backlog連携ユーザーのみ保持
-            - インデックスによる高速検索
-        """
-        return self.db.query(User).filter(User.backlog_id == backlog_id).first()
-
-    def get_by_user_id(self, user_id: str) -> Optional[User]:
-        """
-        ユーザーID（文字列）でユーザーを検索
-
-        Backlogのユーザー識別子（文字列形式）でユーザーを検索します。
-        user_idは一意制約があり、インデックスが効くため高速です。
-
-        Args:
-            user_id (str): Backlogユーザー識別子（文字列）
-
-        Returns:
-            Optional[User]: 見つかった場合はUserインスタンス、見つからない場合はNone
-
-        Example:
-            >>> user = user_repo.get_by_user_id("user123")
-            >>> if user:
-            ...     print(f"User: {user.name}")
-
-        Note:
-            - Backlogの文字列形式ユーザーID
-            - インデックスによる高速検索
-        """
-        return self.db.query(User).filter(User.user_id == user_id).first()
-
     def get_with_roles(self, user_id: int) -> Optional[User]:
         """
         ロール情報を含めてユーザーを取得（N+1問題対策）

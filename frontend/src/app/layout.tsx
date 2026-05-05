@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Team Insight",
-  description: "Backlogのデータを活用したチーム分析ツール",
+  description: "チームの生産性を可視化・分析するプラットフォーム",
 };
 
 export default function RootLayout({

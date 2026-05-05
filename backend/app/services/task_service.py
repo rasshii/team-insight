@@ -285,8 +285,6 @@ class TaskService:
 
         return {
             "id": task.id,
-            "backlog_id": task.backlog_id,
-            "backlog_key": task.backlog_key,
             "title": task.title,
             "description": task.description,
             "status": task.status.value,
@@ -299,7 +297,7 @@ class TaskService:
             "updated_at": task.updated_at.isoformat(),
             "completed_date": task.completed_date.isoformat() if task.completed_date else None,
             "project": (
-                {"id": task.project.id, "name": task.project.name, "backlog_id": task.project.backlog_id}
+                {"id": task.project.id, "name": task.project.name}
                 if task.project
                 else None
             ),

@@ -12,7 +12,7 @@ class ProjectBase(BaseModel):
 
 
 class ProjectCreate(ProjectBase):
-    backlog_id: int
+    pass
 
 
 class ProjectUpdate(ProjectBase):
@@ -23,7 +23,6 @@ class ProjectUpdate(ProjectBase):
 
 class ProjectInDB(ProjectBase):
     id: int
-    backlog_id: int
     created_at: datetime
     updated_at: datetime
 

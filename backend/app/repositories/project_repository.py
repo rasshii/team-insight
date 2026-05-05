@@ -66,30 +66,6 @@ class ProjectRepository(BaseRepository[Project]):
         """
         super().__init__(Project, db)
 
-    def get_by_backlog_id(self, backlog_id: int) -> Optional[Project]:
-        """
-        Backlog IDでプロジェクトを検索
-
-        Backlogシステムから連携されたプロジェクトを識別するためのメソッドです。
-        backlog_idは一意制約があり、高速な検索が可能です。
-
-        Args:
-            backlog_id (int): BacklogプロジェクトID
-
-        Returns:
-            Optional[Project]: 見つかった場合はProjectインスタンス、見つからない場合はNone
-
-        Example:
-            >>> project = project_repo.get_by_backlog_id(12345)
-            >>> if project:
-            ...     print(f"Backlog project: {project.name}")
-
-        Note:
-            - Backlog連携プロジェクトのみ保持
-            - インデックスによる高速検索
-        """
-        return self.db.query(Project).filter(Project.backlog_id == backlog_id).first()
-
     def get_by_project_key(self, project_key: str) -> Optional[Project]:
         """
         プロジェクトキーでプロジェクトを検索

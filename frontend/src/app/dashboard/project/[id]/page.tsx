@@ -35,10 +35,8 @@ import {
 import { BottleneckChart } from "@/components/charts/BottleneckChart";
 import { ThroughputChart } from "@/components/charts/ThroughputChart";
 import { useRouter } from "next/navigation";
-import { useProject, useSyncProjectTasks } from "@/hooks/queries/useProjects";
-import { toast } from "@/components/ui/use-toast";
+import { useProject } from "@/hooks/queries/useProjects";
 import { getTaskStatusLabel } from "@/lib/task-utils";
-import { useProjectStatuses } from "@/hooks/queries/useBacklog";
 import { MetricTooltip, MetricLabel } from "@/components/ui/metric-tooltip";
 
 interface ProjectDashboardPageProps {
@@ -57,31 +55,11 @@ export default function ProjectDashboardPage({ params }: ProjectDashboardPagePro
   const { data: bottlenecks, isLoading: bottlenecksLoading } = useProjectBottlenecks(projectId);
   const { data: velocity, isLoading: velocityLoading } = useProjectVelocity(projectId);
   const { data: cycleTime, isLoading: cycleTimeLoading } = useProjectCycleTime(projectId);
-  const { data: statusesData, isLoading: statusesLoading } = useProjectStatuses(projectId, !!project);
-  
-  // タスク同期ミューテーション
-  const syncTasksMutation = useSyncProjectTasks();
 
-  const isLoading = projectLoading || healthLoading || bottlenecksLoading || velocityLoading || cycleTimeLoading || statusesLoading;
+  const isLoading = projectLoading || healthLoading || bottlenecksLoading || velocityLoading || cycleTimeLoading;
 
-  // ステータス名のマッピングを作成
-  const getStatusLabel = (statusKey: string) => {
-    if (statusesData?.statuses) {
-      // ステータスIDで検索
-      const statusById = statusesData.statuses.find(s => s.id.toString() === statusKey);
-      if (statusById) return statusById.name;
-      
-      // ステータス名で検索（互換性のため）
-      const statusByName = statusesData.statuses.find(s => 
-        s.name.toLowerCase() === statusKey.toLowerCase() ||
-        s.name === statusKey
-      );
-      if (statusByName) return statusByName.name;
-    }
-    
-    // フォールバックとして固定マッピングを使用
-    return getTaskStatusLabel(statusKey);
-  };
+  // ステータス名のマッピング (デフォルト固定マッピング、Phase 2 で組織別ステータス設定対応予定)
+  const getStatusLabel = (statusKey: string) => getTaskStatusLabel(statusKey);
 
   if (isLoading) {
     return (
@@ -159,34 +137,13 @@ export default function ProjectDashboardPage({ params }: ProjectDashboardPagePro
       <Layout>
         <div className="container mx-auto p-6 space-y-6">
           {/* ヘッダー */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">
-                {project.name}
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                プロジェクトダッシュボード
-              </p>
-            </div>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => {
-                if (!project) {
-                  toast({
-                    title: "エラー",
-                    description: "プロジェクトが見つかりません",
-                    variant: "destructive",
-                  });
-                  return;
-                }
-                syncTasksMutation.mutate(projectId);
-              }}
-              disabled={syncTasksMutation.isPending || !project}
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${syncTasksMutation.isPending ? 'animate-spin' : ''}`} />
-              {syncTasksMutation.isPending ? '同期中...' : 'タスクを同期'}
-            </Button>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">
+              {project.name}
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              プロジェクトダッシュボード
+            </p>
           </div>
 
           {/* 健康度とKPIカード */}
@@ -254,42 +211,22 @@ export default function ProjectDashboardPage({ params }: ProjectDashboardPagePro
               </CardHeader>
               <CardContent>
                 <div className="space-y-1 text-sm">
-                  {statusesData?.statuses ? (
-                    // Backlog APIから取得したステータスを表示
-                    statusesData.statuses
-                      .sort((a, b) => a.displayOrder - b.displayOrder)
-                      .map(status => {
-                        const count = health?.status_distribution?.[status.id] || 
-                                     health?.status_distribution?.[status.name] || 
-                                     0;
-                        return (
-                          <div key={status.id} className="flex justify-between">
-                            <span style={{ color: status.color }}>{status.name}</span>
-                            <span className="font-medium">{count}</span>
-                          </div>
-                        );
-                      })
-                  ) : (
-                    // フォールバック: 固定のステータスを表示
-                    <>
-                      <div className="flex justify-between">
-                        <span>未着手</span>
-                        <span className="font-medium">{health?.status_distribution?.TODO || 0}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>進行中</span>
-                        <span className="font-medium">{health?.status_distribution?.IN_PROGRESS || 0}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>処理済み</span>
-                        <span className="font-medium">{health?.status_distribution?.RESOLVED || 0}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>完了</span>
-                        <span className="font-medium">{health?.status_distribution?.CLOSED || 0}</span>
-                      </div>
-                    </>
-                  )}
+                  <div className="flex justify-between">
+                    <span>未着手</span>
+                    <span className="font-medium">{health?.status_distribution?.TODO || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>進行中</span>
+                    <span className="font-medium">{health?.status_distribution?.IN_PROGRESS || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>処理済み</span>
+                    <span className="font-medium">{health?.status_distribution?.RESOLVED || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>完了</span>
+                    <span className="font-medium">{health?.status_distribution?.CLOSED || 0}</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>

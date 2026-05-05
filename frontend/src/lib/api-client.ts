@@ -134,14 +134,14 @@ class ApiClient {
           })
 
           // 認証が不要なエンドポイントの場合は、リフレッシュを試みない
-          const publicEndpoints = ['/auth/login', '/auth/backlog/authorize', '/auth/backlog/callback']
+          const publicEndpoints = ['/auth/login']
           if (publicEndpoints.some(endpoint => originalRequest.url?.includes(endpoint))) {
             logger.info('Public endpoint 401 error - no refresh attempt')
             return Promise.reject(error)
           }
-          
+
           // リフレッシュエンドポイント自体の401エラーの場合は、リトライしない
-          if (originalRequest.url?.includes('/auth/refresh') || originalRequest.url?.includes('/auth/backlog/refresh')) {
+          if (originalRequest.url?.includes('/auth/refresh')) {
             // ログアウトイベントを発火
             authEventEmitter.emit('logout')
 

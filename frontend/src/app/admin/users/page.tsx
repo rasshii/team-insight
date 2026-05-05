@@ -60,11 +60,9 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  Download,
   ArrowRight,
 } from "lucide-react";
 import { useUsers } from '@/hooks/queries/useUsers';
-import { useImportBacklogUsers } from '@/hooks/queries/useSync';
 import { useProjects } from '@/hooks/queries/useProjects';
 import { useTeams } from '@/hooks/queries/useTeams';
 import { UserEditDialog } from '@/components/admin/UserEditDialog';
@@ -148,12 +146,8 @@ export default function AdminUsersPage() {
   const [sortOrder, setSortOrder] = useState<UserSortOptions['sort_order']>('desc');
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [importMode, setImportMode] = useState<'all' | 'active_only'>('active_only');
-  const [assignDefaultRole, setAssignDefaultRole] = useState(true);
 
   const debouncedSearch = useDebounce(search, 300);
-  const importUsersMutation = useImportBacklogUsers();
 
   // プロジェクトとチームのデータを取得
   const { data: projectsData } = useProjects();
@@ -387,30 +381,10 @@ export default function AdminUsersPage() {
             {/* ユーザーテーブル */}
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>ユーザー一覧</CardTitle>
-                    <CardDescription>
-                      {data ? `${data.total}人のユーザーが登録されています` : 'ユーザーを読み込んでいます...'}
-                    </CardDescription>
-                  </div>
-                  <Button
-                    onClick={() => setImportDialogOpen(true)}
-                    disabled={importUsersMutation.isPending}
-                  >
-                    {importUsersMutation.isPending ? (
-                      <>
-                        <span className="animate-spin mr-2">⏳</span>
-                        インポート中...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="mr-2 h-4 w-4" />
-                        Backlogから一括インポート
-                      </>
-                    )}
-                  </Button>
-                </div>
+                <CardTitle>ユーザー一覧</CardTitle>
+                <CardDescription>
+                  {data ? `${data.total}人のユーザーが登録されています` : 'ユーザーを読み込んでいます...'}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {isLoading ? (
@@ -544,77 +518,6 @@ export default function AdminUsersPage() {
               onOpenChange={setEditDialogOpen}
             />
 
-            {/* インポートダイアログ */}
-            <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>Backlogユーザーの一括インポート</DialogTitle>
-                  <DialogDescription>
-                    Backlogの全プロジェクトからユーザー情報を収集し、Team Insightに登録します。
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label>インポートモード</Label>
-                    <Select
-                      value={importMode}
-                      onValueChange={(value: 'all' | 'active_only') => setImportMode(value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="active_only">アクティブユーザーのみ</SelectItem>
-                        <SelectItem value="all">全ユーザー（非アクティブ含む）</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="assignDefaultRole"
-                      checked={assignDefaultRole}
-                      onCheckedChange={(checked) => setAssignDefaultRole(checked as boolean)}
-                    />
-                    <Label
-                      htmlFor="assignDefaultRole"
-                      className="text-sm font-normal cursor-pointer"
-                    >
-                      新規ユーザーにMEMBERロールを自動付与
-                    </Label>
-                  </div>
-                  <div className="rounded-lg bg-muted p-3">
-                    <p className="text-sm text-muted-foreground">
-                      注意: この操作により、Backlogの全プロジェクトメンバーがインポートされます。
-                      処理には時間がかかる場合があります。
-                    </p>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button
-                    variant="outline"
-                    onClick={() => setImportDialogOpen(false)}
-                    disabled={importUsersMutation.isPending}
-                  >
-                    キャンセル
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      importUsersMutation.mutate({
-                        mode: importMode,
-                        assignDefaultRole: assignDefaultRole,
-                      }, {
-                        onSuccess: () => {
-                          setImportDialogOpen(false);
-                        }
-                      });
-                    }}
-                    disabled={importUsersMutation.isPending}
-                  >
-                    {importUsersMutation.isPending ? 'インポート中...' : 'インポート開始'}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
           </div>
         </Layout>
       </AdminOnly>

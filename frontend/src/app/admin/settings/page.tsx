@@ -26,7 +26,6 @@ import {
   Save,
   Info,
   Server,
-  Link2,
   Clock,
   FileText,
   AlertCircle,
@@ -252,56 +251,6 @@ export default function AdminSettingsPage() {
                       </ul>
                     </AlertDescription>
                   </Alert>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Backlog連携設定 */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Link2 className="h-5 w-5" />
-                  Backlog連携設定
-                </CardTitle>
-                <CardDescription>
-                  Backlog APIとの連携に関する設定
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="sync-interval">自動同期間隔（分）</Label>
-                  <Input
-                    id="sync-interval"
-                    type="number"
-                    value={settings.sync.backlog_sync_interval}
-                    onChange={(e) => 
-                      setSettings({ 
-                        ...settings, 
-                        sync: { ...settings.sync, backlog_sync_interval: parseInt(e.target.value) || 0 }
-                      })
-                    }
-                  />
-                  <p className="text-sm text-muted-foreground">
-                    Backlogデータを自動的に同期する間隔
-                  </p>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="cache-timeout">キャッシュ有効期限（秒）</Label>
-                  <Input
-                    id="cache-timeout"
-                    type="number"
-                    value={settings.sync.backlog_cache_timeout}
-                    onChange={(e) => 
-                      setSettings({ 
-                        ...settings, 
-                        sync: { ...settings.sync, backlog_cache_timeout: parseInt(e.target.value) || 0 }
-                      })
-                    }
-                  />
-                  <p className="text-sm text-muted-foreground">
-                    APIレスポンスのキャッシュ保持時間
-                  </p>
                 </div>
               </CardContent>
             </Card>

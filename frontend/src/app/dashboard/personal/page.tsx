@@ -38,10 +38,6 @@ import { ja } from "date-fns/locale/ja";
 import { usePersonalDashboard } from "@/hooks/queries/useAnalytics";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ThroughputChart } from "@/components/charts/ThroughputChart";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { syncService } from "@/services/sync.service";
-import { toast } from "@/components/ui/use-toast";
-import { queryKeys } from "@/lib/react-query";
 import { getTaskStatusLabel } from "@/lib/task-utils";
 import { MetricTooltip, MetricLabel } from "@/components/ui/metric-tooltip";
 
@@ -92,30 +88,6 @@ export default function PersonalDashboardPage() {
   const queryClient = useQueryClient();
 
   /**
-   * タスク同期ミューテーション
-   *
-   * Backlogから最新のタスクデータを同期し、
-   * 関連するクエリを無効化して再取得します。
-   */
-  const syncTasksMutation = useMutation({
-    mutationFn: () => syncService.syncUserTasks(),
-    onSuccess: () => {
-      // 関連するクエリを無効化して再取得
-      queryClient.invalidateQueries({ queryKey: queryKeys.analytics.personalDashboard });
-      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
-      toast({
-        title: "同期完了",
-        description: "タスクデータを最新の状態に更新しました。",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "同期エラー",
-        description: "タスクの同期に失敗しました。",
-        variant: "destructive",
-      });
-    }
-  });
 
   if (isLoading) {
     return (
@@ -193,40 +165,11 @@ export default function PersonalDashboardPage() {
     <PrivateRoute>
       <Layout>
         <div className="container mx-auto p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">
-                個人ダッシュボード
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                {dashboard?.user_name || 'ユーザー'}さんの生産性指標
-              </p>
-            </div>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => {
-                syncTasksMutation.mutate(undefined, {
-                  onSuccess: (data) => {
-                    toast({
-                      title: "同期完了",
-                      description: `タスクを同期しました。新規: ${data.created || 0}件、更新: ${data.updated || 0}件`,
-                    });
-                  },
-                  onError: (error) => {
-                    toast({
-                      title: "同期エラー",
-                      description: error instanceof Error ? error.message : "タスクの同期に失敗しました。",
-                      variant: "destructive",
-                    });
-                  }
-                });
-              }}
-              disabled={syncTasksMutation.isPending}
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${syncTasksMutation.isPending ? 'animate-spin' : ''}`} />
-              {syncTasksMutation.isPending ? '同期中...' : 'タスクを同期'}
-            </Button>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">個人ダッシュボード</h1>
+            <p className="text-muted-foreground mt-1">
+              {dashboard?.user_name || 'ユーザー'}さんの生産性指標
+            </p>
           </div>
 
           {/* KPIカード */}
@@ -387,11 +330,6 @@ export default function PersonalDashboardPage() {
                     <p className="text-sm text-muted-foreground mb-4">
                       最近完了したタスクはありません
                     </p>
-                    {statistics.total_tasks === 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        「タスクを同期」ボタンをクリックして、Backlogから最新のタスクデータを取得してください
-                      </p>
-                    )}
                   </div>
                 )}
               </CardContent>

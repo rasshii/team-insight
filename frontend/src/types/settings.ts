@@ -15,13 +15,6 @@ export interface SecuritySettings {
   token_expiry: number
 }
 
-export interface SyncSettings {
-  backlog_sync_interval: number
-  backlog_cache_timeout: number
-  api_timeout: number
-  max_retry_count: number
-}
-
 export interface SystemSettings {
   log_level: string
   debug_mode: boolean
@@ -33,14 +26,12 @@ export interface SystemSettings {
 export interface AllSettings {
   email: EmailSettings
   security: SecuritySettings
-  sync: SyncSettings
   system: SystemSettings
 }
 
 export interface SettingsUpdateRequest {
   email?: EmailSettings
   security?: SecuritySettings
-  sync?: SyncSettings
   system?: SystemSettings
 }
 

@@ -2,7 +2,7 @@
  * @fileoverview プロジェクト関連のReact Queryフック
  *
  * プロジェクトのCRUD操作とタスク同期をReact Queryで管理するカスタムフック集です。
- * プロジェクト一覧・詳細取得、作成・更新・削除、メンバー管理、Backlog同期などの機能を提供します。
+ * プロジェクト一覧・詳細取得、作成・更新・削除、メンバー管理などの機能を提供します。
  *
  * @module useProjectsQueries
  */
@@ -143,78 +143,3 @@ export const useDeleteProject = () => {
   )
 }
 
-/**
- * プロジェクトのタスクを同期するミューテーションフック
- */
-export const useSyncProjectTasks = () => {
-  const queryClient = useQueryClient()
-  
-  return useApiMutation(
-    (projectId: string | number) => projectService.syncProjectTasks(projectId),
-    {
-      successMessage: '同期が完了しました',
-      successDescription: (result) => `新規: ${result.created}件、更新: ${result.updated}件、合計: ${result.total}件`,
-      errorMessage: 'タスクの同期に失敗しました。',
-      onSuccessCallback: (_, projectId) => {
-        // タスク関連のキャッシュを無効化
-        queryClient.invalidateQueries({ queryKey: queryKeys.tasks.byProject(projectId) })
-      },
-    }
-  )
-}
-
-/**
- * すべてのプロジェクトを同期するミューテーションフック
- *
- * Backlogから全プロジェクトを同期し、データベースに保存します。
- * 同期完了後、プロジェクト一覧を自動的に再取得します。
- *
- * @returns {UseMutationResult} React Queryのミューテーション結果オブジェクト
- *
- * @example
- * ```tsx
- * function SyncProjectsButton() {
- *   const syncMutation = useSyncAllProjects();
- *
- *   return (
- *     <button
- *       onClick={() => syncMutation.mutate()}
- *       disabled={syncMutation.isPending}
- *     >
- *       {syncMutation.isPending ? '同期中...' : 'プロジェクトを同期'}
- *     </button>
- *   );
- * }
- * ```
- *
- * @remarks
- * - 成功時の処理:
- *   1. 成功メッセージをトースト表示（新規/更新/合計件数）
- *   2. プロジェクト一覧とBacklog同期状態のキャッシュを無効化
- *   3. プロジェクト一覧を強制的に再取得
- * - 管理者またはプロジェクトリーダーのみ実行可能
- *
- * @see {@link projectService.syncAllProjects} - プロジェクト同期API
- * @see {@link useApiMutation} - ミューテーション共通処理ラッパー
- */
-export const useSyncAllProjects = () => {
-  const queryClient = useQueryClient()
-  
-  return useApiMutation(
-    () => projectService.syncAllProjects(),
-    {
-      successMessage: '同期が完了しました',
-      successDescription: (result) => {
-        // レスポンスがラップされている場合とそうでない場合を処理
-        const data = result.data || result
-        return `新規: ${data.created}件、更新: ${data.updated}件、合計: ${data.total}件`
-      },
-      errorMessage: 'プロジェクトの同期に失敗しました。',
-      invalidateQueries: [queryKeys.projects.all, queryKeys.sync.status],
-      onSuccessCallback: async (result) => {
-        // プロジェクト一覧を強制的に再取得
-        await queryClient.refetchQueries({ queryKey: queryKeys.projects.all })
-      }
-    }
-  )
-}

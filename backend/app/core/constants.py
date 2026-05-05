@@ -9,11 +9,9 @@ class AuthConstants:
     """認証関連の定数"""
 
     TOKEN_MAX_AGE = 604800  # 7日間
-    OAUTH_STATE_EXPIRY_MINUTES = 10
     COOKIE_NAME = "auth_token"
     COOKIE_PATH = "/"
     COOKIE_SAMESITE = "Lax"
-    PROVIDER_BACKLOG = "backlog"
 
 
 class PaginationConstants:
@@ -77,7 +75,7 @@ class ErrorMessages:
     """エラーメッセージ"""
 
     # 認証エラー
-    TOKEN_NOT_FOUND = "Backlogアクセストークンが見つかりません。再度ログインしてください。"
+    TOKEN_NOT_FOUND = "アクセストークンが見つかりません。再度ログインしてください。"
     TOKEN_EXPIRED = "アクセストークンの有効期限が切れています。再度ログインしてください。"
     INVALID_CREDENTIALS = "認証情報が無効です。"
     PERMISSION_DENIED = "この操作を実行する権限がありません。"
@@ -94,7 +92,6 @@ class ErrorMessages:
     LIMIT_EXCEEDED = f"リミットは{PaginationConstants.MAX_LIMIT}以下である必要があります。"
 
     # 外部APIエラー
-    BACKLOG_API_ERROR = "Backlog APIの呼び出しに失敗しました。"
     EXTERNAL_SERVICE_UNAVAILABLE = "外部サービスが利用できません。"
 
     # システムエラー

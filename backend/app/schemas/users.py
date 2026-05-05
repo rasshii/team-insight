@@ -42,8 +42,6 @@ class UserResponse(UserBase):
     """
 
     id: int = Field(..., description="ユーザーID")
-    backlog_id: Optional[int] = Field(None, description="BacklogユーザーID")
-    user_id: Optional[str] = Field(None, description="BacklogユーザーID（文字列）")
     user_roles: List[UserRoleResponse] = Field(default_factory=list, description="ユーザーのロール一覧")
     timezone: str = Field("Asia/Tokyo", description="タイムゾーン")
     locale: str = Field("ja", description="言語設定")
@@ -106,7 +104,6 @@ class UserInfo(BaseModel):
     """
 
     id: int = Field(..., description="ユーザーID")
-    backlog_id: Optional[int] = Field(None, description="BacklogユーザーID")
     name: str = Field(..., description="ユーザー名")
     email: Optional[str] = Field(None, description="メールアドレス")
 

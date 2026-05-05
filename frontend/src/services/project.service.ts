@@ -1,8 +1,7 @@
 /**
  * @fileoverview プロジェクト管理APIサービス
  *
- * Backlogプロジェクトの一覧取得、詳細取得、CRUD操作、メンバー管理、
- * タスク同期などのプロジェクト関連機能を提供します。
+ * プロジェクトの一覧取得、詳細取得、CRUD操作、メンバー管理を提供します。
  *
  * @module projectService
  */
@@ -51,14 +50,12 @@ export interface ProjectUpdateRequest {
 /**
  * プロジェクト関連のAPIサービス
  *
- * Backlogプロジェクトの管理とタスク同期機能を提供します。
  * React Queryと組み合わせて使用することで、効率的なデータフェッチを実現します。
  *
  * ## 主要機能
  * - プロジェクト一覧・詳細取得
  * - プロジェクト作成・更新・削除
  * - プロジェクトメンバー一覧取得
- * - Backlogとのタスク同期
  *
  * @see {@link apiClient} - 全APIリクエストで使用する共通クライアント
  */
@@ -132,31 +129,4 @@ export const projectService = {
     return await apiClient.get(`/api/v1/projects/${projectId}/members/`)
   },
 
-  /**
-   * プロジェクトからタスクを同期
-   */
-  async syncProjectTasks(projectId: string | number): Promise<{
-    success: boolean
-    created: number
-    updated: number
-    total: number
-  }> {
-    const response = await apiClient.post(`/api/v1/sync/project/${projectId}/tasks`)
-    // Handle wrapped response from backend
-    return response.data || response
-  },
-
-  /**
-   * すべてのプロジェクトを同期
-   */
-  async syncAllProjects(): Promise<{
-    success: boolean
-    created: number
-    updated: number
-    total: number
-  }> {
-    const response = await apiClient.post('/api/v1/sync/projects/all')
-    // Handle wrapped response from backend
-    return response.data || response
-  },
 }

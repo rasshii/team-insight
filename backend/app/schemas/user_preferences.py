@@ -105,7 +105,6 @@ class UserSettings(BaseModel):
     id: int
     email: Optional[str]
     name: Optional[str]
-    backlog_id: Optional[int]
     is_active: bool
 
     # 設定

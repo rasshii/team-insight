@@ -30,7 +30,7 @@ export default function HomePage() {
       icon: LineChart,
       title: "リアルタイム分析",
       description:
-        "Backlogのデータをリアルタイムで分析し、チームの状況を即座に把握",
+        "タスクと予実データをリアルタイムで分析し、チームの状況を即座に把握",
     },
     {
       icon: Target,
@@ -95,7 +95,7 @@ export default function HomePage() {
                   href="/auth/login"
                   className="rounded-md bg-blue-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
                 >
-                  Backlogアカウントでログイン
+                  ログイン
                 </Link>
                 <Link
                   href="#features"
@@ -188,7 +188,7 @@ export default function HomePage() {
               今すぐチームの生産性を向上させましょう
             </h2>
             <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-blue-100">
-              Backlogアカウントでログインして、チームの生産性を可視化しましょう。
+              ログインして、チームの生産性を可視化しましょう。
             </p>
             <div className="mt-10 flex items-center justify-center gap-x-6">
               <Link
