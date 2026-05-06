@@ -1,11 +1,6 @@
-version: "3.8"
-
-# ⚠️ 警告: これは開発環境用の設定です
-# 本番環境では以下の対応が必要です:
-# - データベースパスワードを強力なものに変更
-# - 環境変数は.envファイルや環境変数で管理
-# - ポート番号は必要に応じて変更
-# - セキュリティグループ/ファイアウォールの適切な設定
+# シークレットはルート .env で管理する。.env が無い場合は ${VAR:-default} の
+# 開発用デフォルト値が適用される。本番環境では .env で必須上書きすること。
+# 例: openssl rand -base64 32 で生成
 
 services:
   # PostgreSQL Database
@@ -15,9 +10,9 @@ services:
       dockerfile: Dockerfile
     container_name: team-insight-postgres
     environment:
-      POSTGRES_USER: team_insight_user
-      POSTGRES_PASSWORD: team_insight_password
-      POSTGRES_DB: team_insight
+      POSTGRES_USER: ${POSTGRES_USER:-team_insight_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-team_insight_password}
+      POSTGRES_DB: ${POSTGRES_DB:-team_insight}
       POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
     ports:
       - "5432:5432"
@@ -28,7 +23,7 @@ services:
     networks:
       - team-insight-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U team_insight_user -d team_insight"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-team_insight_user} -d ${POSTGRES_DB:-team_insight}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -41,9 +36,13 @@ services:
       dockerfile: Dockerfile
     container_name: team-insight-redis
     environment:
-      REDIS_PASSWORD: team_insight_redis_password
-      REDISCLI_AUTH: team_insight_redis_password
-    command: redis-server /usr/local/etc/redis/redis.conf --requirepass team_insight_redis_password
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-team_insight_redis_password}
+      REDISCLI_AUTH: ${REDIS_PASSWORD:-team_insight_redis_password}
+    command:
+      - redis-server
+      - /usr/local/etc/redis/redis.conf
+      - --requirepass
+      - ${REDIS_PASSWORD:-team_insight_redis_password}
     ports:
       - "6379:6379"
     volumes:
@@ -52,7 +51,7 @@ services:
     networks:
       - team-insight-network
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "team_insight_redis_password", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a $${REDIS_PASSWORD} ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -78,9 +77,9 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      DATABASE_URL: postgresql://team_insight_user:team_insight_password@postgres:5432/team_insight
-      REDIS_URL: redis://:team_insight_redis_password@redis:6379/0
-      REDISCLI_AUTH: team_insight_redis_password
+      DATABASE_URL: postgresql://${POSTGRES_USER:-team_insight_user}:${POSTGRES_PASSWORD:-team_insight_password}@postgres:5432/${POSTGRES_DB:-team_insight}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-team_insight_redis_password}@redis:6379/0
+      REDISCLI_AUTH: ${REDIS_PASSWORD:-team_insight_redis_password}
       PYTHONPATH: /app
       DEBUG: ${DEBUG:-True}
       BACKEND_CORS_ORIGINS: http://localhost,http://frontend:3000
