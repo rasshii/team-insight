@@ -1,30 +1,29 @@
-"use client";
+'use client'
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import { CheckCircle, Mail, User, Hash, Users, Folder } from "lucide-react";
-import { useAppSelector } from "@/store/hooks";
-import { Layout } from "@/components/Layout";
-import { PrivateRoute } from "@/components/PrivateRoute";
-import { useProjects } from "@/hooks/queries/useProjects";
-import { Skeleton } from "@/components/ui/skeleton";
-import { MetricLabel } from "@/components/ui/metric-tooltip";
+import { Building2, Hash, Mail, User, Users } from 'lucide-react'
 
+import { Layout } from '@/components/Layout'
+import { PrivateRoute } from '@/components/PrivateRoute'
+import { Badge } from '@/components/ui/badge'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
+import { useAppSelector } from '@/store/hooks'
+
+/**
+ * プロフィール設定ページ (Phase 0: organizations 表示)
+ */
 export default function ProfileSettingsPage() {
-  const user = useAppSelector((state) => state.auth.user);
-  const { data: projectsData, isLoading: projectsLoading } = useProjects();
+  const user = useAppSelector((state) => state.auth.user)
 
   if (!user) {
-    return null;
+    return null
   }
-
-  // プロジェクトIDから名前を取得するヘルパー関数
-  const getProjectName = (projectId: number) => {
-    if (!projectsData) return `プロジェクトID: ${projectId}`;
-    const project = projectsData.projects.find(p => p.id === projectId);
-    return project ? project.name : `プロジェクトID: ${projectId}`;
-  };
 
   return (
     <PrivateRoute>
@@ -33,7 +32,6 @@ export default function ProfileSettingsPage() {
           <h1 className="text-3xl font-bold mb-8">プロフィール設定</h1>
 
           <div className="space-y-6">
-            {/* ユーザー基本情報 */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -45,25 +43,26 @@ export default function ProfileSettingsPage() {
               <CardContent className="space-y-4">
                 <div>
                   <Label>名前</Label>
-                  <p className="text-lg font-medium mt-1">{user.name}</p>
+                  <p className="text-lg font-medium mt-1">
+                    {user.name ?? user.full_name ?? '-'}
+                  </p>
                 </div>
               </CardContent>
             </Card>
 
-            {/* メールアドレス情報 */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Mail className="h-5 w-5" />
                   メールアドレス
                 </CardTitle>
-                <CardDescription>
-                  登録されているメールアドレス
-                </CardDescription>
+                <CardDescription>登録されているメールアドレス</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-1">
-                  <p className="text-lg font-medium">{user.email || "未設定"}</p>
+                  <p className="text-lg font-medium">
+                    {user.email ?? '未設定'}
+                  </p>
                   {user.email && (
                     <p className="text-sm text-muted-foreground">
                       レポート配信やシステム通知はこのアドレスに送信されます
@@ -73,114 +72,64 @@ export default function ProfileSettingsPage() {
               </CardContent>
             </Card>
 
-            {/* ロール情報 */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  ロールと権限
+                  <Building2 className="h-5 w-5" />
+                  所属組織とロール
                 </CardTitle>
                 <CardDescription>
-                  Team Insightでのアクセス権限
+                  Team Insight 上で参加している組織と、そこでのロールです
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {user.user_roles && user.user_roles.length > 0 ? (
-                    <>
-                      <div className="space-y-2">
-                        <MetricLabel metric="globalRole">
-                          グローバルロール
-                        </MetricLabel>
-                        {user.user_roles
-                          .filter(userRole => !userRole.project_id)
-                          .map((userRole) => (
-                            <div key={userRole.id} className="p-3 bg-muted/50 rounded-lg space-y-1">
-                              <div className="flex items-center gap-2">
-                                <Badge 
-                                  variant={userRole.role.name === 'ADMIN' ? 'destructive' : 
-                                          userRole.role.name === 'PROJECT_LEADER' ? 'default' : 'secondary'}
-                                >
-                                  {userRole.role.name === 'ADMIN' ? '管理者' :
-                                   userRole.role.name === 'PROJECT_LEADER' ? 'プロジェクトリーダー' :
-                                   userRole.role.name === 'MEMBER' ? 'メンバー' :
-                                   userRole.role.name}
-                                </Badge>
-                                <span className="text-xs text-muted-foreground">
-                                  全プロジェクト共通
-                                </span>
-                              </div>
-                              {userRole.role.description && (
-                                <p className="text-sm text-muted-foreground">
-                                  {userRole.role.description}
-                                </p>
-                              )}
-                            </div>
-                          ))}
-                        {user.user_roles.filter(ur => !ur.project_id).length === 0 && (
-                          <p className="text-sm text-muted-foreground">なし</p>
-                        )}
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <MetricLabel metric="projectRole">
-                          プロジェクトロール
-                        </MetricLabel>
-                        {projectsLoading ? (
-                          <div className="space-y-2">
-                            <Skeleton className="h-6 w-48" />
-                            <Skeleton className="h-6 w-48" />
-                          </div>
-                        ) : (
-                          <>
-                            {user.user_roles
-                              .filter(userRole => userRole.project_id)
-                              .map((userRole) => (
-                                <div key={userRole.id} className="space-y-1">
-                                  <div className="flex items-center gap-2">
-                                    <Folder className="h-4 w-4 text-muted-foreground" />
-                                    <span className="font-medium">
-                                      {getProjectName(userRole.project_id!)}
-                                    </span>
-                                  </div>
-                                  <div className="ml-6 flex items-center gap-2">
-                                    <Badge variant="secondary">
-                                      {userRole.role.name}
-                                    </Badge>
-                                    {userRole.role.description && (
-                                      <span className="text-sm text-muted-foreground">
-                                        {userRole.role.description}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
-                            {user.user_roles.filter(ur => ur.project_id).length === 0 && (
-                              <p className="text-sm text-muted-foreground">なし</p>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      ロールが割り当てられていません
-                    </p>
-                  )}
-                </div>
+                {user.organizations.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    どの組織にも所属していません
+                  </p>
+                ) : (
+                  <ul className="space-y-3">
+                    {user.organizations.map((m) => (
+                      <li
+                        key={m.organization_id}
+                        className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">
+                            {m.organization_name ?? `org-${m.organization_id}`}
+                          </span>
+                          {m.organization_slug && (
+                            <span className="text-xs text-muted-foreground">
+                              ({m.organization_slug})
+                            </span>
+                          )}
+                        </div>
+                        <Badge
+                          variant={
+                            m.role === 'ADMIN'
+                              ? 'destructive'
+                              : m.role === 'PROJECT_LEADER'
+                              ? 'default'
+                              : 'secondary'
+                          }
+                        >
+                          {m.role}
+                        </Badge>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </CardContent>
             </Card>
 
-            {/* アカウント状態 */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Hash className="h-5 w-5" />
                   アカウント状態
                 </CardTitle>
-                <CardDescription>
-                  アカウントのステータス情報
-                </CardDescription>
+                <CardDescription>アカウントのステータス情報</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -190,15 +139,26 @@ export default function ProfileSettingsPage() {
                       システムへのアクセス可否
                     </p>
                   </div>
-                  <Badge variant={user.is_active ? "default" : "destructive"}>
-                    {user.is_active ? "有効" : "無効"}
+                  <Badge variant={user.is_active ? 'default' : 'destructive'}>
+                    {user.is_active ? '有効' : '無効'}
                   </Badge>
                 </div>
+                {user.is_system_admin && (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>System Admin</Label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        全組織横断の管理権限
+                      </p>
+                    </div>
+                    <Badge variant="default">付与済み</Badge>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
         </div>
       </Layout>
     </PrivateRoute>
-  );
+  )
 }

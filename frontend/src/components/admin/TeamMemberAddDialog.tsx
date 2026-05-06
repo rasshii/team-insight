@@ -47,7 +47,7 @@ export function TeamMemberAddDialog({
   const { data: usersData, isLoading } = useUsers({
     page: 1,
     per_page: 100,
-    is_active: true,
+    filters: { is_active: true },
   })
 
   const addMemberMutation = useAddTeamMember(teamId)
@@ -62,9 +62,8 @@ export function TeamMemberAddDialog({
         if (!searchQuery) return true
         const query = searchQuery.toLowerCase()
         return (
-          user.name.toLowerCase().includes(query) ||
-          user.email?.toLowerCase().includes(query) ||
-          user.user_id?.toLowerCase().includes(query)
+          (user.name?.toLowerCase().includes(query) ?? false) ||
+          (user.email?.toLowerCase().includes(query) ?? false)
         )
       })
   }, [usersData, existingMemberIds, searchQuery])

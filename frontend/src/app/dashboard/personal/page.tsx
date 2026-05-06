@@ -85,9 +85,6 @@ import { MetricTooltip, MetricLabel } from "@/components/ui/metric-tooltip";
  */
 export default function PersonalDashboardPage() {
   const { data: dashboard, isLoading, error } = usePersonalDashboard();
-  const queryClient = useQueryClient();
-
-  /**
 
   if (isLoading) {
     return (

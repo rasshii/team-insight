@@ -8,7 +8,7 @@ import { ProtectedComponent } from "@/components/auth/ProtectedComponent";
 
 export default function AdminDashboard() {
   return (
-    <ProtectedComponent requiredRoles={["ADMIN"]}>
+    <ProtectedComponent roles={["ADMIN"]}>
       <div className="p-6">
         <h1 className="text-3xl font-bold mb-8">管理者ダッシュボード</h1>
         

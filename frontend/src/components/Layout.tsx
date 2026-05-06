@@ -131,11 +131,11 @@ export function Layout({ children }: LayoutProps) {
                       >
                         <Avatar className="h-8 w-8">
                           <AvatarImage
-                            src={`https://api.dicebear.com/7.x/initials/svg?seed=${user.name}`}
-                            alt={user.name}
+                            src={`https://api.dicebear.com/7.x/initials/svg?seed=${user.name ?? user.email ?? 'user'}`}
+                            alt={user.name ?? undefined}
                           />
                           <AvatarFallback>
-                            {user.name.charAt(0).toUpperCase()}
+                            {(user.name ?? user.email ?? '?').charAt(0).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                       </Button>
