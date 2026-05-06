@@ -38,8 +38,6 @@ class TestTaskService:
                 title=f"TODO Task {i}",
                 description=f"TODO task description {i}",
                 status=TaskStatus.TODO,
-                priority=2,  # 高
-                issue_type_name="バグ",
                 due_date=datetime.now() + timedelta(days=3)
             )
             db_session.add(task)
@@ -54,8 +52,6 @@ class TestTaskService:
                 title=f"In Progress Task {i}",
                 description=f"In progress task description {i}",
                 status=TaskStatus.IN_PROGRESS,
-                priority=3,  # 中
-                issue_type_name="タスク",
                 due_date=datetime.now() + timedelta(days=5)
             )
             db_session.add(task)
@@ -70,8 +66,6 @@ class TestTaskService:
                 title=f"Closed Task {i}",
                 description=f"Closed task description {i}",
                 status=TaskStatus.CLOSED,
-                priority=4,  # 低
-                issue_type_name="要望",
                 due_date=datetime.now() - timedelta(days=2),
                 completed_date=datetime.now() - timedelta(days=1)
             )
@@ -86,8 +80,6 @@ class TestTaskService:
             title="Resolved Task",
             description="Resolved task description",
             status=TaskStatus.RESOLVED,
-            priority=3,  # 中
-            issue_type_name="バグ",
             due_date=datetime.now() + timedelta(days=1)
         )
         db_session.add(task)
@@ -168,6 +160,7 @@ class TestTaskService:
         assert status_summary["IN_PROGRESS"] == 2
         assert status_summary["CLOSED"] == 4
 
+    @pytest.mark.skip(reason="priority カラムは Phase 6 で削除済。Phase 2 で priority_level として再実装後に再有効化")
     def test_get_user_tasks_with_priority_filter(
         self,
         service: TaskService,
@@ -183,7 +176,6 @@ class TestTaskService:
         # Act（実行）
         result = service.get_user_tasks(
             user_id=test_user.id,
-            priority=2,  # 高優先度
             limit=50
         )
 
@@ -232,6 +224,7 @@ class TestTaskService:
         assert result2["pagination"]["offset"] == 5
         assert result2["pagination"]["has_more"] is False
 
+    @pytest.mark.skip(reason="priority カラムによるソートは Phase 6 で削除済。Phase 2 で priority_level として再実装後に再有効化")
     def test_get_user_tasks_sorting(
         self,
         service: TaskService,
@@ -289,6 +282,7 @@ class TestTaskService:
         assert status_summary["RESOLVED"] == 0
         assert status_summary["CLOSED"] == 0
 
+    @pytest.mark.skip(reason="priority/task_type フィールドは Phase 6 で削除済。Phase 2/3 でデータ構造再設計後に再有効化")
     def test_get_user_tasks_data_structure(
         self,
         service: TaskService,
@@ -451,7 +445,6 @@ class TestTaskService:
             title="Orphan Task",
             description="Task with deleted project",
             status=TaskStatus.TODO,
-            priority=3
         )
         db_session.add(task)
         db_session.commit()

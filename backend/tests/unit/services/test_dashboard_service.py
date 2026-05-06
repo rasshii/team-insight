@@ -39,7 +39,6 @@ class TestDashboardService:
                 title=f"Completed Task {i}",
                 description=f"Completed task description {i}",
                 status=TaskStatus.CLOSED,
-                priority=TaskPriority.MEDIUM,
                 due_date=datetime.now() - timedelta(days=2),
                 completed_date=datetime.now() - timedelta(days=1),
                 created_at=datetime.now() - timedelta(days=3)
@@ -56,7 +55,6 @@ class TestDashboardService:
                 title=f"In Progress Task {i}",
                 description=f"In progress task description {i}",
                 status=TaskStatus.IN_PROGRESS,
-                priority=TaskPriority.HIGH,
                 due_date=datetime.now() + timedelta(days=5)
             )
             db_session.add(task)
@@ -70,7 +68,6 @@ class TestDashboardService:
             title="TODO Task",
             description="TODO task description",
             status=TaskStatus.TODO,
-            priority=TaskPriority.LOW,
             due_date=datetime.now() + timedelta(days=10)
         )
         db_session.add(task)
@@ -84,7 +81,6 @@ class TestDashboardService:
             title="Overdue Task",
             description="Overdue task description",
             status=TaskStatus.TODO,
-            priority=TaskPriority.HIGH,
             due_date=datetime.now() - timedelta(days=5)
         )
         db_session.add(task)

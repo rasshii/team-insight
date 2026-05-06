@@ -29,7 +29,6 @@ class TestTaskRepository:
             title="Sample Task",
             description="This is a sample task",
             status=TaskStatus.TODO,
-            priority=TaskPriority.MEDIUM,
             due_date=datetime.now() + timedelta(days=7)
         )
         db_session.add(task)
@@ -47,7 +46,6 @@ class TestTaskRepository:
             title="Overdue Task",
             description="This task is overdue",
             status=TaskStatus.IN_PROGRESS,
-            priority=TaskPriority.HIGH,
             due_date=datetime.now() - timedelta(days=3)
         )
         db_session.add(task)
@@ -65,7 +63,6 @@ class TestTaskRepository:
             title="Completed Task",
             description="This task is completed",
             status=TaskStatus.CLOSED,
-            priority=TaskPriority.MEDIUM,
             due_date=datetime.now() - timedelta(days=1),
             completed_date=datetime.now() - timedelta(hours=5)
         )
