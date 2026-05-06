@@ -13,8 +13,6 @@ class User(BaseModel):
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
 
-    backlog_id = Column(Integer, unique=True, index=True, nullable=True)
-    user_id = Column(String, unique=True, index=True, nullable=True)
     name = Column(String, nullable=True)
 
     # ユーザー設定
@@ -22,7 +20,6 @@ class User(BaseModel):
     locale = Column(String(10), default="ja")
     date_format = Column(String(20), default="YYYY-MM-DD")
 
-    oauth_tokens = relationship("OAuthToken", back_populates="user", cascade="all, delete-orphan")
     user_roles = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
     projects = relationship("Project", secondary="team_insight.project_members", back_populates="members")
     report_schedules = relationship("ReportSchedule", back_populates="user", cascade="all, delete-orphan")
@@ -81,6 +78,3 @@ class User(BaseModel):
     # タスク関連のリレーション
     assigned_tasks = relationship("Task", foreign_keys="Task.assignee_id", back_populates="assignee")
     reported_tasks = relationship("Task", foreign_keys="Task.reporter_id", back_populates="reporter")
-
-    # 同期履歴のリレーション
-    sync_histories = relationship("SyncHistory", back_populates="user", cascade="all, delete-orphan")

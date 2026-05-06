@@ -2,7 +2,7 @@
 チーム管理モデル
 
 Team Insight独自のチーム概念を管理するモデル。
-Backlogのプロジェクトとは独立して、組織内のチームを定義。
+プロジェクトとは独立して、組織内のチームを定義。
 """
 
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
