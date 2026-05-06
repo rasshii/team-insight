@@ -68,8 +68,6 @@ class TaskResponse(BaseModel):
     description: Optional[str]
     status: TaskStatus
     priority: Optional[int]
-    issue_type_id: Optional[int]
-    issue_type_name: Optional[str]
 
     # 工数情報
     estimated_hours: Optional[float]
@@ -79,12 +77,6 @@ class TaskResponse(BaseModel):
     start_date: Optional[datetime]
     due_date: Optional[datetime]
     completed_date: Optional[datetime]
-
-    # その他の情報
-    milestone_id: Optional[int]
-    milestone_name: Optional[str]
-    category_names: Optional[str]
-    version_names: Optional[str]
 
     # タイムスタンプ
     created_at: datetime
