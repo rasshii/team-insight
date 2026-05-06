@@ -489,61 +489,10 @@ async def get_personal_performance(
             for week, count, avg_days in weekly_performance
         ]
 
-        # タスクタイプ別効率（期間内）
-        type_efficiency = (
-            db.query(
-                Task.issue_type_name,
-                func.count(Task.id).label("total_count"),
-                func.sum(case((Task.status == TaskStatus.CLOSED, 1), else_=0)).label("completed_count"),
-                func.avg(
-                    case(
-                        (
-                            Task.status == TaskStatus.CLOSED,
-                            func.extract("epoch", Task.completed_date - Task.created_at) / 86400,
-                        ),
-                        else_=None,
-                    )
-                ).label("avg_completion_days"),
-            )
-            .filter(Task.assignee_id == current_user.id, Task.created_at >= start_date)
-            .group_by(Task.issue_type_name)
-            .all()
-        )
-
-        type_data = []
-        for issue_type_name, total, completed, avg_days in type_efficiency:
-            if issue_type_name:
-                type_data.append(
-                    {
-                        "task_type": issue_type_name,
-                        "total_count": total,
-                        "completed_count": completed,
-                        "completion_rate": (completed / total * 100) if total > 0 else 0,
-                        "average_completion_days": round(avg_days, 1) if avg_days else None,
-                    }
-                )
-
-        # 優先度別完了率
-        priority_performance = (
-            db.query(
-                Task.priority,
-                func.count(Task.id).label("total_count"),
-                func.sum(case((Task.status == TaskStatus.CLOSED, 1), else_=0)).label("completed_count"),
-            )
-            .filter(Task.assignee_id == current_user.id, Task.created_at >= start_date)
-            .group_by(Task.priority)
-            .all()
-        )
-
-        priority_data = [
-            {
-                "priority": priority,
-                "total_count": total,
-                "completed_count": completed,
-                "completion_rate": (completed / total * 100) if total > 0 else 0,
-            }
-            for priority, total, completed in priority_performance
-        ]
+        # タスクタイプ別効率・優先度別完了率は Phase 2/3 でタスク種別/priority_level を
+        # 再設計した後に再実装予定 (現状は空配列を返す)
+        type_data: List[Dict[str, Any]] = []
+        priority_data: List[Dict[str, Any]] = []
 
         # 期限遵守率
         deadline_performance = (

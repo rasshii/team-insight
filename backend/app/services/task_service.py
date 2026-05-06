@@ -183,15 +183,13 @@ class TaskService:
         if status:
             query = query.filter(Task.status == status)
 
-        # 優先度フィルタ
-        if priority is not None:
-            query = query.filter(Task.priority == priority)
+        # 優先度フィルタは Phase 2 で priority_level として再実装予定。現状は無視。
 
         # 総件数を取得（ページネーション用）
         total_count = query.count()
 
-        # タスク一覧を取得（優先度と期限でソート）
-        tasks = query.order_by(Task.priority.desc(), Task.due_date.asc()).limit(limit).offset(skip).all()
+        # タスク一覧を取得（期限でソート）
+        tasks = query.order_by(Task.due_date.asc()).limit(limit).offset(skip).all()
 
         # ステータス別集計を取得
         status_summary = self._get_status_summary(user_id)
@@ -203,8 +201,6 @@ class TaskService:
                 "title": task.title,
                 "description": task.description,
                 "status": task.status.value,
-                "priority": task.priority,
-                "task_type": task.issue_type_name,
                 "due_date": task.due_date.isoformat() if task.due_date else None,
                 "created_at": task.created_at.isoformat(),
                 "updated_at": task.updated_at.isoformat(),
@@ -285,8 +281,6 @@ class TaskService:
             "title": task.title,
             "description": task.description,
             "status": task.status.value,
-            "priority": task.priority,
-            "task_type": task.issue_type_name,
             "estimated_hours": task.estimated_hours,
             "actual_hours": task.actual_hours,
             "due_date": task.due_date.isoformat() if task.due_date else None,

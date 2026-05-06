@@ -85,13 +85,7 @@ class ReportGenerator:
 
         productivity_score = int((completion_rate + deadline_adherence_rate) / 2)
 
-        # タスクタイプ別サマリー
-        task_type_summary = (
-            db.query(Task.issue_type_name, func.count(Task.id).label("count"))
-            .filter(Task.assignee_id == user.id, Task.status == TaskStatus.CLOSED, Task.completed_date >= start_date)
-            .group_by(Task.issue_type_name)
-            .all()
-        )
+        # NOTE: タスクタイプ別サマリーは Phase 2/3 でタスク種別を再設計後に再実装
 
         # レポートデータを構築
         report_data = {
@@ -106,9 +100,7 @@ class ReportGenerator:
             "productivity_score": productivity_score,
             "completion_rate": round(completion_rate, 1),
             "deadline_adherence_rate": round(deadline_adherence_rate, 1),
-            "task_types": [
-                {"type": task_type or "未分類", "count": count} for task_type, count in task_type_summary if count > 0
-            ],
+            "task_types": [],
             "dashboard_url": f"{settings.FRONTEND_URL}/dashboard/personal",
             "generated_at": datetime.now(),
         }

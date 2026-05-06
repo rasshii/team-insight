@@ -461,39 +461,9 @@ class DashboardService:
         - CASE式で完了タスクのみの平均を計算
         - COUNT、AVGを組み合わせた1回のクエリ
         """
-        # タスクタイプ別の処理効率を集計
-        skill_matrix = (
-            self.db.query(
-                Task.issue_type_name,
-                func.count(Task.id).label("count"),
-                func.avg(
-                    case(
-                        (
-                            Task.status == TaskStatus.CLOSED,
-                            func.extract("epoch", Task.completed_date - Task.created_at) / 86400,
-                        ),
-                        else_=None,
-                    )
-                ).label("avg_completion_days"),
-            )
-            .filter(Task.assignee_id == self.user_id)
-            .group_by(Task.issue_type_name)
-            .all()
-        )
-
-        # タスクタイプがNoneでないものだけを返す
-        skill_data = []
-        for issue_type_name, count, avg_days in skill_matrix:
-            if issue_type_name:
-                skill_data.append(
-                    {
-                        "task_type": issue_type_name,
-                        "total_count": count,
-                        "average_completion_days": round(avg_days, 1) if avg_days else None,
-                    }
-                )
-
-        return skill_data
+        # NOTE: 旧 Backlog 連携の issue_type_name に依存していたが Phase 6 で削除済。
+        # Phase 2/3 でタスク種別を再設計した後にここで集計を再実装する。
+        return []
 
     def get_recent_completed_tasks(self, limit: int = 5) -> List[Dict[str, Any]]:
         """

@@ -19,7 +19,6 @@ async def get_tasks(
     project_id: Optional[int] = Query(None, description="プロジェクトIDでフィルタ"),
     status: Optional[TaskStatus] = Query(None, description="ステータスでフィルタ"),
     assignee_id: Optional[int] = Query(None, description="担当者IDでフィルタ"),
-    priority: Optional[int] = Query(None, description="優先度でフィルタ"),
     search: Optional[str] = Query(None, description="タイトルと説明で検索"),
     limit: int = Query(100, ge=1, le=500, description="取得件数"),
     offset: int = Query(0, ge=0, description="オフセット"),
@@ -49,9 +48,6 @@ async def get_tasks(
     if assignee_id:
         query = query.filter(Task.assignee_id == assignee_id)
 
-    if priority:
-        query = query.filter(Task.priority == priority)
-
     if search:
         search_pattern = f"%{search}%"
         query = query.filter((Task.title.ilike(search_pattern)) | (Task.description.ilike(search_pattern)))
@@ -69,7 +65,6 @@ async def get_tasks(
             "title": task.title,
             "description": task.description,
             "status": task.status.value if task.status else None,
-            "priority": task.priority,
             "estimated_hours": task.estimated_hours,
             "actual_hours": task.actual_hours,
             "start_date": task.start_date.isoformat() if task.start_date else None,
@@ -215,17 +210,10 @@ async def get_task_statistics(
         Task.status.in_([TaskStatus.TODO, TaskStatus.IN_PROGRESS]), Task.due_date < datetime.utcnow()
     ).count()
 
-    # 優先度別集計
-    priority_counts = {}
-    for priority in [2, 3, 4]:  # 高、中、低
-        count = query.filter(Task.priority == priority).count()
-        priority_counts[priority] = count
-
     return {
         "period_days": days,
         "status_distribution": status_counts,
         "completed_in_period": completed_count,
         "overdue_tasks": overdue_count,
-        "priority_distribution": priority_counts,
         "total_tasks": query.count(),
     }

@@ -118,7 +118,6 @@ class TaskRepository(BaseRepository[Task]):
         - status: タスクステータス（TaskStatus）
         - project_id: プロジェクトID
         - is_overdue: 期限切れフラグ（True/False）
-        - priority: 優先度
 
         Args:
             user_id (int): ユーザーID
@@ -165,9 +164,6 @@ class TaskRepository(BaseRepository[Task]):
                 # 期限切れかつ未完了のタスク
                 query = query.filter(and_(Task.due_date < datetime.now(), Task.status != TaskStatus.CLOSED))
 
-            if "priority" in filters:
-                query = query.filter(Task.priority == filters["priority"])
-
         # 更新日時の降順でソート
         query = query.order_by(desc(Task.updated_at))
 
@@ -186,7 +182,6 @@ class TaskRepository(BaseRepository[Task]):
         - status: タスクステータス（TaskStatus）
         - assignee_id: 担当者のユーザーID
         - is_overdue: 期限切れフラグ（True/False）
-        - priority: 優先度
 
         Args:
             project_id (int): プロジェクトID
@@ -225,9 +220,6 @@ class TaskRepository(BaseRepository[Task]):
             if "is_overdue" in filters and filters["is_overdue"]:
                 # 期限切れかつ未完了のタスク
                 query = query.filter(and_(Task.due_date < datetime.now(), Task.status != TaskStatus.CLOSED))
-
-            if "priority" in filters:
-                query = query.filter(Task.priority == filters["priority"])
 
         # 更新日時の降順でソート
         query = query.order_by(desc(Task.updated_at))
