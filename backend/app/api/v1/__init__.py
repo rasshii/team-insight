@@ -1,21 +1,32 @@
 from fastapi import APIRouter
+
 from app.api.v1 import (
-    auth,
-    projects,
-    cache,
-    tasks,
-    users,
     analytics,
+    auth,
+    cache,
+    organizations,
+    projects,
     reports,
-    teams,
     settings,
+    system_organizations,
+    tasks,
+    teams,
     user_settings,
+    users,
 )
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["authentication"])
+api_router.include_router(
+    organizations.router, prefix="/organizations", tags=["organizations"]
+)
+api_router.include_router(
+    system_organizations.router,
+    prefix="/system/organizations",
+    tags=["system-organizations"],
+)
 api_router.include_router(projects.router, prefix="/projects", tags=["projects"])
-# user_settings.routerを先に登録（/users/meが/users/{user_id}より優先されるように）
+# user_settings.routerを先に登録（/users/me が /users/{user_id} より優先されるように）
 api_router.include_router(user_settings.router, prefix="/users", tags=["user-settings"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(teams.router, prefix="/teams", tags=["teams"])
