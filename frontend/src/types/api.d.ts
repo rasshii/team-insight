@@ -4262,8 +4262,6 @@ export interface operations {
                 status?: components["schemas"]["TaskStatus"] | null;
                 /** @description 担当者IDでフィルタ */
                 assignee_id?: number | null;
-                /** @description 優先度でフィルタ */
-                priority?: number | null;
                 /** @description タイトルと説明で検索 */
                 search?: string | null;
                 /** @description 取得件数 */
