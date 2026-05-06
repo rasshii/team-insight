@@ -1,73 +1,71 @@
-import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
-import { env } from "@/config/env";
+import type { NextRequest } from "next/server"
+import { NextResponse } from "next/server"
 
 // 認証が必要なパスのパターン
-const protectedPaths = ["/dashboard", "/projects", "/team", "/organization"];
+const protectedPaths = ["/dashboard", "/projects", "/team", "/organization", "/admin", "/settings"]
 
 // 認証不要なパス（公開ページ）
-const publicPaths = ["/", "/auth/login", "/about", "/contact"];
+const publicPaths = [
+  "/",
+  "/auth/login",
+  "/auth/accept-invitation",
+  "/auth/forgot-password",
+  "/auth/reset-password",
+  "/about",
+  "/contact",
+]
+
+interface JwtPayload {
+  exp?: number
+  sub?: string
+  type?: string
+}
 
 /**
- * 認証トークンの有効性をバックエンドAPIで確認
+ * JWT を base64url 部分から payload を取り出して有効期限を判定する。
+ * 署名検証は backend が API リクエスト時に必ず行うため、middleware では
+ * 「JWT が存在し、明らかに期限切れでない」かのみを確認する (Edge runtime
+ * での同期 fetch を避ける目的)。
  */
-async function verifyAuthToken(token: string): Promise<boolean> {
+function isJwtValid(token: string): boolean {
   try {
-    const response = await fetch(`${env.get("NEXT_PUBLIC_API_URL")}/api/v1/auth/verify`, {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
-
-    return response.ok;
-  } catch (error) {
-    console.error("認証確認エラー:", error);
-    return false;
+    const parts = token.split(".")
+    if (parts.length !== 3) return false
+    const padded = parts[1].replace(/-/g, "+").replace(/_/g, "/")
+    const payload = JSON.parse(atob(padded)) as JwtPayload
+    if (typeof payload.exp !== "number") return false
+    return payload.exp * 1000 > Date.now()
+  } catch {
+    return false
   }
 }
 
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
   // 公開パスへのアクセスは常に許可
-  const isPublicPath = publicPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+  const isPublicPath = publicPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`))
   if (isPublicPath) {
-    return NextResponse.next();
+    return NextResponse.next()
   }
 
   // 保護されたパスかどうかを確認
-  const isProtectedPath = protectedPaths.some((path) =>
-    pathname.startsWith(path)
-  );
-
-  // 保護されたパスへのアクセスの場合、認証チェック
-  if (isProtectedPath) {
-    const authToken = request.cookies.get("auth_token")?.value;
-
-    if (!authToken) {
-      // 認証トークンが存在しない場合はログインページへリダイレクト
-      const url = new URL("/auth/login", request.url);
-      url.searchParams.set("from", pathname);
-      return NextResponse.redirect(url);
-    }
-
-    // バックエンドAPIでトークンの有効性を確認
-    const isValidToken = await verifyAuthToken(authToken);
-    
-    if (!isValidToken) {
-      // トークンが無効な場合はログインページへリダイレクト
-      const response = NextResponse.redirect(
-        new URL("/auth/login", request.url)
-      );
-      // 無効なトークンを削除
-      response.cookies.delete("auth_token");
-      return response;
-    }
+  const isProtectedPath = protectedPaths.some((path) => pathname.startsWith(path))
+  if (!isProtectedPath) {
+    return NextResponse.next()
   }
 
-  return NextResponse.next();
+  const authToken = request.cookies.get("auth_token")?.value
+
+  if (!authToken || !isJwtValid(authToken)) {
+    const url = new URL("/auth/login", request.url)
+    url.searchParams.set("from", pathname)
+    const response = NextResponse.redirect(url)
+    if (authToken) response.cookies.delete("auth_token")
+    return response
+  }
+
+  return NextResponse.next()
 }
 
 export const config = {
@@ -82,4 +80,4 @@ export const config = {
      */
     "/((?!api|_next/static|_next/image|favicon.ico|public).*)",
   ],
-};
+}
