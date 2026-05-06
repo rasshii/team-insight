@@ -107,11 +107,11 @@ class AnalyticsService:
                     "completion_rate": 80.0,         # 完了率（%）
                     "overdue_tasks": 5,              # 期限切れタスク数
                     "overdue_rate": 5.0,             # 期限切れ率（%）
-                    "status_distribution": {         # ステータス別分布
-                        "1": 10,  # 未対応
-                        "2": 5,   # 処理中
-                        "3": 5,   # 処理済み
-                        "4": 80   # 完了
+                    "status_distribution": {         # ステータス別分布 (TaskStatus Enum 値)
+                        "TODO": 10,
+                        "IN_PROGRESS": 5,
+                        "RESOLVED": 5,
+                        "CLOSED": 80
                     }
                 }
 
@@ -124,7 +124,7 @@ class AnalyticsService:
         Note:
             - タスク数が0の場合、健康度スコアは100点（問題なし）
             - 期限切れタスクは未完了のタスクのみカウント
-            - ステータスIDがNullのタスクは分布から除外
+            - ステータス分布は TaskStatus Enum 値 (TODO/IN_PROGRESS/RESOLVED/CLOSED) をキーとする
         """
         try:
             # Repository層を初期化
@@ -154,20 +154,18 @@ class AnalyticsService:
             completed_tasks = stats.completed or 0
             overdue_tasks = stats.overdue or 0
 
-            # ステータスID別のタスク分布を集計
+            # ステータス別のタスク分布を集計 (TaskStatus Enum: TODO/IN_PROGRESS/RESOLVED/CLOSED)
             # GROUP BYで効率的にグループ化
             status_counts = (
-                db.query(Task.status_id, func.count(Task.id).label("count"))
-                .filter(Task.project_id == project_id, Task.status_id.isnot(None))  # status_idがNULLでないものだけ集計
-                .group_by(Task.status_id)
+                db.query(Task.status, func.count(Task.id).label("count"))
+                .filter(Task.project_id == project_id)
+                .group_by(Task.status)
                 .all()
             )
 
-            # ステータスIDをキーとした辞書を作成
+            # ステータス値 ("TODO", "IN_PROGRESS" 等) をキーとした辞書を作成
             # フロントエンドでの描画に便利な形式
-            status_distribution = {}
-            for status_id, count in status_counts:
-                status_distribution[str(status_id)] = count
+            status_distribution = {status.value: count for status, count in status_counts if status is not None}
 
             # 健康度スコアを計算（0-100）
             health_score = self._calculate_health_score(total_tasks, completed_tasks, overdue_tasks)
