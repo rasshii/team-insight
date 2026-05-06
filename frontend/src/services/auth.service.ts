@@ -1,50 +1,43 @@
 /**
- * 認証サービス (Phase 6 で Backlog OAuth 関連を削除済み)
+ * 認証サービス (Phase 0: 組織切替対応)
  *
- * このモジュールは JWT ベースの認証 API クライアントを提供します。
- * ローカルログイン (login / accept-invitation / forgot-password / reset-password) は Phase 1 で追加します。
+ * Phase 6 で Backlog OAuth 関連を削除済み。
+ * Phase 0 で旧 RBAC を廃止し、organizations 配列をユーザー情報に含めるよう変更。
+ * Phase 1 でローカルログイン (login / accept-invitation / forgot-password / reset-password)
+ * を追加予定。
  */
 
 import { apiClient } from '@/lib/api-client'
+import type { OrganizationRole } from '@/types/users'
 
-export interface Role {
-  id: number
-  name: string
-  description: string
-}
-
-export interface UserRole {
-  id: number
-  role_id: number
-  project_id: number | null
-  role: Role
+export interface OrganizationMembershipResponse {
+  organization_id: number
+  organization_name: string | null
+  organization_slug: string | null
+  role: OrganizationRole
 }
 
 export interface UserInfoResponse {
   id: number
-  email?: string
-  name: string
+  email: string | null
+  name: string | null
+  full_name: string | null
   is_active: boolean
-  user_roles: UserRole[]
+  is_system_admin: boolean
+  organizations: OrganizationMembershipResponse[]
 }
 
-export interface TokenResponse {
+export interface TokenRefreshResponse {
   access_token: string
   refresh_token: string
   token_type: string
-  user: UserInfoResponse
+  active_org_id: number | null
 }
 
-/**
- * 認証 API クライアント
- *
- * Phase 6 時点では JWT ベースの最小機能のみ提供:
- * - getCurrentUser: ログイン中のユーザー情報取得
- * - logout: ログアウト
- * - refreshJwtToken: アクセストークン更新
- *
- * Phase 1 でローカル認証メソッド (login, acceptInvitation 等) を追加予定
- */
+export interface SwitchOrganizationRequest {
+  organization_id: number
+}
+
 export const authService = {
   async logout(): Promise<void> {
     await apiClient.post('/api/v1/auth/logout')
@@ -54,7 +47,16 @@ export const authService = {
     return await apiClient.get('/api/v1/auth/me')
   },
 
-  async refreshJwtToken(): Promise<TokenResponse> {
+  async refreshJwtToken(): Promise<TokenRefreshResponse> {
     return await apiClient.post('/api/v1/auth/refresh')
+  },
+
+  async switchOrganization(
+    organizationId: number
+  ): Promise<TokenRefreshResponse> {
+    return await apiClient.post<TokenRefreshResponse>(
+      '/api/v1/auth/switch-organization',
+      { organization_id: organizationId } satisfies SwitchOrganizationRequest
+    )
   },
 }

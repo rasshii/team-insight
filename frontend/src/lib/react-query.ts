@@ -79,7 +79,15 @@ export const queryKeys = {
     all: ['users'] as const,
     list: (filters?: Record<string, unknown>) => ['users', 'list', filters] as const,
     detail: (id: string | number) => ['users', 'detail', id] as const,
-    roles: (id: string | number) => ['users', id, 'roles'] as const,
+  },
+
+  // 組織管理 (Phase 0)
+  organizations: {
+    all: ['organizations'] as const,
+    mine: ['organizations', 'me'] as const,
+    detail: (id: string | number) => ['organizations', 'detail', id] as const,
+    members: (id: string | number) => ['organizations', id, 'members'] as const,
+    systemList: ['system', 'organizations'] as const,
   },
 } as const
 
