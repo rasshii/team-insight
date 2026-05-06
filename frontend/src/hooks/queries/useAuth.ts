@@ -26,7 +26,7 @@ export const useCurrentUser = () => {
       dispatch(setUser(user))
       return user
     },
-    staleTime: 10 * 60 * 1000,
+    staleTime: 5 * 60 * 1000, // 5 分 (アクセストークン 15 分以内に refetch)
     retry: false,
   })
 }

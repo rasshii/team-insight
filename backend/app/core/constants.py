@@ -8,7 +8,8 @@ from enum import Enum
 class AuthConstants:
     """認証関連の定数"""
 
-    TOKEN_MAX_AGE = 604800  # 7日間
+    TOKEN_MAX_AGE = 60 * 15  # 15 分 (アクセストークン Cookie の有効期限)
+    REFRESH_TOKEN_MAX_AGE = 30 * 24 * 60 * 60  # 30 日 (リフレッシュトークン)
     COOKIE_NAME = "auth_token"
     COOKIE_PATH = "/"
     COOKIE_SAMESITE = "Lax"
