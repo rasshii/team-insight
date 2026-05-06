@@ -1,6 +1,29 @@
 import { AxiosError } from 'axios'
 
 /**
+ * APIエラーコードの定数
+ *
+ * Backend のエラーコードと対応 (`app.core.exceptions` を参照)。
+ * バリデーション失敗・認可・ネットワーク等のクラス分けに使用。
+ */
+export const ERROR_CODES = {
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  UNAUTHORIZED: 'UNAUTHORIZED',
+  FORBIDDEN: 'FORBIDDEN',
+  NOT_FOUND: 'NOT_FOUND',
+  CONFLICT: 'CONFLICT',
+  TOO_MANY_REQUESTS: 'TOO_MANY_REQUESTS',
+  INTERNAL_SERVER_ERROR: 'INTERNAL_SERVER_ERROR',
+  BAD_GATEWAY: 'BAD_GATEWAY',
+  SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
+  NETWORK_ERROR: 'NETWORK_ERROR',
+  TIMEOUT: 'TIMEOUT',
+  UNKNOWN_ERROR: 'UNKNOWN_ERROR',
+} as const
+
+export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES]
+
+/**
  * APIエラーレスポンスの型定義
  */
 export interface ApiErrorResponse {
