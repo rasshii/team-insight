@@ -4,99 +4,6 @@
  */
 
 export interface paths {
-    "/api/v1/auth/backlog/authorize": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Authorization Url
-         * @description Backlog OAuth2.0認証URLを生成します
-         *
-         *     このエンドポイントは、ユーザーをBacklogの認証ページにリダイレクトするための
-         *     URLを生成します。CSRF攻撃を防ぐため、stateパラメータも生成して保存します。
-         *
-         *     Args:
-         *         space_key: BacklogのスペースキーOptional）環境変数がデフォルト
-         *
-         *     Returns:
-         *         認証URLとstateを含むレスポンス
-         */
-        get: operations["get_authorization_url_api_v1_auth_backlog_authorize_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/backlog/callback": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Handle Callback
-         * @description Backlog OAuth2.0認証のコールバックを処理します
-         *
-         *     Backlogから認証コードを受け取り、アクセストークンに交換します。
-         *     また、CSRF攻撃を防ぐためstateパラメータを検証します。
-         *
-         *     Args:
-         *         request: 認証コードとstateを含むリクエスト
-         *         db: データベースセッション
-         *         auth_service: 認証サービス
-         *
-         *     Returns:
-         *         アクセストークンとユーザー情報を含むレスポンス
-         *
-         *     Raises:
-         *         ValidationException: state検証失敗時
-         *         ExternalAPIException: トークン取得失敗時
-         */
-        post: operations["handle_callback_api_v1_auth_backlog_callback_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/backlog/refresh": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Refresh Token
-         * @description Backlogのアクセストークンをリフレッシュします
-         *
-         *     保存されているリフレッシュトークンを使用して、
-         *     新しいアクセストークンを取得します。
-         *
-         *     Returns:
-         *         新しいアクセストークンを含むレスポンス
-         *
-         *     Raises:
-         *         HTTPException: トークンが見つからない、またはリフレッシュ失敗時
-         */
-        post: operations["refresh_token_api_v1_auth_backlog_refresh_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/auth/verify": {
         parameters: {
             query?: never;
@@ -106,10 +13,7 @@ export interface paths {
         };
         /**
          * Verify Token
-         * @description JWTトークンの有効性を確認し、ユーザー情報を返す
-         *
-         *     このエンドポイントは、フロントエンドのミドルウェアから呼び出され、
-         *     トークンが有効かどうかを確認するために使用されます。
+         * @description JWTトークンの有効性を検証し、現在のユーザー情報を返す
          */
         get: operations["verify_token_api_v1_auth_verify_get"];
         put?: never;
@@ -129,10 +33,7 @@ export interface paths {
         };
         /**
          * Get Current User Info
-         * @description 現在ログイン中のユーザー情報を取得します
-         *
-         *     Returns:
-         *         ユーザー情報（ロール情報を含む）
+         * @description 現在ログイン中のアクティブユーザー情報を取得
          */
         get: operations["get_current_user_info_api_v1_auth_me_get"];
         put?: never;
@@ -154,21 +55,9 @@ export interface paths {
         put?: never;
         /**
          * Refresh Jwt Token
-         * @description JWTトークンをリフレッシュします
+         * @description JWT アクセストークンとリフレッシュトークンをリフレッシュ
          *
-         *     リフレッシュトークンを使用して新しいアクセストークンとリフレッシュトークンを生成します。
-         *
-         *     Args:
-         *         response: FastAPIレスポンスオブジェクト
-         *         current_user: リフレッシュトークンから取得したユーザー
-         *         db: データベースセッション
-         *         formatter: レスポンスフォーマッター
-         *
-         *     Returns:
-         *         新しいトークンとユーザー情報を含むレスポンス
-         *
-         *     Raises:
-         *         HTTPException: リフレッシュトークンが無効な場合
+         *     リフレッシュトークンローテーションを実装。
          */
         post: operations["refresh_jwt_token_api_v1_auth_refresh_post"];
         delete?: never;
@@ -188,9 +77,7 @@ export interface paths {
         put?: never;
         /**
          * Logout
-         * @description ログアウト処理
-         *
-         *     HttpOnlyクッキーからアクセストークンを削除します。
+         * @description ログアウト処理 (Cookie 削除 + アクティビティログ記録)
          */
         post: operations["logout_api_v1_auth_logout_post"];
         delete?: never;
@@ -314,6 +201,134 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get My Settings
+         * @description 現在のユーザーの設定を取得
+         */
+        get: operations["get_my_settings_api_v1_users_me_get"];
+        /**
+         * Update My Settings
+         * @description 現在のユーザーの設定を更新
+         */
+        put: operations["update_my_settings_api_v1_users_me_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get My Preferences
+         * @description 現在のユーザーの通知設定を取得
+         */
+        get: operations["get_my_preferences_api_v1_users_me_preferences_get"];
+        /**
+         * Update My Preferences
+         * @description 現在のユーザーの通知設定を更新
+         */
+        put: operations["update_my_preferences_api_v1_users_me_preferences_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/login-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get My Login History
+         * @description 現在のユーザーのログイン履歴を取得
+         */
+        get: operations["get_my_login_history_api_v1_users_me_login_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/activity-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get My Activity Logs
+         * @description 現在のユーザーのアクティビティログを取得
+         */
+        get: operations["get_my_activity_logs_api_v1_users_me_activity_logs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get My Sessions
+         * @description 現在のユーザーのアクティブセッション一覧を取得
+         */
+        get: operations["get_my_sessions_api_v1_users_me_sessions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Terminate Session
+         * @description 指定されたセッションを終了
+         */
+        delete: operations["terminate_session_api_v1_users_me_sessions__session_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/": {
         parameters: {
             query?: never;
@@ -323,13 +338,129 @@ export interface paths {
         };
         /**
          * List Users
-         * @description ユーザー一覧を取得します（管理者のみ）
+         * @description ユーザー一覧を取得（管理者専用）
          *
-         *     - **page**: ページ番号（1から開始）
-         *     - **per_page**: 1ページあたりの件数（最大100）
-         *     - **search**: 名前またはメールアドレスで部分一致検索
-         *     - **role_id**: 特定のロールを持つユーザーのみ取得
-         *     - **is_active**: アクティブ/非アクティブでフィルタ
+         *     システム内の全ユーザーをページネーション付きで取得します。
+         *     検索、フィルタリング、ソート機能により、目的のユーザーを効率的に見つけることができます。
+         *     ユーザー管理画面で使用されます。
+         *
+         *     認証:
+         *         - 認証必須（アクティブなユーザーのみ）
+         *         - 権限: ADMINロールが必要
+         *
+         *     処理フロー:
+         *         1. ユーザーの権限を確認（デコレーターで自動実行）
+         *         2. クエリパラメータに基づいてフィルタリング条件を構築
+         *         3. ユーザー情報とロール情報をeager loadingで取得
+         *         4. 検索、フィルタ、ソートを適用
+         *         5. ページネーションを適用
+         *         6. ユーザー一覧とページネーション情報を返却
+         *
+         *     Args:
+         *         page: ページ番号（1から開始、デフォルト: 1）
+         *         per_page: 1ページあたりの件数（1-100、デフォルト: 20）
+         *         search: 検索キーワード（名前、メールアドレス、ユーザーIDで部分一致検索）
+         *         role_id: ロールIDでフィルタ（指定したロールを持つユーザーのみ取得）
+         *         is_active: アクティブ状態でフィルタ（True: アクティブ、False: 非アクティブ）
+         *         project_id: プロジェクトIDでフィルタ（指定したプロジェクトのメンバーのみ取得）
+         *         team_id: チームIDでフィルタ（指定したチームのメンバーのみ取得）
+         *         sort_by: ソートフィールド（デフォルト: "created_at"）
+         *                 使用可能なフィールド: id, name, email, created_at, updated_atなど
+         *         sort_order: ソート順序（"asc": 昇順、"desc": 降順、デフォルト: "desc"）
+         *         current_user: 現在のユーザー（依存性注入）
+         *         db: データベースセッション（依存性注入）
+         *
+         *     Returns:
+         *         UserListResponse: ユーザー一覧とページネーション情報
+         *         {
+         *             "users": [
+         *                 {
+         *                     "id": 1,
+         *                     "email": "user@example.com",
+         *                     "name": "山田太郎",
+         *                     "user_id": "yamada",
+         *                     "is_active": true,
+         *                     "user_roles": [
+         *                         {
+         *                             "id": 1,
+         *                             "role_id": 1,
+         *                             "project_id": null,
+         *                             "role": {
+         *                                 "id": 1,
+         *                                 "name": "ADMIN",
+         *                                 "description": "管理者"
+         *                             }
+         *                         }
+         *                     ],
+         *                     "created_at": "2025-01-01T00:00:00Z",
+         *                     "updated_at": "2025-01-15T10:30:00Z"
+         *                 },
+         *                 ...
+         *             ],
+         *             "total": 50,
+         *             "page": 1,
+         *             "per_page": 20
+         *         }
+         *
+         *     Raises:
+         *         HTTPException(403): 権限がない場合（管理者以外）
+         *
+         *     Examples:
+         *         リクエスト例1（基本的な一覧取得）:
+         *             GET /api/v1/users/?page=1&per_page=20
+         *
+         *         リクエスト例2（検索とフィルタ）:
+         *             GET /api/v1/users/?search=yamada&is_active=true&role_id=1
+         *
+         *         リクエスト例3（プロジェクトメンバーの一覧）:
+         *             GET /api/v1/users/?project_id=1&sort_by=name&sort_order=asc
+         *
+         *         レスポンス例:
+         *             {
+         *                 "users": [
+         *                     {
+         *                         "id": 1,
+         *                         "email": "yamada@example.com",
+         *                         "name": "山田太郎",
+         *                         "user_id": "yamada",
+         *                         "is_active": true,
+         *                         "user_roles": [
+         *                             {
+         *                                 "id": 1,
+         *                                 "role_id": 1,
+         *                                 "project_id": null,
+         *                                 "role": {
+         *                                     "id": 1,
+         *                                     "name": "ADMIN",
+         *                                     "description": "管理者"
+         *                                 }
+         *                             }
+         *                         ],
+         *                         "created_at": "2025-01-01T00:00:00Z",
+         *                         "updated_at": "2025-01-15T10:30:00Z"
+         *                     }
+         *                 ],
+         *                 "total": 50,
+         *                 "page": 1,
+         *                 "per_page": 20
+         *             }
+         *
+         *     Note:
+         *         - eager loadingを使用してN+1問題を回避しています
+         *         - 検索は大文字小文字を区別しません（ILIKE使用）
+         *         - 複数のフィルタ条件を組み合わせることができます
+         *         - ソートフィールドが存在しない場合はデフォルト（created_at）が使用されます
+         *
+         *     フィルタリング・検索:
+         *         - search: 名前、メールアドレス、user_idで部分一致検索（OR条件）
+         *         - role_id: 指定したロールを持つユーザーのみ
+         *         - is_active: アクティブ/非アクティブユーザーのみ
+         *         - project_id: 指定したプロジェクトのメンバーのみ
+         *         - team_id: 指定したチームのメンバーのみ
+         *
+         *     パフォーマンス最適化:
+         *         - joinedload: ユーザーロール情報を一度に取得（N+1問題の回避）
+         *         - インデックス: 検索フィールド（name, email, user_id）にはインデックスが設定されています
          */
         get: operations["list_users_api_v1_users__get"];
         put?: never;
@@ -383,9 +514,140 @@ export interface paths {
         put: operations["update_user_role_api_v1_users__user_id__roles_put"];
         /**
          * Assign Roles
-         * @description ユーザーにロールを割り当てます（管理者のみ）
+         * @description ユーザーにロールを割り当て（管理者専用）
          *
-         *     既に同じロールが割り当てられている場合はスキップされます。
+         *     指定したユーザーに1つまたは複数のロールを割り当てます。
+         *     グローバルロール（全プロジェクト共通）とプロジェクト固有のロールの
+         *     両方を割り当てることができます。RBAC権限管理の中核となる機能です。
+         *
+         *     認証:
+         *         - 認証必須（アクティブなユーザーのみ）
+         *         - 権限: ADMINロールが必要
+         *
+         *     処理フロー:
+         *         1. ユーザーの権限を確認（デコレーターで自動実行）
+         *         2. 対象ユーザーの存在を確認
+         *         3. 各ロール割り当てについて:
+         *            a. ロールの存在を確認
+         *            b. 既存の割り当てがないかチェック
+         *            c. 新規の場合のみUserRoleレコードを作成
+         *         4. データベースにコミット
+         *         5. 更新されたユーザー情報を返却
+         *
+         *     Args:
+         *         user_id: 対象ユーザーのID
+         *         request: ロール割り当てリクエスト
+         *                 assignments: ロール割り当ての配列
+         *                     - role_id: 割り当てるロールのID（必須）
+         *                     - project_id: プロジェクトID（プロジェクト固有ロールの場合のみ、オプション）
+         *         current_user: 現在のユーザー（依存性注入）
+         *         db: データベースセッション（依存性注入）
+         *
+         *     Returns:
+         *         UserResponse: 更新されたユーザー情報（ロール情報を含む）
+         *         {
+         *             "id": 5,
+         *             "email": "user@example.com",
+         *             "name": "佐藤次郎",
+         *             "user_id": "sato",
+         *             "is_active": true,
+         *             "user_roles": [
+         *                 {
+         *                     "id": 10,
+         *                     "role_id": 2,
+         *                     "project_id": null,
+         *                     "role": {
+         *                         "id": 2,
+         *                         "name": "PROJECT_LEADER",
+         *                         "description": "プロジェクトリーダー"
+         *                     }
+         *                 },
+         *                 {
+         *                     "id": 11,
+         *                     "role_id": 3,
+         *                     "project_id": 1,
+         *                     "role": {
+         *                         "id": 3,
+         *                         "name": "MEMBER",
+         *                         "description": "一般メンバー"
+         *                     }
+         *                 }
+         *             ],
+         *             "created_at": "2025-01-01T00:00:00Z",
+         *             "updated_at": "2025-01-15T10:30:00Z"
+         *         }
+         *
+         *     Raises:
+         *         HTTPException(403): 権限がない場合（管理者以外）
+         *         HTTPException(404): ユーザーまたはロールが見つからない場合
+         *         HTTPException(400): 指定されたロールIDが無効な場合
+         *
+         *     Examples:
+         *         リクエスト例1（グローバルロールの割り当て）:
+         *             POST /api/v1/users/5/roles
+         *             Content-Type: application/json
+         *             Cookie: auth_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+         *
+         *             {
+         *                 "assignments": [
+         *                     {
+         *                         "role_id": 2,
+         *                         "project_id": null
+         *                     }
+         *                 ]
+         *             }
+         *
+         *         リクエスト例2（プロジェクト固有ロールの割り当て）:
+         *             POST /api/v1/users/5/roles
+         *             Content-Type: application/json
+         *
+         *             {
+         *                 "assignments": [
+         *                     {
+         *                         "role_id": 3,
+         *                         "project_id": 1
+         *                     },
+         *                     {
+         *                         "role_id": 3,
+         *                         "project_id": 2
+         *                     }
+         *                 ]
+         *             }
+         *
+         *         リクエスト例3（複数ロールの同時割り当て）:
+         *             POST /api/v1/users/5/roles
+         *             Content-Type: application/json
+         *
+         *             {
+         *                 "assignments": [
+         *                     {
+         *                         "role_id": 2,
+         *                         "project_id": null
+         *                     },
+         *                     {
+         *                         "role_id": 3,
+         *                         "project_id": 1
+         *                     }
+         *                 ]
+         *             }
+         *
+         *     Note:
+         *         - 既に同じロールが割り当てられている場合はスキップされます（重複チェック）
+         *         - グローバルロール: project_idがnullの場合、全プロジェクトに適用
+         *         - プロジェクト固有ロール: project_idを指定すると、そのプロジェクトのみで有効
+         *         - 複数のロールを一度に割り当てることができます
+         *         - 割り当て後、すぐに権限が反映されます
+         *
+         *     ロールの種類:
+         *         - ADMIN: システム全体の管理者権限
+         *         - PROJECT_LEADER: プロジェクトリーダー権限
+         *         - MEMBER: 一般メンバー権限
+         *         - VIEWER: 閲覧のみの権限
+         *
+         *     RBAC権限管理:
+         *         - ロールはpermissionsテーブルと連携して権限を管理
+         *         - プロジェクト固有のロールは、そのプロジェクト内でのみ有効
+         *         - グローバルロールはシステム全体で有効
          */
         post: operations["assign_roles_api_v1_users__user_id__roles_post"];
         /**
@@ -410,6 +672,411 @@ export interface paths {
          * @description 割り当て可能なロール一覧を取得します（管理者のみ）
          */
         get: operations["get_available_roles_api_v1_users_roles_available_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Teams
+         * @description チーム一覧を取得
+         *
+         *     システム内の全チームの一覧をページネーション付きで取得します。
+         *     オプションで各チームの統計情報（メンバー数、アクティブタスク数など）も含めることができます。
+         *
+         *     認証:
+         *         - 認証必須（アクティブなユーザーのみ）
+         *
+         *     処理フロー:
+         *         1. ページ番号とページサイズからオフセットを計算
+         *         2. team_serviceを使用してチーム一覧を取得
+         *         3. 統計情報が要求された場合は、各チームの統計も取得
+         *         4. ページネーション情報と共にレスポンスを返却
+         *
+         *     Args:
+         *         page: ページ番号（1から開始、デフォルト: 1）
+         *         page_size: 1ページあたりの件数（1-100、デフォルト: 20）
+         *         with_stats: 統計情報を含むかどうか（デフォルト: False）
+         *         current_user: 現在のユーザー（依存性注入）
+         *         db: データベースセッション（依存性注入）
+         *
+         *     Returns:
+         *         TeamListResponse: チーム一覧とページネーション情報
+         *         {
+         *             "teams": [
+         *                 {
+         *                     "id": 1,
+         *                     "name": "開発チーム",
+         *                     "description": "バックエンド開発チーム",
+         *                     "member_count": 5,
+         *                     "active_tasks": 15,
+         *                     "created_at": "2025-01-01T00:00:00",
+         *                     "updated_at": "2025-01-15T10:30:00"
+         *                 },
+         *                 ...
+         *             ],
+         *             "total": 50,
+         *             "page": 1,
+         *             "page_size": 20
+         *         }
+         *
+         *     Examples:
+         *         リクエスト例1（基本的な一覧取得）:
+         *             GET /api/v1/teams/?page=1&page_size=20
+         *
+         *         リクエスト例2（統計情報を含む）:
+         *             GET /api/v1/teams/?page=1&page_size=20&with_stats=true
+         *
+         *         レスポンス例:
+         *             {
+         *                 "teams": [
+         *                     {
+         *                         "id": 1,
+         *                         "name": "バックエンド開発チーム",
+         *                         "description": "APIとデータベースの開発を担当",
+         *                         "member_count": 5,
+         *                         "active_tasks": 15,
+         *                         "created_at": "2025-01-01T00:00:00Z",
+         *                         "updated_at": "2025-01-15T10:30:00Z"
+         *                     }
+         *                 ],
+         *                 "total": 50,
+         *                 "page": 1,
+         *                 "page_size": 20
+         *             }
+         *
+         *     Note:
+         *         - ページ番号は1から開始します
+         *         - ページサイズは最大100件まで指定可能です
+         *         - with_statsをtrueにすると、各チームのメンバー数とアクティブタスク数が含まれます
+         *         - 統計情報の取得には追加のクエリが必要なため、パフォーマンスに影響する可能性があります
+         */
+        get: operations["get_teams_api_v1_teams__get"];
+        put?: never;
+        /**
+         * Create Team
+         * @description 新しいチームを作成
+         *
+         *     プロジェクトリーダーまたは管理者が新しいチームを作成します。
+         *     チームを作成したユーザーは自動的にチームリーダーとして登録されます。
+         *
+         *     認証:
+         *         - 認証必須（アクティブなユーザーのみ）
+         *         - 権限: PROJECT_LEADERまたはADMINロールが必要
+         *
+         *     処理フロー:
+         *         1. ユーザーの権限を確認（デコレーターで自動実行）
+         *         2. team_serviceを使用してチームを作成
+         *         3. 作成したユーザーをチームリーダーとして登録
+         *         4. 作成されたチーム情報を返却
+         *
+         *     Args:
+         *         team_data: チーム作成データ
+         *                   name: チーム名（必須）
+         *                   description: チームの説明（任意）
+         *         current_user: 現在のユーザー（依存性注入）
+         *         db: データベースセッション（依存性注入）
+         *
+         *     Returns:
+         *         TeamCreateResponse: 作成されたチーム情報
+         *         {
+         *             "success": true,
+         *             "data": {
+         *                 "id": 1,
+         *                 "name": "開発チーム",
+         *                 "description": "バックエンド開発チーム",
+         *                 "created_at": "2025-01-15T10:30:00",
+         *                 "updated_at": "2025-01-15T10:30:00",
+         *                 "members": [
+         *                     {
+         *                         "user_id": 1,
+         *                         "user_name": "山田太郎",
+         *                         "role": "TEAM_LEADER"
+         *                     }
+         *                 ]
+         *             }
+         *         }
+         *
+         *     Raises:
+         *         HTTPException(403): 権限がない場合
+         *         HTTPException(409): 同名のチームが既に存在する場合
+         *
+         *     Examples:
+         *         リクエスト例:
+         *             POST /api/v1/teams/
+         *             Content-Type: application/json
+         *             Cookie: auth_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+         *
+         *             {
+         *                 "name": "バックエンド開発チーム",
+         *                 "description": "APIとデータベースの開発を担当"
+         *             }
+         *
+         *         レスポンス例:
+         *             {
+         *                 "success": true,
+         *                 "data": {
+         *                     "id": 1,
+         *                     "name": "バックエンド開発チーム",
+         *                     "description": "APIとデータベースの開発を担当",
+         *                     "created_at": "2025-01-15T10:30:00Z",
+         *                     "updated_at": "2025-01-15T10:30:00Z",
+         *                     "members": [
+         *                         {
+         *                             "user_id": 1,
+         *                             "user_name": "山田太郎",
+         *                             "role": "TEAM_LEADER"
+         *                         }
+         *                     ]
+         *                 }
+         *             }
+         *
+         *     Note:
+         *         - チーム名は一意である必要があります
+         *         - チームを作成したユーザーは自動的にチームリーダーになります
+         *         - チームリーダーはメンバーの追加・削除、チーム情報の更新が可能です
+         */
+        post: operations["create_team_api_v1_teams__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{team_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Team
+         * @description チーム詳細を取得
+         */
+        get: operations["get_team_api_v1_teams__team_id__get"];
+        /**
+         * Update Team
+         * @description チームを更新
+         *
+         *     権限: チームリーダーまたはADMIN
+         */
+        put: operations["update_team_api_v1_teams__team_id__put"];
+        post?: never;
+        /**
+         * Delete Team
+         * @description チームを削除
+         *
+         *     権限: ADMINのみ
+         */
+        delete: operations["delete_team_api_v1_teams__team_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{team_id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Team Members
+         * @description チームメンバー一覧を取得
+         */
+        get: operations["get_team_members_api_v1_teams__team_id__members_get"];
+        put?: never;
+        /**
+         * Add Team Member
+         * @description チームにメンバーを追加
+         *
+         *     指定されたチームに新しいメンバーを追加します。
+         *     追加するユーザーのロール（TEAM_LEADER または MEMBER）を指定できます。
+         *
+         *     認証:
+         *         - 認証必須（アクティブなユーザーのみ）
+         *         - 権限: チームリーダーまたはADMINロールが必要
+         *
+         *     処理フロー:
+         *         1. チーム情報を取得
+         *         2. 現在のユーザーがチームリーダーまたは管理者であることを確認
+         *         3. 追加するユーザーの存在を確認
+         *         4. team_serviceを使用してメンバーを追加
+         *         5. 追加されたメンバー情報を返却
+         *
+         *     Args:
+         *         team_id: チームID
+         *         member_data: メンバー追加データ
+         *                     user_id: 追加するユーザーのID（必須）
+         *                     role: メンバーのロール（TEAM_LEADER または MEMBER、デフォルト: MEMBER）
+         *         current_user: 現在のユーザー（依存性注入）
+         *         db: データベースセッション（依存性注入）
+         *
+         *     Returns:
+         *         TeamMemberAddResponse: 追加されたメンバー情報
+         *         {
+         *             "success": true,
+         *             "data": {
+         *                 "user_id": 5,
+         *                 "user_name": "佐藤次郎",
+         *                 "email": "sato@example.com",
+         *                 "role": "MEMBER",
+         *                 "joined_at": "2025-01-15T10:30:00"
+         *             }
+         *         }
+         *
+         *     Raises:
+         *         HTTPException(403): 権限がない場合
+         *         HTTPException(404): チームまたはユーザーが見つからない場合
+         *         HTTPException(409): ユーザーが既にチームのメンバーである場合
+         *
+         *     Examples:
+         *         リクエスト例:
+         *             POST /api/v1/teams/1/members
+         *             Content-Type: application/json
+         *             Cookie: auth_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+         *
+         *             {
+         *                 "user_id": 5,
+         *                 "role": "MEMBER"
+         *             }
+         *
+         *         レスポンス例:
+         *             {
+         *                 "success": true,
+         *                 "data": {
+         *                     "user_id": 5,
+         *                     "user_name": "佐藤次郎",
+         *                     "email": "sato@example.com",
+         *                     "role": "MEMBER",
+         *                     "joined_at": "2025-01-15T10:30:00Z"
+         *                 }
+         *             }
+         *
+         *     Note:
+         *         - チームには複数のチームリーダーを設定できます
+         *         - 同じユーザーを重複して追加することはできません
+         *         - メンバーを追加できるのは、チームリーダーまたは管理者のみです
+         */
+        post: operations["add_team_member_api_v1_teams__team_id__members_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{team_id}/members/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update Team Member
+         * @description チームメンバーの役割を更新
+         *
+         *     権限: チームリーダーまたはADMIN
+         */
+        put: operations["update_team_member_api_v1_teams__team_id__members__user_id__put"];
+        post?: never;
+        /**
+         * Remove Team Member
+         * @description チームからメンバーを削除
+         *
+         *     権限: チームリーダーまたはADMIN（自分自身の削除も可能）
+         */
+        delete: operations["remove_team_member_api_v1_teams__team_id__members__user_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{team_id}/members/performance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Team Members Performance
+         * @description チームメンバーのパフォーマンスデータを取得
+         */
+        get: operations["get_team_members_performance_api_v1_teams__team_id__members_performance_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{team_id}/task-distribution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Team Task Distribution
+         * @description チームのタスク分配データを取得
+         */
+        get: operations["get_team_task_distribution_api_v1_teams__team_id__task_distribution_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{team_id}/productivity-trend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Team Productivity Trend
+         * @description チームの生産性推移データを取得
+         */
+        get: operations["get_team_productivity_trend_api_v1_teams__team_id__productivity_trend_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{team_id}/activities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Team Activities
+         * @description チームの最近のアクティビティを取得
+         */
+        get: operations["get_team_activities_api_v1_teams__team_id__activities_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -541,296 +1208,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/test/cache/simple": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Test Simple Cache
-         * @description シンプルなキャッシュテスト
-         *
-         *     このエンドポイントは、基本的なキャッシュ機能をテストします。
-         *     1分間キャッシュされ、2回目のリクエストからは高速で応答します。
-         */
-        get: operations["test_simple_cache_api_v1_test_cache_simple_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/test/cache/parameter/{param_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Test Parameter Cache
-         * @description パラメータ付きキャッシュテスト
-         *
-         *     このエンドポイントは、パラメータに基づくキャッシュ機能をテストします。
-         *     各パラメータ値に対して個別にキャッシュされます。
-         */
-        get: operations["test_parameter_cache_api_v1_test_cache_parameter__param_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/test/cache/query": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Test Query Cache
-         * @description クエリパラメータ付きキャッシュテスト
-         *
-         *     このエンドポイントは、クエリパラメータに基づくキャッシュ機能をテストします。
-         *     クエリパラメータの組み合わせごとに個別にキャッシュされます。
-         */
-        get: operations["test_query_cache_api_v1_test_cache_query_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/test/cache/performance": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Test Performance Cache
-         * @description パフォーマンステスト用キャッシュ
-         *
-         *     このエンドポイントは、キャッシュのパフォーマンス効果を測定するためのテストです。
-         *     重い処理をシミュレートして、キャッシュの効果を明確に示します。
-         */
-        get: operations["test_performance_cache_api_v1_test_cache_performance_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/test/cache/invalidate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Test Cache Invalidation
-         * @description キャッシュ無効化テスト
-         *
-         *     このエンドポイントは、キャッシュ無効化機能をテストします。
-         *     実行後、test_で始まる全てのキャッシュが無効化されます。
-         */
-        post: operations["test_cache_invalidation_api_v1_test_cache_invalidate_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/test/cache/stats": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Test Cache Stats
-         * @description キャッシュ統計テスト
-         *
-         *     このエンドポイントは、キャッシュの統計情報を返します。
-         *     認証不要でアクセス可能です。
-         */
-        get: operations["test_cache_stats_api_v1_test_cache_stats_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/sync/connection/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Connection Status
-         * @description Backlog接続状態を取得する（トークン自動リフレッシュ付き）
-         */
-        get: operations["get_connection_status_api_v1_sync_connection_status_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/sync/user/tasks": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Sync User Tasks
-         * @description 現在のユーザーのタスクを同期
-         *
-         *     Backlogからタスクデータを取得し、ローカルデータベースと同期します。
-         */
-        post: operations["sync_user_tasks_api_v1_sync_user_tasks_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/sync/project/{project_id}/tasks": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Sync Project Tasks
-         * @description 指定されたプロジェクトのタスクを同期
-         *
-         *     プロジェクトメンバーのみがアクセス可能です。
-         */
-        post: operations["sync_project_tasks_api_v1_sync_project__project_id__tasks_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/sync/project/{project_id}/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Sync Status
-         * @description プロジェクトの同期状況を取得
-         *
-         *     最後の同期日時やタスク数などの情報を返します。
-         */
-        get: operations["get_sync_status_api_v1_sync_project__project_id__status_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/sync/projects/all": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Sync All Projects
-         * @description Backlogから全プロジェクトを同期
-         *
-         *     管理者またはプロジェクトリーダーのみがアクセス可能です。
-         */
-        post: operations["sync_all_projects_api_v1_sync_projects_all_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/sync/issue/{issue_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Sync Single Issue
-         * @description 単一の課題を同期
-         *
-         *     特定の課題のみを即座に同期します。
-         */
-        post: operations["sync_single_issue_api_v1_sync_issue__issue_id__post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/sync/history": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Sync History
-         * @description 同期履歴を取得
-         *
-         *     ユーザーの同期履歴を新しい順に返します。
-         */
-        get: operations["get_sync_history_api_v1_sync_history_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/tasks/": {
         parameters: {
             query?: never;
@@ -893,26 +1270,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/tasks/backlog/{backlog_key}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Task By Backlog Key
-         * @description Backlogキーでタスクを取得
-         */
-        get: operations["get_task_by_backlog_key_api_v1_tasks_backlog__backlog_key__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/tasks/statistics/summary": {
         parameters: {
             query?: never;
@@ -944,16 +1301,69 @@ export interface paths {
          * Get Project Health
          * @description プロジェクトの健康度を取得
          *
-         *     プロジェクトの総合的な健康度スコアと、
-         *     タスクの完了率、期限遵守率などの詳細情報を提供します。
+         *     プロジェクトの総合的な健康度を示す複数の指標を算出し、
+         *     プロジェクトマネージャーがプロジェクトの状態を素早く把握できるようにします。
+         *     健康度スコア、完了率、期限遵守率、アクティブタスク数などを提供します。
+         *
+         *     認証:
+         *         - 認証必須（アクティブなユーザーのみ）
+         *         - プロジェクトメンバーのみアクセス可能
+         *
+         *     処理フロー:
+         *         1. プロジェクトメンバーであることを確認（依存性注入で自動実行）
+         *         2. analytics_serviceを使用して健康度データを計算
+         *         3. プロジェクト情報と健康度データを統合
+         *         4. レスポンスを返却
          *
          *     Args:
-         *         project: プロジェクト
-         *         db: データベースセッション
-         *         current_user: 現在のユーザー
+         *         project: プロジェクトオブジェクト（依存性注入、権限チェック済み）
+         *         db: データベースセッション（依存性注入）
+         *         current_user: 現在のアクティブユーザー（依存性注入）
          *
          *     Returns:
-         *         健康度情報
+         *         Dict[str, Any]: プロジェクトの健康度情報
+         *         {
+         *             "project_id": 1,
+         *             "project_name": "プロジェクト名",
+         *             "health_score": 85.5,
+         *             "completion_rate": 75.0,
+         *             "on_time_rate": 80.0,
+         *             "active_tasks": 25,
+         *             "overdue_tasks": 3,
+         *             "total_tasks": 100
+         *         }
+         *
+         *     Raises:
+         *         HTTPException(500): 健康度の計算に失敗した場合
+         *
+         *     Examples:
+         *         リクエスト例:
+         *             GET /api/v1/analytics/project/1/health
+         *             Cookie: auth_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+         *
+         *         レスポンス例:
+         *             {
+         *                 "project_id": 1,
+         *                 "project_name": "Webアプリケーション開発",
+         *                 "health_score": 85.5,
+         *                 "completion_rate": 75.0,
+         *                 "on_time_rate": 80.0,
+         *                 "active_tasks": 25,
+         *                 "overdue_tasks": 3,
+         *                 "total_tasks": 100,
+         *                 "average_task_age_days": 5.2
+         *             }
+         *
+         *     Note:
+         *         - 健康度スコアは0-100の範囲で、複数の指標を加重平均して算出されます
+         *         - レスポンスは5分間キャッシュされ、パフォーマンスが最適化されています
+         *         - キャッシュキーにはproject_idが含まれます
+         *
+         *     キャッシュ戦略:
+         *         - キャッシュプレフィックス: "project_health"
+         *         - キャッシュ有効期限: 300秒（5分）
+         *         - キャッシュキー: "project_health:{project_id}"
+         *         - キャッシュの無効化: プロジェクトのタスクが更新された場合は自動的に無効化
          */
         get: operations["get_project_health_api_v1_analytics_project__project_id__health_get"];
         put?: never;
@@ -1067,17 +1477,129 @@ export interface paths {
          * Get Personal Dashboard
          * @description 個人ダッシュボードデータを取得
          *
-         *     現在のユーザーの個人的な生産性指標を取得します。
-         *     完了タスク数、平均処理時間、進行中タスク数、作業フロー分析、
-         *     生産性トレンド、スキルマトリックスを含みます。
+         *     ユーザー個人の生産性とパフォーマンスを可視化するための
+         *     包括的なダッシュボードデータを提供します。KPI集計、作業フロー分析、
+         *     生産性トレンド、スキルマトリックス、最近完了したタスクなどが含まれます。
+         *
+         *     認証:
+         *         - 認証必須（アクティブなユーザーのみ）
+         *
+         *     処理フロー:
+         *         1. DashboardServiceを初期化
+         *         2. ダッシュボードデータを取得（Service層に委譲）
+         *         3. レスポンスを返却
          *
          *     Args:
-         *         current_user: 現在のユーザー
-         *         db: データベースセッション
-         *         period_days: 分析期間（デフォルト30日）
+         *         current_user: 現在のアクティブユーザー（依存性注入）
+         *         db: データベースセッション（依存性注入）
+         *         period_days: 分析対象期間（日数、デフォルト: 30日）
          *
          *     Returns:
-         *         個人ダッシュボードデータ
+         *         Dict[str, Any]: 個人ダッシュボードの包括的なデータ
+         *         {
+         *             "user_id": 1,
+         *             "user_name": "ユーザー名",
+         *             "kpi_summary": {
+         *                 "total_tasks": 100,
+         *                 "completed_tasks": 75,
+         *                 "in_progress_tasks": 20,
+         *                 "overdue_tasks": 5,
+         *                 "completion_rate": 75.0,
+         *                 "average_completion_days": 3.5
+         *             },
+         *             "workflow_analysis": [
+         *                 {
+         *                     "status": "TODO",
+         *                     "status_name": "未対応",
+         *                     "average_days": 2.1
+         *                 },
+         *                 ...
+         *             ],
+         *             "productivity_trend": [
+         *                 {
+         *                     "date": "2025-01-15",
+         *                     "completed_count": 5
+         *                 },
+         *                 ...
+         *             ],
+         *             "skill_matrix": [
+         *                 {
+         *                     "task_type": "バグ",
+         *                     "total_count": 20,
+         *                     "average_completion_days": 2.5
+         *                 },
+         *                 ...
+         *             ],
+         *             "recent_completed_tasks": [...]
+         *         }
+         *
+         *     Raises:
+         *         HTTPException(500): ダッシュボードデータの取得に失敗した場合
+         *
+         *     Examples:
+         *         リクエスト例1（デフォルト30日間）:
+         *             GET /api/v1/analytics/personal/dashboard
+         *             Cookie: auth_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+         *
+         *         リクエスト例2（過去90日間を指定）:
+         *             GET /api/v1/analytics/personal/dashboard?period_days=90
+         *
+         *         レスポンス例:
+         *             {
+         *                 "user_id": 1,
+         *                 "user_name": "山田太郎",
+         *                 "kpi_summary": {
+         *                     "total_tasks": 100,
+         *                     "completed_tasks": 75,
+         *                     "in_progress_tasks": 20,
+         *                     "overdue_tasks": 5,
+         *                     "completion_rate": 75.0,
+         *                     "average_completion_days": 3.5
+         *                 },
+         *                 "workflow_analysis": [
+         *                     {
+         *                         "status": "TODO",
+         *                         "status_name": "未対応",
+         *                         "average_days": 2.1
+         *                     },
+         *                     {
+         *                         "status": "IN_PROGRESS",
+         *                         "status_name": "処理中",
+         *                         "average_days": 1.8
+         *                     }
+         *                 ],
+         *                 "productivity_trend": [
+         *                     {
+         *                         "date": "2025-01-15",
+         *                         "completed_count": 5
+         *                     }
+         *                 ],
+         *                 "skill_matrix": [
+         *                     {
+         *                         "task_type": "バグ",
+         *                         "total_count": 20,
+         *                         "average_completion_days": 2.5
+         *                     }
+         *                 ],
+         *                 "recent_completed_tasks": [
+         *                     {
+         *                         "id": 123,
+         *                         "title": "ログイン機能のバグ修正",
+         *                         "project_name": "Webアプリ開発",
+         *                         "completed_date": "2025-01-15T10:30:00"
+         *                     }
+         *                 ]
+         *             }
+         *
+         *     Note:
+         *         - レスポンスは5分間キャッシュされ、頻繁なアクセスでもパフォーマンスが保たれます
+         *         - ビジネスロジックはDashboardServiceに委譲され、API層はシンプルに保たれます
+         *         - Service層の導入により、テスタビリティと保守性が向上しています
+         *
+         *     キャッシュ戦略:
+         *         - キャッシュプレフィックス: "analytics"
+         *         - キャッシュ有効期限: 300秒（5分）
+         *         - キャッシュキー: "analytics:{user_id}:personal_dashboard:{period_days}"
          */
         get: operations["get_personal_dashboard_api_v1_analytics_personal_dashboard_get"];
         put?: never;
@@ -1102,15 +1624,67 @@ export interface paths {
          *     現在のユーザーに割り当てられているタスクの一覧を取得します。
          *     ステータスによるフィルタリング、ページネーションに対応。
          *
+         *     認証:
+         *         - 認証必須（アクティブなユーザーのみ）
+         *
+         *     処理フロー:
+         *         1. TaskServiceを初期化
+         *         2. タスク一覧を取得（Service層に委譲）
+         *         3. レスポンスを返却
+         *
          *     Args:
          *         current_user: 現在のユーザー
          *         db: データベースセッション
-         *         status: フィルタリングするタスクステータス（オプション）
-         *         limit: 取得件数の上限
-         *         offset: オフセット
+         *         task_status: フィルタリングするタスクステータス（オプション）
+         *         limit: 取得件数の上限（デフォルト: 50）
+         *         offset: オフセット（デフォルト: 0）
          *
          *     Returns:
          *         タスク一覧と関連情報
+         *         {
+         *             "tasks": [
+         *                 {
+         *                     "id": int,
+         *                     "title": str,
+         *                     "description": str,
+         *                     "status": str,
+         *                     "priority": int,
+         *                     "task_type": str,
+         *                     "due_date": str (ISO format) または None,
+         *                     "created_at": str (ISO format),
+         *                     "updated_at": str (ISO format),
+         *                     "completed_date": str (ISO format) または None,
+         *                     "project": {
+         *                         "id": int,
+         *                         "name": str
+         *                     } または None,
+         *                     "reporter": {
+         *                         "id": int,
+         *                         "name": str
+         *                     } または None
+         *                 },
+         *                 ...
+         *             ],
+         *             "pagination": {
+         *                 "total": int,
+         *                 "limit": int,
+         *                 "offset": int,
+         *                 "has_more": bool
+         *             },
+         *             "status_summary": {
+         *                 "TODO": int,
+         *                 "IN_PROGRESS": int,
+         *                 "RESOLVED": int,
+         *                 "CLOSED": int
+         *             }
+         *         }
+         *
+         *     Raises:
+         *         HTTPException(500): タスク一覧の取得に失敗した場合
+         *
+         *     Note:
+         *         - ビジネスロジックはTaskServiceに委譲され、API層はシンプルに保たれます
+         *         - Service層の導入により、テスタビリティと保守性が向上しています
          */
         get: operations["get_personal_tasks_api_v1_analytics_personal_tasks_get"];
         put?: never;
@@ -1144,154 +1718,6 @@ export interface paths {
          *         パフォーマンス指標の詳細
          */
         get: operations["get_personal_performance_api_v1_analytics_personal_performance_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/backlog/connection": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Connection Status
-         * @description Backlog連携状態を取得する
-         */
-        get: operations["get_connection_status_api_v1_backlog_connection_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/backlog/connect/oauth": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Connect With Oauth
-         * @description OAuthでBacklogと連携を開始する（認証URLを返す）
-         */
-        post: operations["connect_with_oauth_api_v1_backlog_connect_oauth_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/backlog/test": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Test Connection
-         * @description Backlog接続をテストする
-         */
-        post: operations["test_connection_api_v1_backlog_test_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/backlog/disconnect": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Disconnect Backlog
-         * @description Backlog連携を解除する
-         */
-        post: operations["disconnect_backlog_api_v1_backlog_disconnect_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/backlog/connection/space-key": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Update Space Key
-         * @description Backlogスペースキーを更新する
-         *
-         *     既存のOAuthトークンに紐づくスペースキーを更新します。
-         */
-        put: operations["update_space_key_api_v1_backlog_connection_space_key_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/backlog/projects/{project_id}/statuses": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Project Statuses
-         * @description プロジェクトのステータス一覧を取得する
-         *
-         *     Backlog APIからプロジェクト固有のステータス一覧を取得します。
-         *     結果は5分間キャッシュされます。
-         */
-        get: operations["get_project_statuses_api_v1_backlog_projects__project_id__statuses_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/backlog/user/project-statuses": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get User Project Statuses
-         * @description ユーザーが関わっているプロジェクトのステータス情報を取得
-         *
-         *     ユーザーがメンバーとして参加している全プロジェクトの
-         *     ステータス情報を集約して返します。
-         */
-        get: operations["get_user_project_statuses_api_v1_backlog_user_project_statuses_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1378,6 +1804,117 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get All Settings
+         * @description 全設定を取得する（管理者のみ）
+         */
+        get: operations["get_all_settings_api_v1_settings__get"];
+        /**
+         * Update All Settings
+         * @description 全設定を一括更新する（管理者のみ）
+         *
+         *     Args:
+         *         settings_data: 更新する設定データ
+         */
+        put: operations["update_all_settings_api_v1_settings__put"];
+        /**
+         * Create Setting
+         * @description 新しい設定を作成する（管理者のみ）
+         *
+         *     Args:
+         *         setting_data: 設定作成データ
+         */
+        post: operations["create_setting_api_v1_settings__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/{group}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Settings By Group
+         * @description グループごとの設定を取得する（管理者のみ）
+         *
+         *     Args:
+         *         group: 設定グループ（email, security, sync, system）
+         */
+        get: operations["get_settings_by_group_api_v1_settings__group__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/key/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Setting
+         * @description 特定の設定を取得する（管理者のみ）
+         *
+         *     Args:
+         *         key: 設定キー
+         */
+        get: operations["get_setting_api_v1_settings_key__key__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update Setting
+         * @description 設定を更新する（管理者のみ）
+         *
+         *     Args:
+         *         key: 設定キー
+         *         update_data: 更新データ
+         */
+        put: operations["update_setting_api_v1_settings__key__put"];
+        post?: never;
+        /**
+         * Delete Setting
+         * @description 設定を削除する（管理者のみ）
+         *
+         *     Args:
+         *         key: 設定キー
+         */
+        delete: operations["delete_setting_api_v1_settings__key__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/": {
         parameters: {
             query?: never;
@@ -1422,105 +1959,31 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
-         * AuthorizationResponse
-         * @description 認証URL生成のレスポンススキーマ
-         * @example {
-         *       "authorization_url": "https://example.backlog.jp/OAuth2AccessRequest.action?response_type=code&client_id=xxx&redirect_uri=xxx&state=xxx",
-         *       "expected_space": "example-space",
-         *       "state": "random_state_string"
-         *     }
+         * AllSettings
+         * @description 全設定
          */
-        AuthorizationResponse: {
-            /**
-             * Authorization Url
-             * @description Backlogの認証URL
-             */
-            authorization_url: string;
-            /**
-             * State
-             * @description CSRF対策用のランダムな文字列
-             */
-            state: string;
-            /**
-             * Expected Space
-             * @description 期待されるBacklogスペースキー
-             */
-            expected_space?: string | null;
+        AllSettings: {
+            email: components["schemas"]["EmailSettings"];
+            security: components["schemas"]["SecuritySettings"];
+            system: components["schemas"]["SystemSettings"];
         };
         /**
-         * BacklogConnectionStatus
-         * @description Backlog連携状態のレスポンススキーマ
+         * EmailSettings
+         * @description メール設定
          */
-        BacklogConnectionStatus: {
+        EmailSettings: {
             /**
-             * Space Key
-             * @description Backlogスペースキー
+             * Email From
+             * @description 送信元メールアドレス
+             * @default noreply@teaminsight.dev
              */
-            space_key?: string | null;
+            email_from: string;
             /**
-             * Connection Type
-             * @description 連携方法
+             * Email From Name
+             * @description 送信者名
+             * @default Team Insight
              */
-            connection_type?: "oauth" | null;
-            /**
-             * Is Connected
-             * @description 連携済みかどうか
-             */
-            is_connected: boolean;
-            /**
-             * Connected At
-             * @description 連携日時
-             */
-            connected_at?: string | null;
-            /**
-             * Last Sync At
-             * @description 最終同期日時
-             */
-            last_sync_at?: string | null;
-            /**
-             * Expires At
-             * @description OAuth トークンの有効期限
-             */
-            expires_at?: string | null;
-            /**
-             * User Email
-             * @description 連携されたBacklogユーザーのメール
-             */
-            user_email?: string | null;
-        };
-        /**
-         * BacklogSpaceKeyUpdate
-         * @description スペースキー更新のリクエストスキーマ
-         * @example {
-         *       "space_key": "example-space"
-         *     }
-         */
-        BacklogSpaceKeyUpdate: {
-            /**
-             * Space Key
-             * @description Backlogスペースキー
-             */
-            space_key: string;
-        };
-        /**
-         * CallbackRequest
-         * @description OAuth2.0コールバックのリクエストスキーマ
-         * @example {
-         *       "code": "authorization_code_from_backlog",
-         *       "state": "random_state_string"
-         *     }
-         */
-        CallbackRequest: {
-            /**
-             * Code
-             * @description Backlogから受け取った認証コード
-             */
-            code: string;
-            /**
-             * State
-             * @description 認証開始時に生成したstate
-             */
-            state: string;
+            email_from_name: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1573,8 +2036,6 @@ export interface components {
             name: string;
             /** Project Key */
             project_key: string;
-            /** Backlog Id */
-            backlog_id: number;
         };
         /** ProjectUpdate */
         ProjectUpdate: {
@@ -1727,6 +2188,42 @@ export interface components {
             description?: string | null;
         };
         /**
+         * SecuritySettings
+         * @description セキュリティ設定
+         */
+        SecuritySettings: {
+            /**
+             * Session Timeout
+             * @description セッションタイムアウト（分）
+             * @default 60
+             */
+            session_timeout: number;
+            /**
+             * Password Min Length
+             * @description パスワード最小文字数
+             * @default 8
+             */
+            password_min_length: number;
+            /**
+             * Login Attempt Limit
+             * @description ログイン失敗ロック回数
+             * @default 5
+             */
+            login_attempt_limit: number;
+            /**
+             * Api Rate Limit
+             * @description APIレート制限（リクエスト/分）
+             * @default 100
+             */
+            api_rate_limit: number;
+            /**
+             * Token Expiry
+             * @description トークン有効期限（時間）
+             * @default 24
+             */
+            token_expiry: number;
+        };
+        /**
          * ServiceStatus
          * @description 各サービスの健全性ステータス
          */
@@ -1751,17 +2248,129 @@ export interface components {
             redis: "healthy" | "unhealthy";
         };
         /**
-         * SyncStatus
-         * @description 同期ステータス
-         * @enum {string}
+         * SettingCreate
+         * @description 設定作成スキーマ
          */
-        SyncStatus: "started" | "in_progress" | "completed" | "failed";
+        SettingCreate: {
+            /**
+             * Key
+             * @description 設定キー
+             */
+            key: string;
+            /**
+             * Value
+             * @description 設定値
+             */
+            value: string;
+            /**
+             * Group
+             * @description 設定グループ（email, security, sync, system）
+             */
+            group: string;
+            /**
+             * Value Type
+             * @description 値の型（string, integer, boolean, json）
+             * @default string
+             */
+            value_type: string;
+            /**
+             * Description
+             * @description 設定の説明
+             */
+            description?: string | null;
+            /**
+             * Is Sensitive
+             * @description 機密情報フラグ
+             * @default false
+             */
+            is_sensitive: boolean;
+        };
         /**
-         * SyncType
-         * @description 同期タイプ
-         * @enum {string}
+         * SettingResponse
+         * @description 設定レスポンス（機密情報はマスク）
          */
-        SyncType: "user_tasks" | "project_tasks" | "all_projects" | "single_issue" | "project_members";
+        SettingResponse: {
+            /** Id */
+            id: number;
+            /** Key */
+            key: string;
+            /** Value */
+            value: string;
+            /** Group */
+            group: string;
+            /** Value Type */
+            value_type: string;
+            /** Description */
+            description: string | null;
+            /** Is Sensitive */
+            is_sensitive: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * SettingUpdate
+         * @description 設定更新スキーマ
+         */
+        SettingUpdate: {
+            /**
+             * Value
+             * @description 設定値
+             */
+            value: string;
+        };
+        /**
+         * SettingsUpdateRequest
+         * @description 設定更新リクエスト
+         */
+        SettingsUpdateRequest: {
+            email?: components["schemas"]["EmailSettings"] | null;
+            security?: components["schemas"]["SecuritySettings"] | null;
+            system?: components["schemas"]["SystemSettings"] | null;
+        };
+        /**
+         * SystemSettings
+         * @description システム設定
+         */
+        SystemSettings: {
+            /**
+             * Log Level
+             * @description ログレベル
+             * @default info
+             */
+            log_level: string;
+            /**
+             * Debug Mode
+             * @description 開発モード
+             * @default false
+             */
+            debug_mode: boolean;
+            /**
+             * Maintenance Mode
+             * @description メンテナンスモード
+             * @default false
+             */
+            maintenance_mode: boolean;
+            /**
+             * Data Retention Days
+             * @description データ保持期間（日）
+             * @default 365
+             */
+            data_retention_days: number;
+            /**
+             * Backup Frequency
+             * @description バックアップ頻度
+             * @default daily
+             */
+            backup_frequency: string;
+        };
         /**
          * TaskListResponse
          * @description タスク一覧レスポンス
@@ -1783,10 +2392,6 @@ export interface components {
         TaskResponse: {
             /** Id */
             id: number;
-            /** Backlog Id */
-            backlog_id: number;
-            /** Backlog Key */
-            backlog_key: string;
             /** Title */
             title: string;
             /** Description */
@@ -1794,10 +2399,6 @@ export interface components {
             status: components["schemas"]["TaskStatus"];
             /** Priority */
             priority: number | null;
-            /** Issue Type Id */
-            issue_type_id: number | null;
-            /** Issue Type Name */
-            issue_type_name: string | null;
             /** Estimated Hours */
             estimated_hours: number | null;
             /** Actual Hours */
@@ -1808,14 +2409,6 @@ export interface components {
             due_date: string | null;
             /** Completed Date */
             completed_date: string | null;
-            /** Milestone Id */
-            milestone_id: number | null;
-            /** Milestone Name */
-            milestone_name: string | null;
-            /** Category Names */
-            category_names: string | null;
-            /** Version Names */
-            version_names: string | null;
             /**
              * Created At
              * Format: date-time
@@ -1836,6 +2429,252 @@ export interface components {
          * @enum {string}
          */
         TaskStatus: "TODO" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
+        /**
+         * Team
+         * @description チーム情報
+         */
+        Team: {
+            /**
+             * Name
+             * @description チーム名
+             */
+            name: string;
+            /**
+             * Description
+             * @description チームの説明
+             */
+            description?: string | null;
+            /** Id */
+            id: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Members
+             * @default []
+             */
+            members: components["schemas"]["TeamMemberInfo"][];
+        };
+        /**
+         * TeamCreate
+         * @description チーム作成スキーマ
+         */
+        TeamCreate: {
+            /**
+             * Name
+             * @description チーム名
+             */
+            name: string;
+            /**
+             * Description
+             * @description チームの説明
+             */
+            description?: string | null;
+        };
+        /**
+         * TeamCreateResponse
+         * @description チーム作成レスポンス
+         */
+        TeamCreateResponse: {
+            /** Success */
+            success: boolean;
+            data: components["schemas"]["Team"];
+            /**
+             * Message
+             * @default チームが作成されました
+             */
+            message: string;
+        };
+        /**
+         * TeamDeleteResponse
+         * @description チーム削除レスポンス
+         */
+        TeamDeleteResponse: {
+            /** Success */
+            success: boolean;
+            /**
+             * Message
+             * @default チームが削除されました
+             */
+            message: string;
+        };
+        /**
+         * TeamListResponse
+         * @description チーム一覧レスポンス
+         */
+        TeamListResponse: {
+            /** Teams */
+            teams: components["schemas"]["Team"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+        };
+        /**
+         * TeamMemberAddResponse
+         * @description チームメンバー追加レスポンス
+         */
+        TeamMemberAddResponse: {
+            /** Success */
+            success: boolean;
+            data: components["schemas"]["TeamMemberInfo"];
+            /**
+             * Message
+             * @default メンバーが追加されました
+             */
+            message: string;
+        };
+        /**
+         * TeamMemberCreate
+         * @description チームメンバー追加スキーマ
+         */
+        TeamMemberCreate: {
+            /**
+             * User Id
+             * @description ユーザーID
+             */
+            user_id: number;
+            /**
+             * @description チーム内での役割
+             * @default member
+             */
+            role: components["schemas"]["TeamRole"];
+        };
+        /**
+         * TeamMemberInfo
+         * @description チームメンバー情報
+         */
+        TeamMemberInfo: {
+            /** Id */
+            id: number;
+            /** User Id */
+            user_id: number;
+            /** Team Id */
+            team_id: number;
+            /** Role */
+            role: string;
+            /**
+             * Joined At
+             * Format: date-time
+             */
+            joined_at: string;
+            user: components["schemas"]["UserInfo"];
+        };
+        /**
+         * TeamMemberRemoveResponse
+         * @description チームメンバー削除レスポンス
+         */
+        TeamMemberRemoveResponse: {
+            /** Success */
+            success: boolean;
+            /**
+             * Message
+             * @default メンバーが削除されました
+             */
+            message: string;
+        };
+        /**
+         * TeamMemberUpdate
+         * @description チームメンバー更新スキーマ
+         */
+        TeamMemberUpdate: {
+            role: components["schemas"]["TeamRole"];
+        };
+        /**
+         * TeamRole
+         * @description チーム内での役割
+         * @enum {string}
+         */
+        TeamRole: "team_leader" | "member";
+        /**
+         * TeamUpdate
+         * @description チーム更新スキーマ
+         */
+        TeamUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Description */
+            description?: string | null;
+        };
+        /**
+         * TeamUpdateResponse
+         * @description チーム更新レスポンス
+         */
+        TeamUpdateResponse: {
+            /** Success */
+            success: boolean;
+            data: components["schemas"]["Team"];
+            /**
+             * Message
+             * @default チームが更新されました
+             */
+            message: string;
+        };
+        /**
+         * TeamWithStats
+         * @description 統計情報付きチーム情報
+         */
+        TeamWithStats: {
+            /**
+             * Name
+             * @description チーム名
+             */
+            name: string;
+            /**
+             * Description
+             * @description チームの説明
+             */
+            description?: string | null;
+            /** Id */
+            id: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Members
+             * @default []
+             */
+            members: components["schemas"]["TeamMemberInfo"][];
+            /**
+             * Member Count
+             * @description メンバー数
+             */
+            member_count: number;
+            /**
+             * Active Tasks Count
+             * @description アクティブなタスク数
+             * @default 0
+             */
+            active_tasks_count: number;
+            /**
+             * Completed Tasks This Month
+             * @description 今月完了したタスク数
+             * @default 0
+             */
+            completed_tasks_this_month: number;
+            /**
+             * Efficiency Score
+             * @description 効率性スコア（0-100）
+             * @default 0
+             */
+            efficiency_score: number;
+        };
         /**
          * TestReportRequest
          * @description テストレポート送信リクエスト
@@ -1860,42 +2699,6 @@ export interface components {
             email?: string | null;
         };
         /**
-         * TokenResponse
-         * @description トークンレスポンススキーマ
-         * @example {
-         *       "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-         *       "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-         *       "token_type": "bearer",
-         *       "user": {
-         *         "backlog_id": 12345,
-         *         "email": "user@example.com",
-         *         "id": 1,
-         *         "name": "山田太郎",
-         *         "user_id": "yamada"
-         *       }
-         *     }
-         */
-        TokenResponse: {
-            /**
-             * Access Token
-             * @description アプリケーション用のJWTアクセストークン
-             */
-            access_token: string;
-            /**
-             * Refresh Token
-             * @description JWTリフレッシュトークン
-             */
-            refresh_token: string;
-            /**
-             * Token Type
-             * @description トークンタイプ
-             * @default bearer
-             */
-            token_type: string;
-            /** @description ユーザー情報 */
-            user: components["schemas"]["UserInfoResponse"];
-        };
-        /**
          * UserBrief
          * @description ユーザー簡易情報
          */
@@ -1906,18 +2709,36 @@ export interface components {
             name: string | null;
             /** Email */
             email: string | null;
-            /** Backlog Id */
-            backlog_id: number | null;
+        };
+        /**
+         * UserInfo
+         * @description 基本的なユーザー情報（他のスキーマで使用）
+         */
+        UserInfo: {
+            /**
+             * Id
+             * @description ユーザーID
+             */
+            id: number;
+            /**
+             * Name
+             * @description ユーザー名
+             */
+            name: string;
+            /**
+             * Email
+             * @description メールアドレス
+             */
+            email?: string | null;
         };
         /**
          * UserInfoResponse
          * @description ユーザー情報のレスポンススキーマ
          * @example {
-         *       "backlog_id": 12345,
          *       "email": "user@example.com",
          *       "id": 1,
+         *       "is_active": true,
          *       "name": "山田太郎",
-         *       "user_id": "yamada",
          *       "user_roles": [
          *         {
          *           "id": 1,
@@ -1938,11 +2759,6 @@ export interface components {
              */
             id: number;
             /**
-             * Backlog Id
-             * @description BacklogのユーザーID
-             */
-            backlog_id?: number | null;
-            /**
              * Email
              * @description メールアドレス
              */
@@ -1953,20 +2769,16 @@ export interface components {
              */
             name: string;
             /**
-             * User Id
-             * @description BacklogのユーザーID（文字列）
-             */
-            user_id?: string | null;
-            /**
-             * Backlog Space Key
-             * @description BacklogスペースキーID
-             */
-            backlog_space_key?: string | null;
-            /**
              * User Roles
              * @description ユーザーのロール一覧
              */
             user_roles?: components["schemas"]["UserRoleResponse"][];
+            /**
+             * Is Active
+             * @description アカウントの有効状態
+             * @default true
+             */
+            is_active: boolean;
         };
         /**
          * UserListResponse
@@ -1995,6 +2807,18 @@ export interface components {
             per_page: number;
         };
         /**
+         * UserPreferencesUpdate
+         * @description ユーザー設定更新スキーマ
+         */
+        UserPreferencesUpdate: {
+            /** Email Notifications */
+            email_notifications?: boolean | null;
+            /** Report Frequency */
+            report_frequency?: string | null;
+            /** Notification Email */
+            notification_email?: string | null;
+        };
+        /**
          * UserResponse
          * @description ユーザー情報レスポンススキーマ
          */
@@ -2021,20 +2845,28 @@ export interface components {
              */
             id: number;
             /**
-             * Backlog Id
-             * @description BacklogユーザーID
-             */
-            backlog_id?: number | null;
-            /**
-             * User Id
-             * @description BacklogユーザーID（文字列）
-             */
-            user_id?: string | null;
-            /**
              * User Roles
              * @description ユーザーのロール一覧
              */
             user_roles?: components["schemas"]["UserRoleResponse"][];
+            /**
+             * Timezone
+             * @description タイムゾーン
+             * @default Asia/Tokyo
+             */
+            timezone: string;
+            /**
+             * Locale
+             * @description 言語設定
+             * @default ja
+             */
+            locale: string;
+            /**
+             * Date Format
+             * @description 日付フォーマット
+             * @default YYYY-MM-DD
+             */
+            date_format: string;
             /**
              * Created At
              * Format: date-time
@@ -2126,6 +2958,47 @@ export interface components {
             role_id: number;
         };
         /**
+         * UserSettingsUpdate
+         * @description ユーザー設定更新スキーマ
+         */
+        UserSettingsUpdate: {
+            /**
+             * Name
+             * @description 表示名
+             */
+            name?: string | null;
+            /**
+             * Timezone
+             * @description タイムゾーン
+             */
+            timezone?: string | null;
+            /**
+             * Locale
+             * @description 言語設定
+             */
+            locale?: string | null;
+            /**
+             * Date Format
+             * @description 日付フォーマット
+             */
+            date_format?: string | null;
+            /**
+             * Email Notifications
+             * @description メール通知
+             */
+            email_notifications?: boolean | null;
+            /**
+             * Report Frequency
+             * @description レポート頻度
+             */
+            report_frequency?: string | null;
+            /**
+             * Notification Email
+             * @description 通知先メール
+             */
+            notification_email?: string | null;
+        };
+        /**
          * UserUpdate
          * @description ユーザー更新スキーマ
          */
@@ -2164,93 +3037,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    get_authorization_url_api_v1_auth_backlog_authorize_get: {
-        parameters: {
-            query?: {
-                /** @description BacklogのスペースキーOptional）環境変数がデフォルト */
-                space_key?: string | null;
-                /** @description アカウント選択を強制するかどうか */
-                force_account_selection?: boolean;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AuthorizationResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    handle_callback_api_v1_auth_backlog_callback_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CallbackRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TokenResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    refresh_token_api_v1_auth_backlog_refresh_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TokenResponse"];
-                };
-            };
-        };
-    };
     verify_token_api_v1_auth_verify_get: {
         parameters: {
             query?: never;
@@ -2485,6 +3271,233 @@ export interface operations {
             };
         };
     };
+    get_my_settings_api_v1_users_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    update_my_settings_api_v1_users_me_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_my_preferences_api_v1_users_me_preferences_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    update_my_preferences_api_v1_users_me_preferences_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserPreferencesUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_my_login_history_api_v1_users_me_login_history_get: {
+        parameters: {
+            query?: {
+                /** @description ページ番号 */
+                page?: number;
+                /** @description 1ページあたりの件数 */
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_my_activity_logs_api_v1_users_me_activity_logs_get: {
+        parameters: {
+            query?: {
+                /** @description ページ番号 */
+                page?: number;
+                /** @description 1ページあたりの件数 */
+                page_size?: number;
+                /** @description アクションでフィルタ */
+                action?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_my_sessions_api_v1_users_me_sessions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    terminate_session_api_v1_users_me_sessions__session_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_users_api_v1_users__get: {
         parameters: {
             query?: {
@@ -2498,6 +3511,10 @@ export interface operations {
                 role_id?: number | null;
                 /** @description アクティブ状態でフィルタ */
                 is_active?: boolean | null;
+                /** @description プロジェクトIDでフィルタ */
+                project_id?: number | null;
+                /** @description チームIDでフィルタ */
+                team_id?: number | null;
                 /** @description ソートフィールド */
                 sort_by?: string | null;
                 /** @description ソート順序（asc/desc） */
@@ -2720,6 +3737,431 @@ export interface operations {
             };
         };
     };
+    get_teams_api_v1_teams__get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+                with_stats?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_team_api_v1_teams__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamCreateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_team_api_v1_teams__team_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamWithStats"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_team_api_v1_teams__team_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamUpdateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_team_api_v1_teams__team_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamDeleteResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_team_members_api_v1_teams__team_id__members_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMemberInfo"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_team_member_api_v1_teams__team_id__members_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamMemberCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMemberAddResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_team_member_api_v1_teams__team_id__members__user_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamMemberUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMemberInfo"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_team_member_api_v1_teams__team_id__members__user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMemberRemoveResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_team_members_performance_api_v1_teams__team_id__members_performance_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_team_task_distribution_api_v1_teams__team_id__task_distribution_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_team_productivity_trend_api_v1_teams__team_id__productivity_trend_get: {
+        parameters: {
+            query?: {
+                period?: "daily" | "weekly" | "monthly";
+            };
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_team_activities_api_v1_teams__team_id__activities_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_cache_statistics_api_v1_cache_stats_get: {
         parameters: {
             query?: never;
@@ -2811,345 +4253,6 @@ export interface operations {
             };
         };
     };
-    test_simple_cache_api_v1_test_cache_simple_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
-        };
-    };
-    test_parameter_cache_api_v1_test_cache_parameter__param_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                param_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    test_query_cache_api_v1_test_cache_query_get: {
-        parameters: {
-            query?: {
-                page?: number;
-                limit?: number;
-                sort?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    test_performance_cache_api_v1_test_cache_performance_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
-        };
-    };
-    test_cache_invalidation_api_v1_test_cache_invalidate_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
-        };
-    };
-    test_cache_stats_api_v1_test_cache_stats_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
-        };
-    };
-    get_connection_status_api_v1_sync_connection_status_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
-        };
-    };
-    sync_user_tasks_api_v1_sync_user_tasks_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
-        };
-    };
-    sync_project_tasks_api_v1_sync_project__project_id__tasks_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description プロジェクトID */
-                project_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_sync_status_api_v1_sync_project__project_id__status_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description プロジェクトID */
-                project_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    sync_all_projects_api_v1_sync_projects_all_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
-        };
-    };
-    sync_single_issue_api_v1_sync_issue__issue_id__post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                issue_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_sync_history_api_v1_sync_history_get: {
-        parameters: {
-            query?: {
-                /** @description 同期タイプでフィルタ */
-                sync_type?: components["schemas"]["SyncType"] | null;
-                /** @description ステータスでフィルタ */
-                status?: components["schemas"]["SyncStatus"] | null;
-                /** @description 過去何日分の履歴を取得するか */
-                days?: number;
-                /** @description 取得する最大件数 */
-                limit?: number;
-                /** @description オフセット */
-                offset?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     get_tasks_api_v1_tasks__get: {
         parameters: {
             query?: {
@@ -3236,37 +4339,6 @@ export interface operations {
             header?: never;
             path: {
                 task_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TaskResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_task_by_backlog_key_api_v1_tasks_backlog__backlog_key__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                backlog_key: string;
             };
             cookie?: never;
         };
@@ -3551,170 +4623,6 @@ export interface operations {
             };
         };
     };
-    get_connection_status_api_v1_backlog_connection_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BacklogConnectionStatus"];
-                };
-            };
-        };
-    };
-    connect_with_oauth_api_v1_backlog_connect_oauth_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
-        };
-    };
-    test_connection_api_v1_backlog_test_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
-        };
-    };
-    disconnect_backlog_api_v1_backlog_disconnect_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
-        };
-    };
-    update_space_key_api_v1_backlog_connection_space_key_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["BacklogSpaceKeyUpdate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_project_statuses_api_v1_backlog_projects__project_id__statuses_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_user_project_statuses_api_v1_backlog_user_project_statuses_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
-        };
-    };
     send_test_report_api_v1_reports_test_post: {
         parameters: {
             query?: never;
@@ -3842,6 +4750,220 @@ export interface operations {
             header?: never;
             path: {
                 schedule_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_all_settings_api_v1_settings__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllSettings"];
+                };
+            };
+        };
+    };
+    update_all_settings_api_v1_settings__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingsUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllSettings"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_setting_api_v1_settings__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_settings_by_group_api_v1_settings__group__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_setting_api_v1_settings_key__key__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_setting_api_v1_settings__key__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_setting_api_v1_settings__key__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
             };
             cookie?: never;
         };
