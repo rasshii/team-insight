@@ -1,14 +1,15 @@
 """
-チーム管理モデル
+チーム管理モデル (Phase 0: マルチテナント対応)
 
 Team Insight独自のチーム概念を管理するモデル。
 プロジェクトとは独立して、組織内のチームを定義。
 """
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
-from sqlalchemy.orm import relationship
-from datetime import datetime
 import enum
+from datetime import datetime
+
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
 
@@ -32,6 +33,12 @@ class Team(Base):
     __table_args__ = {"schema": "team_insight"}
 
     id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(
+        Integer,
+        ForeignKey("team_insight.organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     name = Column(String(100), unique=True, nullable=False, index=True)
     description = Column(Text, nullable=True)
 
@@ -40,9 +47,10 @@ class Team(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     # リレーション
+    organization = relationship("Organization")
     members = relationship("TeamMember", back_populates="team", cascade="all, delete-orphan")
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Team(id={self.id}, name={self.name})>"
 
 
@@ -71,5 +79,5 @@ class TeamMember(Base):
     team = relationship("Team", back_populates="members")
     user = relationship("User", back_populates="team_memberships")
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<TeamMember(team_id={self.team_id}, user_id={self.user_id}, role={self.role})>"

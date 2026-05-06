@@ -1,6 +1,17 @@
-from sqlalchemy import Column, String, Boolean, Integer, DateTime
+"""
+ユーザーモデル (Phase 0: マルチテナント対応)
+
+Phase 0 で旧 RBAC (user_roles / roles / role_permissions / permissions) を廃止し、
+権限管理を以下の二本柱に一本化した:
+- is_system_admin: System Admin フラグ (テナントバイパス用)
+- organization_memberships.role: 組織内ロール (ADMIN / PROJECT_LEADER / MEMBER)
+"""
+
+from typing import Optional
+
+from sqlalchemy import Boolean, Column, Integer, String
 from sqlalchemy.orm import relationship
-from sqlalchemy.ext.hybrid import hybrid_property
+
 from app.db.base_class import BaseModel
 
 
@@ -10,71 +21,72 @@ class User(BaseModel):
 
     email = Column(String, unique=True, index=True, nullable=True)
     full_name = Column(String)
+    name = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
-
-    name = Column(String, nullable=True)
+    is_system_admin = Column(Boolean, nullable=False, default=False)
 
     # ユーザー設定
     timezone = Column(String(50), default="Asia/Tokyo")
     locale = Column(String(10), default="ja")
     date_format = Column(String(20), default="YYYY-MM-DD")
 
-    user_roles = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
-    projects = relationship("Project", secondary="team_insight.project_members", back_populates="members")
-    report_schedules = relationship("ReportSchedule", back_populates="user", cascade="all, delete-orphan")
-    team_memberships = relationship("TeamMember", back_populates="user", cascade="all, delete-orphan")
-    preferences = relationship("UserPreferences", back_populates="user", cascade="all, delete-orphan", uselist=False)
-    login_history = relationship("LoginHistory", back_populates="user", cascade="all, delete-orphan")
-    activity_logs = relationship("ActivityLog", back_populates="user", cascade="all, delete-orphan")
+    # Relationships (Phase 0: 旧 user_roles を廃止し organization_memberships に統合)
+    organization_memberships = relationship(
+        "OrganizationMember",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    projects = relationship(
+        "Project", secondary="team_insight.project_members", back_populates="members"
+    )
+    report_schedules = relationship(
+        "ReportSchedule", back_populates="user", cascade="all, delete-orphan"
+    )
+    team_memberships = relationship(
+        "TeamMember", back_populates="user", cascade="all, delete-orphan"
+    )
+    preferences = relationship(
+        "UserPreferences",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
+    login_history = relationship(
+        "LoginHistory", back_populates="user", cascade="all, delete-orphan"
+    )
+    activity_logs = relationship(
+        "ActivityLog", back_populates="user", cascade="all, delete-orphan"
+    )
+    assigned_tasks = relationship(
+        "Task", foreign_keys="Task.assignee_id", back_populates="assignee"
+    )
+    reported_tasks = relationship(
+        "Task", foreign_keys="Task.reporter_id", back_populates="reporter"
+    )
 
     @property
-    def roles(self):
-        """ユーザーのロール一覧を取得（UserRoleを介して）"""
-        return self.user_roles
-
-    _is_admin_cached = None  # 管理者権限のキャッシュ
-
-    @hybrid_property
-    def is_admin(self):
+    def is_admin(self) -> bool:
         """
-        管理者権限を持っているかチェック（N+1問題対策済み）
+        System Admin か (legacy alias for is_system_admin)
 
-        管理者権限の判定ロジック:
-        1. is_superuserがTrueの場合は管理者
-        2. グローバルなADMINロールを持つ場合は管理者
-
-        注意: user_rolesとroleがeager loadingされている前提で動作します。
-        適切にjoinedload()を使用してクエリしてください。
+        Phase 0 で旧グローバル ADMIN ロールを廃止したため、is_admin は System Admin
+        と同義となった。組織内 ADMIN かどうかを判定するには
+        is_admin_in_organization(org_id) を使う。
         """
-        # キャッシュが存在する場合はそれを返す
-        if self._is_admin_cached is not None:
-            return self._is_admin_cached
+        return bool(self.is_system_admin)
 
-        if self.is_superuser:
-            self._is_admin_cached = True
-            return True
+    def get_role_in_organization(self, organization_id: int) -> Optional[str]:
+        """指定組織での自分のロールを返す。所属していなければ None"""
+        for membership in self.organization_memberships:
+            if membership.organization_id == organization_id:
+                return membership.role
+        return None
 
-        # user_rolesがロードされていない場合はFalseを返す（N+1防止）
-        if not hasattr(self, "_sa_instance_state") or "user_roles" not in self.__dict__:
-            return False
+    def is_admin_in_organization(self, organization_id: int) -> bool:
+        """指定組織で ADMIN ロールを持つか"""
+        return self.get_role_in_organization(organization_id) == "ADMIN"
 
-        # ロールのチェック（eager loadingされている前提）
-        self._is_admin_cached = any(
-            ur.role.name == "ADMIN" for ur in self.user_roles if ur.project_id is None  # グローバルロールのみチェック
-        )
-        return self._is_admin_cached
-
-    @is_admin.expression
-    def is_admin(cls):
-        """SQLクエリレベルでの管理者判定（クエリ最適化用）"""
-        from sqlalchemy import exists, and_
-        from app.models.rbac import UserRole, Role
-
-        return cls.is_superuser | exists().where(
-            and_(UserRole.user_id == cls.id, UserRole.project_id.is_(None), UserRole.role_id == Role.id, Role.name == "ADMIN")
-        )
-
-    # タスク関連のリレーション
-    assigned_tasks = relationship("Task", foreign_keys="Task.assignee_id", back_populates="assignee")
-    reported_tasks = relationship("Task", foreign_keys="Task.reporter_id", back_populates="reporter")
+    def is_member_of_organization(self, organization_id: int) -> bool:
+        """指定組織のメンバーか (ロール問わず)"""
+        return self.get_role_in_organization(organization_id) is not None

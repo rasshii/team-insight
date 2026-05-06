@@ -7,7 +7,8 @@ from app.db.base_class import Base  # noqa
 
 # Import all models here
 from app.models.user import User  # noqa
+from app.models.organization import Organization  # noqa
+from app.models.organization_member import OrganizationMember  # noqa
 from app.models.project import Project, project_members  # noqa
 from app.models.task import Task  # noqa
-from app.models.rbac import Role, Permission, UserRole, role_permissions  # noqa
 from app.models.report_schedule import ReportSchedule, ReportDeliveryHistory  # noqa

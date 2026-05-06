@@ -1,5 +1,12 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum, Float, Text
+"""
+タスクモデル (Phase 0: マルチテナント対応)
+
+すべてのタスクは organization_id で分離される。
+"""
+
+from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
+
 from app.db.base_class import BaseModel
 import enum
 
@@ -27,6 +34,14 @@ class Task(BaseModel):
     __tablename__ = "tasks"
     __table_args__ = {"schema": "team_insight"}
 
+    # マルチテナント分離キー
+    organization_id = Column(
+        Integer,
+        ForeignKey("team_insight.organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
     # 関連ID
     project_id = Column(Integer, ForeignKey("team_insight.projects.id", ondelete="CASCADE"))
     assignee_id = Column(Integer, ForeignKey("team_insight.users.id", ondelete="SET NULL"))
@@ -47,9 +62,10 @@ class Task(BaseModel):
     completed_date = Column(DateTime)
 
     # リレーション
+    organization = relationship("Organization")
     project = relationship("Project", back_populates="tasks")
     assignee = relationship("User", foreign_keys=[assignee_id], back_populates="assigned_tasks")
     reporter = relationship("User", foreign_keys=[reporter_id], back_populates="reported_tasks")
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Task {self.id}: {self.title}>"
