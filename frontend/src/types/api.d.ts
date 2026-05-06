@@ -13,7 +13,7 @@ export interface paths {
         };
         /**
          * Verify Token
-         * @description JWTトークンの有効性を検証し、現在のユーザー情報を返す
+         * @description JWT トークンの有効性を検証し、ユーザー情報を返す
          */
         get: operations["verify_token_api_v1_auth_verify_get"];
         put?: never;
@@ -57,9 +57,33 @@ export interface paths {
          * Refresh Jwt Token
          * @description JWT アクセストークンとリフレッシュトークンをリフレッシュ
          *
-         *     リフレッシュトークンローテーションを実装。
+         *     リフレッシュトークンローテーション + revocation list を実装。
          */
         post: operations["refresh_jwt_token_api_v1_auth_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/switch-organization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Switch Organization
+         * @description アクティブ組織を切り替えて新しいトークンペアを発行する (Phase 0)
+         *
+         *     切替条件:
+         *     - 対象組織のメンバーであること (System Admin はバイパス)
+         *     - 旧 refresh token を Redis revocation list に登録して即座に失効させる
+         */
+        post: operations["switch_organization_api_v1_auth_switch_organization_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -77,10 +101,146 @@ export interface paths {
         put?: never;
         /**
          * Logout
-         * @description ログアウト処理 (Cookie 削除 + アクティビティログ記録)
+         * @description ログアウト処理 (refresh token revocation + Cookie クリア)
          */
         post: operations["logout_api_v1_auth_logout_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List My Organizations
+         * @description 自分の所属組織一覧 (組織切替 UI 用)
+         */
+        get: operations["list_my_organizations_api_v1_organizations_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Organization
+         * @description 組織詳細
+         */
+        get: operations["get_organization_api_v1_organizations__organization_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Organization
+         * @description 組織情報の更新 (Org Admin)
+         */
+        patch: operations["update_organization_api_v1_organizations__organization_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Organization Members
+         * @description 組織メンバー一覧 (Org Admin)
+         */
+        get: operations["list_organization_members_api_v1_organizations__organization_id__members_get"];
+        put?: never;
+        /**
+         * Add Organization Member
+         * @description 組織メンバー追加 (Org Admin)
+         */
+        post: operations["add_organization_member_api_v1_organizations__organization_id__members_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/members/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Organization Member
+         * @description メンバー削除 (Org Admin)
+         */
+        delete: operations["remove_organization_member_api_v1_organizations__organization_id__members__user_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Organization Member
+         * @description メンバーロール変更 (Org Admin)
+         */
+        patch: operations["update_organization_member_api_v1_organizations__organization_id__members__user_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/system/organizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List All Organizations
+         * @description 全組織一覧 (System Admin)
+         */
+        get: operations["list_all_organizations_api_v1_system_organizations_get"];
+        put?: never;
+        /**
+         * Create Organization
+         * @description 組織作成 (System Admin)
+         */
+        post: operations["create_organization_api_v1_system_organizations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/system/organizations/{organization_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Organization
+         * @description 組織を soft delete (System Admin)
+         */
+        delete: operations["delete_organization_api_v1_system_organizations__organization_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -338,129 +498,10 @@ export interface paths {
         };
         /**
          * List Users
-         * @description ユーザー一覧を取得（管理者専用）
+         * @description 組織内ユーザー一覧を取得 (Org Admin)
          *
-         *     システム内の全ユーザーをページネーション付きで取得します。
-         *     検索、フィルタリング、ソート機能により、目的のユーザーを効率的に見つけることができます。
-         *     ユーザー管理画面で使用されます。
-         *
-         *     認証:
-         *         - 認証必須（アクティブなユーザーのみ）
-         *         - 権限: ADMINロールが必要
-         *
-         *     処理フロー:
-         *         1. ユーザーの権限を確認（デコレーターで自動実行）
-         *         2. クエリパラメータに基づいてフィルタリング条件を構築
-         *         3. ユーザー情報とロール情報をeager loadingで取得
-         *         4. 検索、フィルタ、ソートを適用
-         *         5. ページネーションを適用
-         *         6. ユーザー一覧とページネーション情報を返却
-         *
-         *     Args:
-         *         page: ページ番号（1から開始、デフォルト: 1）
-         *         per_page: 1ページあたりの件数（1-100、デフォルト: 20）
-         *         search: 検索キーワード（名前、メールアドレス、ユーザーIDで部分一致検索）
-         *         role_id: ロールIDでフィルタ（指定したロールを持つユーザーのみ取得）
-         *         is_active: アクティブ状態でフィルタ（True: アクティブ、False: 非アクティブ）
-         *         project_id: プロジェクトIDでフィルタ（指定したプロジェクトのメンバーのみ取得）
-         *         team_id: チームIDでフィルタ（指定したチームのメンバーのみ取得）
-         *         sort_by: ソートフィールド（デフォルト: "created_at"）
-         *                 使用可能なフィールド: id, name, email, created_at, updated_atなど
-         *         sort_order: ソート順序（"asc": 昇順、"desc": 降順、デフォルト: "desc"）
-         *         current_user: 現在のユーザー（依存性注入）
-         *         db: データベースセッション（依存性注入）
-         *
-         *     Returns:
-         *         UserListResponse: ユーザー一覧とページネーション情報
-         *         {
-         *             "users": [
-         *                 {
-         *                     "id": 1,
-         *                     "email": "user@example.com",
-         *                     "name": "山田太郎",
-         *                     "user_id": "yamada",
-         *                     "is_active": true,
-         *                     "user_roles": [
-         *                         {
-         *                             "id": 1,
-         *                             "role_id": 1,
-         *                             "project_id": null,
-         *                             "role": {
-         *                                 "id": 1,
-         *                                 "name": "ADMIN",
-         *                                 "description": "管理者"
-         *                             }
-         *                         }
-         *                     ],
-         *                     "created_at": "2025-01-01T00:00:00Z",
-         *                     "updated_at": "2025-01-15T10:30:00Z"
-         *                 },
-         *                 ...
-         *             ],
-         *             "total": 50,
-         *             "page": 1,
-         *             "per_page": 20
-         *         }
-         *
-         *     Raises:
-         *         HTTPException(403): 権限がない場合（管理者以外）
-         *
-         *     Examples:
-         *         リクエスト例1（基本的な一覧取得）:
-         *             GET /api/v1/users/?page=1&per_page=20
-         *
-         *         リクエスト例2（検索とフィルタ）:
-         *             GET /api/v1/users/?search=yamada&is_active=true&role_id=1
-         *
-         *         リクエスト例3（プロジェクトメンバーの一覧）:
-         *             GET /api/v1/users/?project_id=1&sort_by=name&sort_order=asc
-         *
-         *         レスポンス例:
-         *             {
-         *                 "users": [
-         *                     {
-         *                         "id": 1,
-         *                         "email": "yamada@example.com",
-         *                         "name": "山田太郎",
-         *                         "user_id": "yamada",
-         *                         "is_active": true,
-         *                         "user_roles": [
-         *                             {
-         *                                 "id": 1,
-         *                                 "role_id": 1,
-         *                                 "project_id": null,
-         *                                 "role": {
-         *                                     "id": 1,
-         *                                     "name": "ADMIN",
-         *                                     "description": "管理者"
-         *                                 }
-         *                             }
-         *                         ],
-         *                         "created_at": "2025-01-01T00:00:00Z",
-         *                         "updated_at": "2025-01-15T10:30:00Z"
-         *                     }
-         *                 ],
-         *                 "total": 50,
-         *                 "page": 1,
-         *                 "per_page": 20
-         *             }
-         *
-         *     Note:
-         *         - eager loadingを使用してN+1問題を回避しています
-         *         - 検索は大文字小文字を区別しません（ILIKE使用）
-         *         - 複数のフィルタ条件を組み合わせることができます
-         *         - ソートフィールドが存在しない場合はデフォルト（created_at）が使用されます
-         *
-         *     フィルタリング・検索:
-         *         - search: 名前、メールアドレス、user_idで部分一致検索（OR条件）
-         *         - role_id: 指定したロールを持つユーザーのみ
-         *         - is_active: アクティブ/非アクティブユーザーのみ
-         *         - project_id: 指定したプロジェクトのメンバーのみ
-         *         - team_id: 指定したチームのメンバーのみ
-         *
-         *     パフォーマンス最適化:
-         *         - joinedload: ユーザーロール情報を一度に取得（N+1問題の回避）
-         *         - インデックス: 検索フィールド（name, email, user_id）にはインデックスが設定されています
+         *     System Admin は active_org_id が指定されていればその組織のユーザー一覧、
+         *     指定されていなければ全ユーザー一覧を取得する。
          */
         get: operations["list_users_api_v1_users__get"];
         put?: never;
@@ -480,7 +521,7 @@ export interface paths {
         };
         /**
          * Get User
-         * @description 特定のユーザー情報を取得します（管理者のみ）
+         * @description ユーザー詳細を取得 (Org Admin or 本人)
          */
         get: operations["get_user_api_v1_users__user_id__get"];
         put?: never;
@@ -490,194 +531,9 @@ export interface paths {
         head?: never;
         /**
          * Update User
-         * @description ユーザー情報を更新します（管理者のみ）
-         *
-         *     注意: ロールの変更は別のエンドポイントを使用してください
+         * @description ユーザー基本情報の更新 (Org Admin or 本人)
          */
         patch: operations["update_user_api_v1_users__user_id__patch"];
-        trace?: never;
-    };
-    "/api/v1/users/{user_id}/roles": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Update User Role
-         * @description ユーザーのロールを更新します（管理者のみ）
-         *
-         *     特定のユーザーロール割り当てのロールを変更します。
-         */
-        put: operations["update_user_role_api_v1_users__user_id__roles_put"];
-        /**
-         * Assign Roles
-         * @description ユーザーにロールを割り当て（管理者専用）
-         *
-         *     指定したユーザーに1つまたは複数のロールを割り当てます。
-         *     グローバルロール（全プロジェクト共通）とプロジェクト固有のロールの
-         *     両方を割り当てることができます。RBAC権限管理の中核となる機能です。
-         *
-         *     認証:
-         *         - 認証必須（アクティブなユーザーのみ）
-         *         - 権限: ADMINロールが必要
-         *
-         *     処理フロー:
-         *         1. ユーザーの権限を確認（デコレーターで自動実行）
-         *         2. 対象ユーザーの存在を確認
-         *         3. 各ロール割り当てについて:
-         *            a. ロールの存在を確認
-         *            b. 既存の割り当てがないかチェック
-         *            c. 新規の場合のみUserRoleレコードを作成
-         *         4. データベースにコミット
-         *         5. 更新されたユーザー情報を返却
-         *
-         *     Args:
-         *         user_id: 対象ユーザーのID
-         *         request: ロール割り当てリクエスト
-         *                 assignments: ロール割り当ての配列
-         *                     - role_id: 割り当てるロールのID（必須）
-         *                     - project_id: プロジェクトID（プロジェクト固有ロールの場合のみ、オプション）
-         *         current_user: 現在のユーザー（依存性注入）
-         *         db: データベースセッション（依存性注入）
-         *
-         *     Returns:
-         *         UserResponse: 更新されたユーザー情報（ロール情報を含む）
-         *         {
-         *             "id": 5,
-         *             "email": "user@example.com",
-         *             "name": "佐藤次郎",
-         *             "user_id": "sato",
-         *             "is_active": true,
-         *             "user_roles": [
-         *                 {
-         *                     "id": 10,
-         *                     "role_id": 2,
-         *                     "project_id": null,
-         *                     "role": {
-         *                         "id": 2,
-         *                         "name": "PROJECT_LEADER",
-         *                         "description": "プロジェクトリーダー"
-         *                     }
-         *                 },
-         *                 {
-         *                     "id": 11,
-         *                     "role_id": 3,
-         *                     "project_id": 1,
-         *                     "role": {
-         *                         "id": 3,
-         *                         "name": "MEMBER",
-         *                         "description": "一般メンバー"
-         *                     }
-         *                 }
-         *             ],
-         *             "created_at": "2025-01-01T00:00:00Z",
-         *             "updated_at": "2025-01-15T10:30:00Z"
-         *         }
-         *
-         *     Raises:
-         *         HTTPException(403): 権限がない場合（管理者以外）
-         *         HTTPException(404): ユーザーまたはロールが見つからない場合
-         *         HTTPException(400): 指定されたロールIDが無効な場合
-         *
-         *     Examples:
-         *         リクエスト例1（グローバルロールの割り当て）:
-         *             POST /api/v1/users/5/roles
-         *             Content-Type: application/json
-         *             Cookie: auth_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-         *
-         *             {
-         *                 "assignments": [
-         *                     {
-         *                         "role_id": 2,
-         *                         "project_id": null
-         *                     }
-         *                 ]
-         *             }
-         *
-         *         リクエスト例2（プロジェクト固有ロールの割り当て）:
-         *             POST /api/v1/users/5/roles
-         *             Content-Type: application/json
-         *
-         *             {
-         *                 "assignments": [
-         *                     {
-         *                         "role_id": 3,
-         *                         "project_id": 1
-         *                     },
-         *                     {
-         *                         "role_id": 3,
-         *                         "project_id": 2
-         *                     }
-         *                 ]
-         *             }
-         *
-         *         リクエスト例3（複数ロールの同時割り当て）:
-         *             POST /api/v1/users/5/roles
-         *             Content-Type: application/json
-         *
-         *             {
-         *                 "assignments": [
-         *                     {
-         *                         "role_id": 2,
-         *                         "project_id": null
-         *                     },
-         *                     {
-         *                         "role_id": 3,
-         *                         "project_id": 1
-         *                     }
-         *                 ]
-         *             }
-         *
-         *     Note:
-         *         - 既に同じロールが割り当てられている場合はスキップされます（重複チェック）
-         *         - グローバルロール: project_idがnullの場合、全プロジェクトに適用
-         *         - プロジェクト固有ロール: project_idを指定すると、そのプロジェクトのみで有効
-         *         - 複数のロールを一度に割り当てることができます
-         *         - 割り当て後、すぐに権限が反映されます
-         *
-         *     ロールの種類:
-         *         - ADMIN: システム全体の管理者権限
-         *         - PROJECT_LEADER: プロジェクトリーダー権限
-         *         - MEMBER: 一般メンバー権限
-         *         - VIEWER: 閲覧のみの権限
-         *
-         *     RBAC権限管理:
-         *         - ロールはpermissionsテーブルと連携して権限を管理
-         *         - プロジェクト固有のロールは、そのプロジェクト内でのみ有効
-         *         - グローバルロールはシステム全体で有効
-         */
-        post: operations["assign_roles_api_v1_users__user_id__roles_post"];
-        /**
-         * Remove Roles
-         * @description ユーザーからロールを削除します（管理者のみ）
-         */
-        delete: operations["remove_roles_api_v1_users__user_id__roles_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/users/roles/available": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Available Roles
-         * @description 割り当て可能なロール一覧を取得します（管理者のみ）
-         */
-        get: operations["get_available_roles_api_v1_users_roles_available_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
         trace?: never;
     };
     "/api/v1/teams/": {
@@ -1813,23 +1669,17 @@ export interface paths {
         };
         /**
          * Get All Settings
-         * @description 全設定を取得する（管理者のみ）
+         * @description 全設定を取得する (System Admin)
          */
         get: operations["get_all_settings_api_v1_settings__get"];
         /**
          * Update All Settings
-         * @description 全設定を一括更新する（管理者のみ）
-         *
-         *     Args:
-         *         settings_data: 更新する設定データ
+         * @description 全設定を一括更新する (System Admin)
          */
         put: operations["update_all_settings_api_v1_settings__put"];
         /**
          * Create Setting
-         * @description 新しい設定を作成する（管理者のみ）
-         *
-         *     Args:
-         *         setting_data: 設定作成データ
+         * @description 新しい設定を作成する (System Admin)
          */
         post: operations["create_setting_api_v1_settings__post"];
         delete?: never;
@@ -1847,10 +1697,7 @@ export interface paths {
         };
         /**
          * Get Settings By Group
-         * @description グループごとの設定を取得する（管理者のみ）
-         *
-         *     Args:
-         *         group: 設定グループ（email, security, sync, system）
+         * @description グループごとの設定を取得する (System Admin)
          */
         get: operations["get_settings_by_group_api_v1_settings__group__get"];
         put?: never;
@@ -1870,10 +1717,7 @@ export interface paths {
         };
         /**
          * Get Setting
-         * @description 特定の設定を取得する（管理者のみ）
-         *
-         *     Args:
-         *         key: 設定キー
+         * @description 特定の設定を取得する (System Admin)
          */
         get: operations["get_setting_api_v1_settings_key__key__get"];
         put?: never;
@@ -1894,20 +1738,13 @@ export interface paths {
         get?: never;
         /**
          * Update Setting
-         * @description 設定を更新する（管理者のみ）
-         *
-         *     Args:
-         *         key: 設定キー
-         *         update_data: 更新データ
+         * @description 設定を更新する (System Admin)
          */
         put: operations["update_setting_api_v1_settings__key__put"];
         post?: never;
         /**
          * Delete Setting
-         * @description 設定を削除する（管理者のみ）
-         *
-         *     Args:
-         *         key: 設定キー
+         * @description 設定を削除する (System Admin)
          */
         delete: operations["delete_setting_api_v1_settings__key__delete"];
         options?: never;
@@ -2024,6 +1861,161 @@ export interface components {
              * @description チェック実行時刻
              */
             timestamp: string;
+        };
+        /**
+         * OrganizationCreate
+         * @description 組織作成リクエスト (System Admin のみ)
+         */
+        OrganizationCreate: {
+            /**
+             * Name
+             * @description 組織名
+             */
+            name: string;
+            /**
+             * Slug
+             * @description 組織 slug (英小文字+ハイフン)
+             */
+            slug: string;
+            /**
+             * Fiscal Year Start Month
+             * @description 年度開始月 (1-12)
+             * @default 4
+             */
+            fiscal_year_start_month: number;
+            /**
+             * Timezone
+             * @description 組織のタイムゾーン
+             * @default Asia/Tokyo
+             */
+            timezone: string;
+            /**
+             * Settings
+             * @description 組織別設定 (JSONB)
+             */
+            settings?: Record<string, never>;
+        };
+        /**
+         * OrganizationMemberCreate
+         * @description 組織メンバー追加 (Org Admin)
+         */
+        OrganizationMemberCreate: {
+            /**
+             * User Id
+             * @description 追加するユーザー ID
+             */
+            user_id: number;
+            /**
+             * Role
+             * @description 組織内ロール (ADMIN / PROJECT_LEADER / MEMBER)
+             * @default MEMBER
+             */
+            role: string;
+        };
+        /**
+         * OrganizationMemberResponse
+         * @description 組織メンバーシップレスポンス
+         */
+        OrganizationMemberResponse: {
+            /** Id */
+            id: number;
+            /** Organization Id */
+            organization_id: number;
+            /** User Id */
+            user_id: number;
+            /** User Email */
+            user_email?: string | null;
+            /** User Name */
+            user_name?: string | null;
+            /** Role */
+            role: string;
+            /**
+             * Joined At
+             * Format: date-time
+             */
+            joined_at: string;
+        };
+        /**
+         * OrganizationMemberUpdate
+         * @description 組織メンバーロール変更 (Org Admin)
+         */
+        OrganizationMemberUpdate: {
+            /** Role */
+            role: string;
+        };
+        /**
+         * OrganizationMembershipResponse
+         * @description ユーザーの組織所属情報 (organization_members.role を含む)
+         */
+        OrganizationMembershipResponse: {
+            /**
+             * Organization Id
+             * @description 組織 ID
+             */
+            organization_id: number;
+            /**
+             * Organization Name
+             * @description 組織名
+             */
+            organization_name?: string | null;
+            /**
+             * Organization Slug
+             * @description 組織 slug
+             */
+            organization_slug?: string | null;
+            /**
+             * Role
+             * @description 組織内ロール (ADMIN / PROJECT_LEADER / MEMBER)
+             */
+            role: string;
+        };
+        /**
+         * OrganizationResponse
+         * @description 組織レスポンス
+         */
+        OrganizationResponse: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+            /** Fiscal Year Start Month */
+            fiscal_year_start_month: number;
+            /** Timezone */
+            timezone: string;
+            /** Settings */
+            settings: Record<string, never>;
+            /** Is Active */
+            is_active: boolean;
+            /** Deleted At */
+            deleted_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * OrganizationUpdate
+         * @description 組織更新リクエスト (System Admin or Org Admin、フィールドは部分更新)
+         */
+        OrganizationUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Fiscal Year Start Month */
+            fiscal_year_start_month?: number | null;
+            /** Timezone */
+            timezone?: string | null;
+            /** Settings */
+            settings?: Record<string, never> | null;
+            /** Is Active */
+            is_active?: boolean | null;
         };
         /**
          * ProjectBrief
@@ -2166,27 +2158,6 @@ export interface components {
          * @enum {string}
          */
         ReportType: "daily" | "weekly" | "monthly";
-        /**
-         * RoleResponse
-         * @description ロール情報のレスポンススキーマ
-         */
-        RoleResponse: {
-            /**
-             * Id
-             * @description ロールID
-             */
-            id: number;
-            /**
-             * Name
-             * @description ロール名
-             */
-            name: string;
-            /**
-             * Description
-             * @description ロールの説明
-             */
-            description?: string | null;
-        };
         /**
          * SecuritySettings
          * @description セキュリティ設定
@@ -2334,6 +2305,17 @@ export interface components {
             email?: components["schemas"]["EmailSettings"] | null;
             security?: components["schemas"]["SecuritySettings"] | null;
             system?: components["schemas"]["SystemSettings"] | null;
+        };
+        /**
+         * SwitchOrganizationRequest
+         * @description 組織切替リクエスト
+         */
+        SwitchOrganizationRequest: {
+            /**
+             * Organization Id
+             * @description 切り替え先の組織 ID
+             */
+            organization_id: number;
         };
         /**
          * SystemSettings
@@ -2699,6 +2681,33 @@ export interface components {
             email?: string | null;
         };
         /**
+         * TokenRefreshResponse
+         * @description トークンリフレッシュレスポンス
+         */
+        TokenRefreshResponse: {
+            /**
+             * Access Token
+             * @description 新しい JWT アクセストークン
+             */
+            access_token: string;
+            /**
+             * Refresh Token
+             * @description 新しい JWT リフレッシュトークン
+             */
+            refresh_token: string;
+            /**
+             * Token Type
+             * @description トークンタイプ
+             * @default bearer
+             */
+            token_type: string;
+            /**
+             * Active Org Id
+             * @description 現在の active_org_id
+             */
+            active_org_id?: number | null;
+        };
+        /**
          * UserBrief
          * @description ユーザー簡易情報
          */
@@ -2712,19 +2721,19 @@ export interface components {
         };
         /**
          * UserInfo
-         * @description 基本的なユーザー情報（他のスキーマで使用）
+         * @description 基本的なユーザー情報 (他のスキーマで使用)
          */
         UserInfo: {
             /**
              * Id
-             * @description ユーザーID
+             * @description ユーザー ID
              */
             id: number;
             /**
              * Name
              * @description ユーザー名
              */
-            name: string;
+            name?: string | null;
             /**
              * Email
              * @description メールアドレス
@@ -2733,21 +2742,20 @@ export interface components {
         };
         /**
          * UserInfoResponse
-         * @description ユーザー情報のレスポンススキーマ
+         * @description ユーザー情報のレスポンス (Phase 0: organizations 配列を含む)
          * @example {
          *       "email": "user@example.com",
+         *       "full_name": "山田 太郎",
          *       "id": 1,
          *       "is_active": true,
+         *       "is_system_admin": false,
          *       "name": "山田太郎",
-         *       "user_roles": [
+         *       "organizations": [
          *         {
-         *           "id": 1,
-         *           "role": {
-         *             "description": "システム管理者",
-         *             "id": 1,
-         *             "name": "ADMIN"
-         *           },
-         *           "role_id": 1
+         *           "organization_id": 1,
+         *           "organization_name": "Default Organization",
+         *           "organization_slug": "default",
+         *           "role": "ADMIN"
          *         }
          *       ]
          *     }
@@ -2755,7 +2763,7 @@ export interface components {
         UserInfoResponse: {
             /**
              * Id
-             * @description 内部ユーザーID
+             * @description 内部ユーザー ID
              */
             id: number;
             /**
@@ -2767,22 +2775,33 @@ export interface components {
              * Name
              * @description ユーザー名
              */
-            name: string;
+            name?: string | null;
             /**
-             * User Roles
-             * @description ユーザーのロール一覧
+             * Full Name
+             * @description フルネーム
              */
-            user_roles?: components["schemas"]["UserRoleResponse"][];
+            full_name?: string | null;
             /**
              * Is Active
              * @description アカウントの有効状態
              * @default true
              */
             is_active: boolean;
+            /**
+             * Is System Admin
+             * @description System Admin フラグ
+             * @default false
+             */
+            is_system_admin: boolean;
+            /**
+             * Organizations
+             * @description ユーザーの所属組織一覧
+             */
+            organizations?: components["schemas"]["OrganizationMembershipResponse"][];
         };
         /**
          * UserListResponse
-         * @description ユーザー一覧レスポンススキーマ
+         * @description ユーザー一覧レスポンス
          */
         UserListResponse: {
             /**
@@ -2802,7 +2821,7 @@ export interface components {
             page: number;
             /**
              * Per Page
-             * @description 1ページあたりの件数
+             * @description 1 ページあたりの件数
              */
             per_page: number;
         };
@@ -2820,7 +2839,7 @@ export interface components {
         };
         /**
          * UserResponse
-         * @description ユーザー情報レスポンススキーマ
+         * @description ユーザー情報レスポンス (Phase 0: organizations 配列を含む)
          */
         UserResponse: {
             /**
@@ -2832,7 +2851,7 @@ export interface components {
              * Name
              * @description ユーザー名
              */
-            name: string;
+            name?: string | null;
             /**
              * Is Active
              * @description アクティブ状態
@@ -2841,14 +2860,20 @@ export interface components {
             is_active: boolean;
             /**
              * Id
-             * @description ユーザーID
+             * @description ユーザー ID
              */
             id: number;
             /**
-             * User Roles
-             * @description ユーザーのロール一覧
+             * Is System Admin
+             * @description System Admin フラグ
+             * @default false
              */
-            user_roles?: components["schemas"]["UserRoleResponse"][];
+            is_system_admin: boolean;
+            /**
+             * Organizations
+             * @description ユーザーの所属組織一覧
+             */
+            organizations?: components["schemas"]["OrganizationMembershipResponse"][];
             /**
              * Timezone
              * @description タイムゾーン
@@ -2879,83 +2904,6 @@ export interface components {
              * @description 更新日時
              */
             updated_at: string;
-        };
-        /**
-         * UserRoleAssignment
-         * @description ユーザーロール割り当てスキーマ
-         */
-        UserRoleAssignment: {
-            /**
-             * Role Id
-             * @description ロールID
-             */
-            role_id: number;
-            /**
-             * Project Id
-             * @description プロジェクトID（NULLの場合はグローバルロール）
-             */
-            project_id?: number | null;
-        };
-        /**
-         * UserRoleAssignmentRequest
-         * @description ユーザーロール割り当てリクエストスキーマ
-         */
-        UserRoleAssignmentRequest: {
-            /**
-             * Assignments
-             * @description 割り当てるロールのリスト
-             */
-            assignments: components["schemas"]["UserRoleAssignment"][];
-        };
-        /**
-         * UserRoleRemovalRequest
-         * @description ユーザーロール削除リクエストスキーマ
-         */
-        UserRoleRemovalRequest: {
-            /**
-             * User Role Ids
-             * @description 削除するユーザーロールIDのリスト
-             */
-            user_role_ids: number[];
-        };
-        /**
-         * UserRoleResponse
-         * @description ユーザーロール情報のレスポンススキーマ
-         */
-        UserRoleResponse: {
-            /**
-             * Id
-             * @description ユーザーロールID
-             */
-            id: number;
-            /**
-             * Role Id
-             * @description ロールID
-             */
-            role_id: number;
-            /**
-             * Project Id
-             * @description プロジェクトID（NULLの場合はグローバルロール）
-             */
-            project_id?: number | null;
-            /** @description ロール情報 */
-            role: components["schemas"]["RoleResponse"];
-        };
-        /**
-         * UserRoleUpdateRequest
-         * @description ユーザーロール更新リクエストスキーマ
-         */
-        UserRoleUpdateRequest: {
-            /**
-             * User Role Id
-             * @description 更新するユーザーロールID
-             */
-            user_role_id: number;
-            /**
-             * Role Id
-             * @description 新しいロールID
-             */
-            role_id: number;
         };
         /**
          * UserSettingsUpdate
@@ -3092,7 +3040,40 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["TokenRefreshResponse"];
+                };
+            };
+        };
+    };
+    switch_organization_api_v1_auth_switch_organization_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SwitchOrganizationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenRefreshResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -3113,6 +3094,322 @@ export interface operations {
                 };
                 content: {
                     "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    list_my_organizations_api_v1_organizations_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationResponse"][];
+                };
+            };
+        };
+    };
+    get_organization_api_v1_organizations__organization_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 組織 ID */
+                organization_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_organization_api_v1_organizations__organization_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_organization_members_api_v1_organizations__organization_id__members_get: {
+        parameters: {
+            query?: {
+                skip?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                organization_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationMemberResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_organization_member_api_v1_organizations__organization_id__members_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationMemberCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationMemberResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_organization_member_api_v1_organizations__organization_id__members__user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: number;
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_organization_member_api_v1_organizations__organization_id__members__user_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: number;
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationMemberUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationMemberResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_all_organizations_api_v1_system_organizations_get: {
+        parameters: {
+            query?: {
+                skip?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_organization_api_v1_system_organizations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_organization_api_v1_system_organizations__organization_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -3501,24 +3798,11 @@ export interface operations {
     list_users_api_v1_users__get: {
         parameters: {
             query?: {
-                /** @description ページ番号 */
                 page?: number;
-                /** @description 1ページあたりの件数 */
                 per_page?: number;
-                /** @description 検索キーワード（名前、メールアドレス） */
+                /** @description 名前 / メールでの部分一致検索 */
                 search?: string | null;
-                /** @description ロールIDでフィルタ */
-                role_id?: number | null;
-                /** @description アクティブ状態でフィルタ */
                 is_active?: boolean | null;
-                /** @description プロジェクトIDでフィルタ */
-                project_id?: number | null;
-                /** @description チームIDでフィルタ */
-                team_id?: number | null;
-                /** @description ソートフィールド */
-                sort_by?: string | null;
-                /** @description ソート順序（asc/desc） */
-                sort_order?: string | null;
             };
             header?: never;
             path?: never;
@@ -3608,131 +3892,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_user_role_api_v1_users__user_id__roles_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UserRoleUpdateRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    assign_roles_api_v1_users__user_id__roles_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UserRoleAssignmentRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    remove_roles_api_v1_users__user_id__roles_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UserRoleRemovalRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_available_roles_api_v1_users_roles_available_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RoleResponse"][];
                 };
             };
         };
