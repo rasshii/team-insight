@@ -11,7 +11,6 @@ from datetime import datetime, timedelta, timezone
 
 from app.db.session import SessionLocal
 from app.models.user import User
-from app.models.auth import OAuthToken, OAuthState
 from app.models.project import Project
 from app.core.security import create_access_token
 from sqlalchemy import delete, text
@@ -31,18 +30,20 @@ def clean_database():
         db.execute(text("DELETE FROM team_insight.report_delivery_history"))
         db.execute(text("DELETE FROM team_insight.report_schedules"))
         db.execute(text("DELETE FROM team_insight.tasks"))
+        # 旧 Backlog 連携テーブル (Phase 7 で完全 DROP 予定、それまで cleanup)
         db.execute(text("DELETE FROM team_insight.sync_histories"))
+        db.execute(text("DELETE FROM team_insight.oauth_tokens"))
+        db.execute(text("DELETE FROM team_insight.oauth_states"))
         db.execute(text("DELETE FROM team_insight.team_members"))
         db.execute(text("DELETE FROM team_insight.teams"))
         db.execute(text("DELETE FROM team_insight.project_members"))
         db.execute(text("DELETE FROM team_insight.user_roles"))
         db.execute(text("DELETE FROM team_insight.user_preferences"))
-        db.execute(delete(OAuthToken))
-        db.execute(delete(OAuthState))
         db.execute(delete(Project))
-        db.execute(delete(User).where(User.email.in_(["test@example.com", "admin@example.com", "projecttest@example.com"])))
+        # 全ユーザーを削除 (テスト隔離のため)。本番の初期管理者保護はテスト対象外
+        db.execute(delete(User))
         db.commit()
-        
+
         # RBACの基本ロールをセットアップ
         roles_data = [
             {"name": RoleType.ADMIN.value, "description": "Admin", "is_system": True},
@@ -70,16 +71,18 @@ def clean_database():
         db.execute(text("DELETE FROM team_insight.report_delivery_history"))
         db.execute(text("DELETE FROM team_insight.report_schedules"))
         db.execute(text("DELETE FROM team_insight.tasks"))
+        # 旧 Backlog 連携テーブル (Phase 7 で完全 DROP 予定、それまで cleanup)
         db.execute(text("DELETE FROM team_insight.sync_histories"))
+        db.execute(text("DELETE FROM team_insight.oauth_tokens"))
+        db.execute(text("DELETE FROM team_insight.oauth_states"))
         db.execute(text("DELETE FROM team_insight.team_members"))
         db.execute(text("DELETE FROM team_insight.teams"))
         db.execute(text("DELETE FROM team_insight.project_members"))
         db.execute(text("DELETE FROM team_insight.user_roles"))
         db.execute(text("DELETE FROM team_insight.user_preferences"))
-        db.execute(delete(OAuthToken))
-        db.execute(delete(OAuthState))
         db.execute(delete(Project))
-        db.execute(delete(User).where(User.email.in_(["test@example.com", "admin@example.com", "projecttest@example.com"])))
+        # 全ユーザーを削除 (テスト隔離のため)。本番の初期管理者保護はテスト対象外
+        db.execute(delete(User))
         db.commit()
     except Exception as e:
         db.rollback()
@@ -98,8 +101,6 @@ def test_user():
         full_name="テストユーザー",
         is_active=True,
         is_superuser=False,
-        backlog_id=12345,
-        user_id="test_user_id",
         name="テストユーザー"
     )
     db.add(user)
@@ -107,47 +108,6 @@ def test_user():
     db.refresh(user)
     yield user
     db.delete(user)
-    db.commit()
-    db.close()
-
-@pytest.fixture(scope="function")
-def test_oauth_token(test_user):
-    """
-    テスト用OAuthTokenをDBに投入し、テスト後に削除するfixture
-    """
-    db = SessionLocal()
-    token = OAuthToken(
-        user_id=test_user.id,
-        provider="backlog",
-        access_token="dummy_access_token",
-        refresh_token="dummy_refresh_token",
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=1)
-    )
-    db.add(token)
-    db.commit()
-    db.refresh(token)
-    yield token
-    db.delete(token)
-    db.commit()
-    db.close()
-
-@pytest.fixture(scope="function")
-def test_oauth_state(test_user):
-    """
-    テスト用OAuthStateをDBに投入し、テスト後に削除するfixture
-    """
-    db = SessionLocal()
-    state = OAuthState(
-        state="test_state",
-        user_id=test_user.id,
-        created_at=datetime.now(timezone.utc),
-        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10)
-    )
-    db.add(state)
-    db.commit()
-    db.refresh(state)
-    yield state
-    db.delete(state)
     db.commit()
     db.close()
 
@@ -175,15 +135,13 @@ def auth_cookies(test_user) -> dict:
 
 @pytest.fixture
 def test_superuser():
-    """テスト用管理者ユーザー（Backlog OAuth専用）"""
+    """テスト用管理者ユーザー"""
     db = SessionLocal()
     user = User(
         email="admin@example.com",
         full_name="管理者",
         is_active=True,
         is_superuser=True,
-        backlog_id=99999,
-        user_id="admin_user_id",
         name="管理者"
     )
     db.add(user)
@@ -216,23 +174,6 @@ def db_session() -> Generator:
 # ========== 外部サービスのモック ==========
 
 @pytest.fixture
-def mock_backlog_client():
-    """Backlog APIクライアントのモック"""
-    with patch("app.services.backlog.BacklogClient") as mock:
-        # デフォルトのレスポンスを設定
-        mock.return_value.get_project.return_value = {
-            "id": 1,
-            "projectKey": "TEST",
-            "name": "Test Project",
-        }
-        mock.return_value.get_issues.return_value = [
-            {"id": 1, "summary": "Test Issue 1"},
-            {"id": 2, "summary": "Test Issue 2"},
-        ]
-        yield mock
-
-
-@pytest.fixture
 def mock_redis():
     """Redisクライアントのモック"""
     with patch("app.core.redis_client.redis_client") as mock:
@@ -253,7 +194,6 @@ def test_project(test_user):
     user = db.query(User).filter(User.id == test_user.id).first()
     
     project = Project(
-        backlog_id=1234,
         name="Test Project",
         description="Test project description",
         project_key="TEST"
@@ -290,7 +230,6 @@ def sample_project_data():
     return {
         "name": "Test Project",
         "description": "This is a test project",
-        "backlog_project_id": "TEST-001",
         "is_active": True,
     }
 

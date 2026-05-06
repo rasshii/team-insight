@@ -59,8 +59,6 @@ class TestTeamRepository:
             name="Team Leader",
             full_name="Team Leader",
             is_active=True,
-            backlog_id=60001,
-            user_id="team_leader"
         )
         db_session.add(leader)
         db_session.commit()
@@ -94,8 +92,6 @@ class TestTeamRepository:
     ) -> Task:
         """チームメンバーのタスクを作成するフィクスチャ"""
         task = Task(
-            backlog_id=2001,
-            backlog_key="TEAM-1",
             project_id=test_project.id,
             assignee_id=test_user.id,
             reporter_id=test_user.id,
@@ -228,8 +224,6 @@ class TestTeamRepository:
             name="New User",
             full_name="New User",
             is_active=True,
-            backlog_id=70001,
-            user_id="new_user"
         )
         db_session.add(new_user)
         db_session.commit()

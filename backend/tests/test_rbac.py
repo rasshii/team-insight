@@ -80,7 +80,6 @@ class TestPermissionChecker:
         db_session.commit()
         
         project = Project(
-            backlog_id=9999,
             name="Test Project for RBAC",
             project_key="RBAC-TEST"
         )
@@ -289,7 +288,6 @@ class TestRoleInheritance:
         """管理者は全てのプロジェクト権限を継承する"""
         # プロジェクトを作成（管理者はメンバーでなくても可）
         project = Project(
-            backlog_id=8888,
             name="Admin Test Project",
             project_key="ADMIN-TEST"
         )

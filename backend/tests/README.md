@@ -127,9 +127,9 @@ pytest --cov=app --cov-report=html
 ```python
 # 1. 外部API
 @patch('requests.get')
-def test_backlog_api_call(mock_get):
+def test_external_api_call(mock_get):
     mock_get.return_value.json.return_value = {"id": 1, "name": "Task"}
-    result = fetch_backlog_task(1)
+    result = fetch_external_task(1)
     assert result["name"] == "Task"
 
 # 2. 時間依存の処理
@@ -171,7 +171,7 @@ def test_password_hashing():
 
 | 対象 | モック使用 | 理由 |
 |------|-----------|------|
-| Backlog API | ✅ 必須 | 外部サービス、レート制限、安定性 |
+| 外部 API（HTTP） | ✅ 必須 | 外部サービス、レート制限、安定性 |
 | データベース（単体テスト） | ✅ 推奨 | テスト速度、独立性 |
 | データベース（統合テスト） | ❌ 使わない | 実際の動作確認が必要 |
 | Redis（単体テスト） | ✅ 推奨 | テスト速度 |
@@ -231,9 +231,10 @@ async def test_user(test_db):
     await delete_user(test_db, user.id)
 
 @pytest.fixture
-def mock_backlog_client():
-    """Backlog APIクライアントのモック"""
-    with patch('app.services.backlog.BacklogClient') as mock:
-        mock.get_project.return_value = {"id": 1, "name": "Test"}
+def mock_redis():
+    """Redisクライアントのモック"""
+    with patch('app.core.redis_client.redis_client') as mock:
+        mock.get = Mock(return_value=None)
+        mock.set = Mock(return_value=True)
         yield mock
 ```

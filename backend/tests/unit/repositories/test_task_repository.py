@@ -23,8 +23,6 @@ class TestTaskRepository:
     def sample_task(self, db_session: Session, test_user: User, test_project: Project) -> Task:
         """サンプルタスクを作成するフィクスチャ"""
         task = Task(
-            backlog_id=1001,
-            backlog_key="TEST-1",
             project_id=test_project.id,
             assignee_id=test_user.id,
             reporter_id=test_user.id,
@@ -43,8 +41,6 @@ class TestTaskRepository:
     def overdue_task(self, db_session: Session, test_user: User, test_project: Project) -> Task:
         """期限切れタスクを作成するフィクスチャ"""
         task = Task(
-            backlog_id=1002,
-            backlog_key="TEST-2",
             project_id=test_project.id,
             assignee_id=test_user.id,
             reporter_id=test_user.id,
@@ -63,8 +59,6 @@ class TestTaskRepository:
     def completed_task(self, db_session: Session, test_user: User, test_project: Project) -> Task:
         """完了済みタスクを作成するフィクスチャ"""
         task = Task(
-            backlog_id=1003,
-            backlog_key="TEST-3",
             project_id=test_project.id,
             assignee_id=test_user.id,
             reporter_id=test_user.id,
@@ -79,59 +73,6 @@ class TestTaskRepository:
         db_session.commit()
         db_session.refresh(task)
         return task
-
-    def test_get_by_backlog_key_success(self, db_session: Session, sample_task: Task):
-        """
-        Backlogキーによるタスク検索をテスト（成功ケース）
-
-        期待される動作:
-        - 存在するBacklogキーで正しいタスクが返される
-        """
-        # Arrange（準備）
-        repo = TaskRepository(db_session)
-
-        # Act（実行）
-        found_task = repo.get_by_backlog_key(sample_task.backlog_key)
-
-        # Assert（検証）
-        assert found_task is not None
-        assert found_task.id == sample_task.id
-        assert found_task.backlog_key == sample_task.backlog_key
-        assert found_task.title == sample_task.title
-
-    def test_get_by_backlog_key_not_found(self, db_session: Session):
-        """
-        Backlogキーによるタスク検索をテスト（存在しないケース）
-
-        期待される動作:
-        - 存在しないBacklogキーでNoneが返される
-        """
-        # Arrange（準備）
-        repo = TaskRepository(db_session)
-
-        # Act（実行）
-        not_found_task = repo.get_by_backlog_key("NOTEXIST-999")
-
-        # Assert（検証）
-        assert not_found_task is None
-
-    def test_get_by_backlog_id_success(self, db_session: Session, sample_task: Task):
-        """
-        Backlog IDによるタスク検索をテスト（成功ケース）
-
-        期待される動作:
-        - 存在するBacklog IDで正しいタスクが返される
-        """
-        # Arrange（準備）
-        repo = TaskRepository(db_session)
-
-        # Act（実行）
-        found_task = repo.get_by_backlog_id(sample_task.backlog_id)
-
-        # Assert（検証）
-        assert found_task is not None
-        assert found_task.id == sample_task.id
-        assert found_task.backlog_id == sample_task.backlog_id
 
     def test_get_with_relations(self, db_session: Session, sample_task: Task):
         """

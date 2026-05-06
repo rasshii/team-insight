@@ -55,58 +55,6 @@ class TestUserRepository:
         # Assert（検証）
         assert not_found_user is None
 
-    def test_get_by_backlog_id_success(self, db_session: Session, test_user: User):
-        """
-        Backlog IDによるユーザー検索をテスト（成功ケース）
-
-        期待される動作:
-        - 存在するBacklog IDで正しいユーザーが返される
-        """
-        # Arrange（準備）
-        repo = UserRepository(db_session)
-
-        # Act（実行）
-        found_user = repo.get_by_backlog_id(test_user.backlog_id)
-
-        # Assert（検証）
-        assert found_user is not None
-        assert found_user.id == test_user.id
-        assert found_user.backlog_id == test_user.backlog_id
-
-    def test_get_by_backlog_id_not_found(self, db_session: Session):
-        """
-        Backlog IDによるユーザー検索をテスト（存在しないケース）
-
-        期待される動作:
-        - 存在しないBacklog IDでNoneが返される
-        """
-        # Arrange（準備）
-        repo = UserRepository(db_session)
-
-        # Act（実行）
-        not_found_user = repo.get_by_backlog_id(99999)
-
-        # Assert（検証）
-        assert not_found_user is None
-
-    def test_get_by_user_id_success(self, db_session: Session, test_user: User):
-        """
-        ユーザーID（文字列）によるユーザー検索をテスト（成功ケース）
-
-        期待される動作:
-        - 存在するユーザーIDで正しいユーザーが返される
-        """
-        # Arrange（準備）
-        repo = UserRepository(db_session)
-
-        # Act（実行）
-        found_user = repo.get_by_user_id(test_user.user_id)
-
-        # Assert（検証）
-        assert found_user is not None
-        assert found_user.id == test_user.id
-        assert found_user.user_id == test_user.user_id
-
     def test_get_with_roles_returns_user_with_roles(self, db_session: Session, test_user: User):
         """
         ロール情報を含むユーザー取得をテスト（N+1問題対策の確認）
@@ -193,16 +141,12 @@ class TestUserRepository:
             name="田中太郎",
             full_name="田中太郎",
             is_active=True,
-            backlog_id=10001,
-            user_id="tanaka"
         )
         user2 = User(
             email="suzuki@example.com",
             name="鈴木次郎",
             full_name="鈴木次郎",
             is_active=True,
-            backlog_id=10002,
-            user_id="suzuki"
         )
         db_session.add_all([user1, user2])
         db_session.commit()
@@ -230,16 +174,12 @@ class TestUserRepository:
             name="User 1",
             full_name="User 1",
             is_active=True,
-            backlog_id=10003,
-            user_id="user1"
         )
         user2 = User(
             email="test2@another.com",
             name="User 2",
             full_name="User 2",
             is_active=True,
-            backlog_id=10004,
-            user_id="user2"
         )
         db_session.add_all([user1, user2])
         db_session.commit()
@@ -268,8 +208,6 @@ class TestUserRepository:
                 name=f"Test User {i}",
                 full_name=f"Test User {i}",
                 is_active=True,
-                backlog_id=20000 + i,
-                user_id=f"testuser{i}"
             )
             db_session.add(user)
         db_session.commit()
@@ -301,16 +239,12 @@ class TestUserRepository:
             name="Active User",
             full_name="Active User",
             is_active=True,
-            backlog_id=30001,
-            user_id="active_user"
         )
         inactive_user = User(
             email="inactive@example.com",
             name="Inactive User",
             full_name="Inactive User",
             is_active=False,
-            backlog_id=30002,
-            user_id="inactive_user"
         )
         db_session.add_all([active_user, inactive_user])
         db_session.commit()
@@ -343,8 +277,6 @@ class TestUserRepository:
                 name=f"Active {i}",
                 full_name=f"Active {i}",
                 is_active=True,
-                backlog_id=40000 + i,
-                user_id=f"active{i}"
             )
             db_session.add(user)
         db_session.commit()
@@ -373,8 +305,6 @@ class TestUserRepository:
             full_name="Admin User",
             is_active=True,
             is_superuser=True,
-            backlog_id=50001,
-            user_id="admin_user"
         )
         db_session.add(admin_user)
         db_session.commit()

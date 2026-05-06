@@ -32,8 +32,6 @@ class TestTaskService:
         # TODOタスク（優先度: 高）
         for i in range(3):
             task = Task(
-                backlog_id=3000 + i,
-                backlog_key=f"TASK-{i}",
                 project_id=test_project.id,
                 assignee_id=test_user.id,
                 reporter_id=test_user.id,
@@ -50,8 +48,6 @@ class TestTaskService:
         # IN_PROGRESSタスク（優先度: 中）
         for i in range(2):
             task = Task(
-                backlog_id=3100 + i,
-                backlog_key=f"TASK-{100 + i}",
                 project_id=test_project.id,
                 assignee_id=test_user.id,
                 reporter_id=test_user.id,
@@ -68,8 +64,6 @@ class TestTaskService:
         # CLOSEDタスク（優先度: 低）
         for i in range(4):
             task = Task(
-                backlog_id=3200 + i,
-                backlog_key=f"TASK-{200 + i}",
                 project_id=test_project.id,
                 assignee_id=test_user.id,
                 reporter_id=test_user.id,
@@ -86,8 +80,6 @@ class TestTaskService:
 
         # RESOLVEDタスク（優先度: 中）
         task = Task(
-            backlog_id=3300,
-            backlog_key="TASK-300",
             project_id=test_project.id,
             assignee_id=test_user.id,
             reporter_id=test_user.id,
@@ -360,15 +352,12 @@ class TestTaskService:
         # Assert（検証）
         assert task_detail is not None
         assert task_detail["id"] == task_id
-        assert task_detail["backlog_id"] is not None
-        assert task_detail["backlog_key"] is not None
         assert task_detail["title"] is not None
         assert task_detail["status"] is not None
 
         # 関連データの確認
         assert "project" in task_detail
         assert task_detail["project"] is not None
-        assert "backlog_id" in task_detail["project"]
 
         assert "assignee" in task_detail
         assert task_detail["assignee"] is not None
@@ -456,8 +445,6 @@ class TestTaskService:
         # Arrange（準備）
         # タスクを作成
         task = Task(
-            backlog_id=4000,
-            backlog_key="ORPHAN-1",
             project_id=test_project.id,
             assignee_id=test_user.id,
             reporter_id=test_user.id,
