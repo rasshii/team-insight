@@ -5,7 +5,7 @@
 
 主要機能：
 1. プロジェクトの基本的なCRUD操作
-2. Backlog IDやプロジェクトキーによる検索
+2. プロジェクトキーによる検索
 3. メンバー情報を含むプロジェクト取得（N+1問題対策）
 4. ユーザーが所属するプロジェクト一覧取得
 5. プロジェクト統計情報の取得
@@ -17,9 +17,6 @@
 
 使用例：
     project_repo = ProjectRepository(db)
-
-    # Backlog IDで検索
-    project = project_repo.get_by_backlog_id(12345)
 
     # メンバー情報を含めて取得
     project = project_repo.get_with_members(project_id=1)
@@ -45,7 +42,6 @@ class ProjectRepository(BaseRepository[Project]):
     BaseRepositoryの汎用メソッドに加え、プロジェクト特有の検索・取得機能を実装。
 
     主要メソッド：
-    - get_by_backlog_id: Backlog IDで検索
     - get_by_project_key: プロジェクトキーで検索
     - get_with_members: メンバー情報を含めて取得
     - get_with_tasks: タスク情報を含めて取得

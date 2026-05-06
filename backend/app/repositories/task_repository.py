@@ -5,11 +5,10 @@
 
 主要機能：
 1. タスクの基本的なCRUD操作
-2. Backlogキーによる検索
-3. ユーザー、プロジェクト、ステータスによるフィルタリング
-4. タスク統計情報の取得
-5. 期限切れタスクの検出
-6. パフォーマンス分析用のクエリ
+2. ユーザー、プロジェクト、ステータスによるフィルタリング
+3. タスク統計情報の取得
+4. 期限切れタスクの検出
+5. パフォーマンス分析用のクエリ
 
 パフォーマンス最適化：
 - joinedload()による関連データの効率的な取得
@@ -19,9 +18,6 @@
 
 使用例：
     task_repo = TaskRepository(db)
-
-    # Backlogキーで検索
-    task = task_repo.get_by_backlog_key("PROJECT-123")
 
     # ユーザーのタスク一覧
     tasks = task_repo.get_user_tasks(user_id=1, filters={"status": "TODO"})
@@ -49,8 +45,6 @@ class TaskRepository(BaseRepository[Task]):
     BaseRepositoryの汎用メソッドに加え、タスク特有の検索・集計機能を実装。
 
     主要メソッド：
-    - get_by_backlog_key: Backlogキーで検索
-    - get_by_backlog_id: Backlog IDで検索
     - get_user_tasks: ユーザーのタスク一覧
     - get_project_tasks: プロジェクトのタスク一覧
     - get_overdue_tasks: 期限切れタスクの取得

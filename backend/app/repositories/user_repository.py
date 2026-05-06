@@ -5,7 +5,7 @@
 
 主要機能：
 1. ユーザーの基本的なCRUD操作
-2. メールアドレスやBacklog IDによる検索
+2. メールアドレスによる検索
 3. ロール情報を含むユーザー取得（N+1問題対策）
 4. ユーザー検索（名前、メール）
 5. アクティブユーザーのフィルタリング
@@ -46,8 +46,6 @@ class UserRepository(BaseRepository[User]):
 
     主要メソッド：
     - get_by_email: メールアドレスで検索
-    - get_by_backlog_id: Backlog IDで検索
-    - get_by_user_id: ユーザーID（文字列）で検索
     - get_with_roles: ロール情報を含めて取得
     - get_active_users: アクティブなユーザーのみ取得
     - search: ユーザー検索（名前、メール）
@@ -196,7 +194,7 @@ class UserRepository(BaseRepository[User]):
         OR条件により、いずれかのフィールドにマッチするユーザーを取得します。
 
         検索対象フィールド：
-        - name: Backlogのユーザー名
+        - name: ユーザー名
         - full_name: フルネーム
         - email: メールアドレス
 
