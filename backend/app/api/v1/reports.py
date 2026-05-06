@@ -23,7 +23,6 @@ from app.schemas.report import (
 )
 from app.services.report_generator import report_generator
 from app.services.report_email import report_email_service
-from app.core.permissions import PermissionChecker
 
 logger = logging.getLogger(__name__)
 

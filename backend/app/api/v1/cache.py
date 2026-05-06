@@ -10,7 +10,7 @@ from typing import Dict, Any
 import logging
 
 from app.core.cache import get_cache_stats, clear_cache
-from app.core.security import get_current_active_superuser
+from app.api.deps import get_current_active_superuser
 from app.models.user import User
 
 logger = logging.getLogger(__name__)

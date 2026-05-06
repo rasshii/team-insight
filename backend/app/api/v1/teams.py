@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.api import deps
+from app.core.tenant import TenantContext
 from app.models.user import User
 from app.models.team import TeamRole
 from app.schemas.team import (
@@ -27,7 +28,7 @@ from app.schemas.team import (
 )
 from app.services.team_service import team_service
 from app.core.exceptions import NotFoundException, ConflictException, ValidationException, PermissionDeniedException
-from app.core.permissions import PermissionChecker, RoleType, require_role
+from app.core.permissions import RoleType, require_role
 
 router = APIRouter()
 
@@ -133,7 +134,10 @@ async def get_team(team_id: int, current_user: User = Depends(deps.get_current_u
 @router.post("/", response_model=TeamCreateResponse)
 @require_role([RoleType.PROJECT_LEADER, RoleType.ADMIN])
 async def create_team(
-    team_data: TeamCreate, current_user: User = Depends(deps.get_current_user), db: Session = Depends(get_db)
+    team_data: TeamCreate,
+    current_user: User = Depends(deps.get_current_active_user),
+    tenant: TenantContext = Depends(deps.get_tenant_context),
+    db: Session = Depends(get_db),
 ):
     """
     新しいチームを作成
@@ -218,7 +222,10 @@ async def create_team(
         - チームリーダーはメンバーの追加・削除、チーム情報の更新が可能です
     """
     try:
-        team = team_service.create_team(db, team_data, current_user.id)
+        organization_id = tenant.require_org_id()
+        team = team_service.create_team(
+            db, team_data, current_user.id, organization_id=organization_id
+        )
         return TeamCreateResponse(success=True, data=team)
     except ConflictException as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
@@ -251,7 +258,12 @@ async def update_team(
 
 @router.delete("/{team_id}", response_model=TeamDeleteResponse)
 @require_role([RoleType.ADMIN])
-async def delete_team(team_id: int, current_user: User = Depends(deps.get_current_user), db: Session = Depends(get_db)):
+async def delete_team(
+    team_id: int,
+    current_user: User = Depends(deps.get_current_active_user),
+    tenant: TenantContext = Depends(deps.get_tenant_context),
+    db: Session = Depends(get_db),
+):
     """
     チームを削除
 

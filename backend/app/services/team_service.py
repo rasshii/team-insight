@@ -139,14 +139,21 @@ class TeamService:
 
         return team
 
-    def create_team(self, db: Session, team_data: TeamCreate, creator_user_id: int) -> Team:
+    def create_team(
+        self,
+        db: Session,
+        team_data: TeamCreate,
+        creator_user_id: int,
+        organization_id: int,
+    ) -> Team:
         """
-        チームを作成
+        チームを作成 (Phase 0: organization_id 必須)
 
         Args:
             db: データベースセッション
             team_data: チーム作成データ
             creator_user_id: 作成者のユーザーID
+            organization_id: 所属組織 ID (TenantContext から渡される)
 
         Returns:
             作成されたチーム
@@ -154,15 +161,19 @@ class TeamService:
         Raises:
             ConflictException: 同名のチームが既に存在する場合
         """
-        # 同名チームの存在確認
-        existing = db.query(Team).filter(Team.name == team_data.name).first()
+        # 同名チームの存在確認 (組織内ユニーク)
+        existing = (
+            db.query(Team)
+            .filter(Team.organization_id == organization_id, Team.name == team_data.name)
+            .first()
+        )
 
         if existing:
             raise ConflictException(f"チーム名 '{team_data.name}' は既に使用されています")
 
         try:
             # チーム作成
-            team = Team(**team_data.model_dump())
+            team = Team(organization_id=organization_id, **team_data.model_dump())
             db.add(team)
             db.flush()
 

@@ -15,7 +15,6 @@ from abc import ABC, abstractmethod
 
 from app.db.base_class import Base
 from app.core.exceptions import NotFoundException, DatabaseException, PermissionDenied
-from app.core.permissions import PermissionChecker
 from app.models.user import User
 
 # 型変数
