@@ -20,7 +20,6 @@ API層から複雑なクエリとビジネスロジックを分離し、保守�
 パフォーマンス最適化:
 - 複数の統計を単一クエリで集計（CASE式の活用）
 - eager loading（joinedload）でN+1問題を回避
-- Backlog API呼び出しの最小化
 
 使用例:
     dashboard_service = DashboardService(db, user_id=1)
@@ -46,7 +45,7 @@ class DashboardService:
     個人ダッシュボードのビジネスロジックを提供するサービス
 
     ユーザーの生産性とパフォーマンスを可視化するための包括的なデータを生成します。
-    複雑なSQLクエリ、Backlog API連携、データ集計を担当し、API層をシンプルに保ちます。
+    複雑なSQLクエリとデータ集計を担当し、API層をシンプルに保ちます。
 
     主要メソッド:
     - get_personal_dashboard_data: ダッシュボード全体のデータを取得
@@ -59,7 +58,6 @@ class DashboardService:
     依存関係:
     - TaskRepository: タスクデータへのアクセス
     - UserRepository: ユーザーデータへのアクセス
-    - BacklogClient: Backlog APIからのステータス名取得
 
     Attributes:
         db (Session): データベースセッション
@@ -102,8 +100,7 @@ class DashboardService:
                 生産性トレンド分析の対象期間（日数）。デフォルトは30日。
                 7日、30日、90日などが一般的。
             user (Optional[User], optional):
-                ユーザーオブジェクト。Backlog連携時のステータス名取得に使用。
-                Noneの場合はデフォルトのステータス名を使用。
+                ユーザーオブジェクト。Noneの場合は user_id から取得。
 
         Returns:
             Dict[str, Any]: ダッシュボードの包括的なデータ
@@ -153,7 +150,7 @@ class DashboardService:
             }
 
         Raises:
-            Exception: データベースエラーまたはBacklog API呼び出しエラー
+            Exception: データベースエラー
 
         Example:
             >>> service = DashboardService(db, user_id=1)
@@ -163,7 +160,6 @@ class DashboardService:
 
         Note:
             - ユーザーが存在しない場合でも空のデータ構造を返します
-            - Backlog API呼び出しが失敗しても、デフォルトのステータス名で処理を継続
             - パフォーマンス最適化のため、各統計クエリは並列実行可能
         """
         # ユーザー情報を取得（userが渡されていない場合）
@@ -277,31 +273,15 @@ class DashboardService:
         作業フロー分析を実行
 
         各タスクステータスでの平均滞留時間を分析します。
-        Backlog APIと連携してカスタムステータス名も取得し、
-        より分かりやすい表示名を提供します。
 
         分析内容:
         - 各ステータス（TODO、IN_PROGRESS、RESOLVED、CLOSED）での平均滞留日数
         - 完了タスク: 作成から完了までの時間
         - 未完了タスク: 最終更新からの経過時間
 
-        ステータス名の決定:
-        1. Backlog APIからカスタムステータス名を取得（OAuth連携時）
-        2. 取得できない場合はデフォルトのステータス名を使用
-        3. ステータスIDとステータス名の両方でマッピング
-
-        処理フロー:
-            1. ユーザーの所属プロジェクトを取得
-            2. OAuth トークンの存在を確認
-            3. 各プロジェクトのカスタムステータスをBacklog APIから取得
-            4. ステータス名のマッピングテーブルを作成
-            5. 各ステータスでの平均滞留時間をクエリ
-            6. ステータス名を適用して結果を返却
-
         Args:
             user (Optional[User], optional):
-                ユーザーオブジェクト。Backlog連携時に使用。
-                Noneの場合はuser_idから取得するか、デフォルト名を使用。
+                ユーザーオブジェクト。Noneの場合は user_id から取得。
 
         Returns:
             List[Dict[str, Any]]: ステータス別の作業フロー分析結果
@@ -325,16 +305,12 @@ class DashboardService:
             完了: 3.2 days
 
         Note:
-            - Backlog API呼び出しが失敗してもデフォルト名で処理を継続
-            - 複数プロジェクトのステータスを統合してマッピング
-            - カスタムステータスがある場合は優先的に使用
+            - カスタムステータス名は Phase 2 で組織別ステータス設定として再実装予定
 
         Raises:
             Exception: データベースエラーが発生した場合
         """
-        # ステータスIDと名前のマッピングを作成
-        # NOTE: Backlog 連携削除 (Phase 6) によりカスタムステータス名取得は廃止。
-        # Phase 2 で組織別ステータス設定を実装する際にここで参照する想定。
+        # ステータス名マッピング (現状はデフォルト固定。Phase 2 で組織別設定として参照する予定)
         status_name_map: Dict[str, str] = {}
 
         # デフォルトのステータス名マッピング

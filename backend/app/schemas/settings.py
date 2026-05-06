@@ -63,7 +63,6 @@ class SettingsGroup(BaseModel):
 
     email: Dict[str, Any] = Field(default_factory=dict, description="メール設定")
     security: Dict[str, Any] = Field(default_factory=dict, description="セキュリティ設定")
-    sync: Dict[str, Any] = Field(default_factory=dict, description="同期設定")
     system: Dict[str, Any] = Field(default_factory=dict, description="システム設定")
 
 
@@ -99,7 +98,6 @@ class AllSettings(BaseModel):
 
     email: EmailSettings
     security: SecuritySettings
-    sync: SyncSettings
     system: SystemSettings
 
 
@@ -108,5 +106,4 @@ class SettingsUpdateRequest(BaseModel):
 
     email: Optional[EmailSettings] = None
     security: Optional[SecuritySettings] = None
-    sync: Optional[SyncSettings] = None
     system: Optional[SystemSettings] = None

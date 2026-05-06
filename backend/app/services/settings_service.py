@@ -14,7 +14,6 @@ from app.schemas.settings import (
     AllSettings,
     EmailSettings,
     SecuritySettings,
-    SyncSettings,
     SystemSettings,
     SettingsUpdateRequest,
 )
@@ -40,17 +39,18 @@ class SettingsService:
         """
         settings = db.query(SystemSetting).all()
 
-        # グループごとに設定を整理
-        grouped_settings = {"email": {}, "security": {}, "sync": {}, "system": {}}
+        # グループごとに設定を整理 (sync グループは Phase 6 で廃止)
+        grouped_settings: Dict[str, Dict[str, Any]] = {"email": {}, "security": {}, "system": {}}
 
         for setting in settings:
+            if setting.group not in grouped_settings:
+                continue
             value = self._convert_value(setting.value, setting.value_type)
             grouped_settings[setting.group][setting.key] = value
 
         return AllSettings(
             email=EmailSettings(**grouped_settings["email"]),
             security=SecuritySettings(**grouped_settings["security"]),
-            sync=SyncSettings(**grouped_settings["sync"]),
             system=SystemSettings(**grouped_settings["system"]),
         )
 
@@ -156,10 +156,6 @@ class SettingsService:
 
         if settings_data.security:
             for key, value in settings_data.security.model_dump().items():
-                self.update_setting(db, key, str(value))
-
-        if settings_data.sync:
-            for key, value in settings_data.sync.model_dump().items():
                 self.update_setting(db, key, str(value))
 
         if settings_data.system:
