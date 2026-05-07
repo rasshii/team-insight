@@ -89,7 +89,7 @@ export default function ProjectDashboardPage({ params }: ProjectDashboardPagePro
     );
   }
 
-  if (!project && !projectLoading) {
+  if (!project) {
     return (
       <PrivateRoute>
         <Layout>
@@ -249,7 +249,10 @@ export default function ProjectDashboardPage({ params }: ProjectDashboardPagePro
                 </CardDescription>
               </CardHeader>
               <CardContent className="h-[400px] overflow-y-auto">
-                <BottleneckChart data={bottlenecks} />
+                {/* Phase 2 で task 詳細レスポンスに合わせて再実装予定 */}
+                <BottleneckChart
+                  data={bottlenecks as unknown as Parameters<typeof BottleneckChart>[0]['data']}
+                />
               </CardContent>
             </Card>
           ) : (
@@ -295,10 +298,11 @@ export default function ProjectDashboardPage({ params }: ProjectDashboardPagePro
                 </CardHeader>
                 <CardContent className="h-[300px]">
                   <ThroughputChart
-                    data={velocity.map(item => ({
+                    data={velocity.map((item) => ({
                       date: item.date,
                       completed_tasks: item.completed_count,
-                      story_points: item.story_points || 0
+                      // VelocityData に story_points は無い (Phase 2 で SP 集計対応予定)
+                      story_points: 0,
                     }))}
                   />
                 </CardContent>

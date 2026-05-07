@@ -247,9 +247,9 @@ export function uniqBy<T>(
   key?: keyof T | ((item: T) => any)
 ): T[] {
   if (!key) {
-    return [...new Set(array)]
+    return Array.from(new Set(array))
   }
-  
+
   const seen = new Set()
   return array.filter(item => {
     const k = typeof key === 'function' ? key(item) : item[key]
@@ -280,7 +280,10 @@ export function deepMerge<T extends Record<string, any>>(
     for (const key in source) {
       if (isObject(source[key])) {
         if (!target[key]) Object.assign(target, { [key]: {} })
-        deepMerge(target[key], source[key])
+        deepMerge(
+          target[key] as Record<string, any>,
+          source[key] as Partial<Record<string, any>>
+        )
       } else {
         Object.assign(target, { [key]: source[key] })
       }

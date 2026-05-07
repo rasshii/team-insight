@@ -55,12 +55,13 @@ export class GlobalQueryErrorBoundary extends React.Component<
   }
 
   render() {
-    if (this.state.hasError && this.state.error) {
+    const { hasError, error } = this.state
+    if (hasError && error) {
       return (
         <QueryErrorResetBoundaryWrapper>
           {(reset) => (
             <ErrorFallback
-              error={this.state.error}
+              error={error}
               resetErrorBoundary={() => {
                 this.setState({ hasError: false, error: null })
                 reset()

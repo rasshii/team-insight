@@ -33,7 +33,7 @@ import { MoreHorizontal } from 'lucide-react'
 export default function TeamDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const teamId = Number(params.id)
+  const teamId = Number(params?.id)
   
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false)
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null)

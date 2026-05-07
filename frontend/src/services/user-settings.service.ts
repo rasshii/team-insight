@@ -42,10 +42,14 @@ export const userSettingsService = {
     page: number
     page_size: number
   }> {
-    const response = await apiClient.get(`${BASE_URL}/me/login-history`, {
+    return await apiClient.get<{
+      items: LoginHistory[]
+      total: number
+      page: number
+      page_size: number
+    }>(`${BASE_URL}/me/login-history`, {
       params: { page, page_size: pageSize },
     })
-    return response
   },
 
   /**
@@ -65,8 +69,12 @@ export const userSettingsService = {
     if (action) {
       params.action = action
     }
-    const response = await apiClient.get(`${BASE_URL}/me/activity-logs`, { params })
-    return response
+    return await apiClient.get<{
+      items: ActivityLog[]
+      total: number
+      page: number
+      page_size: number
+    }>(`${BASE_URL}/me/activity-logs`, { params })
   },
 
   /**

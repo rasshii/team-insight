@@ -355,7 +355,7 @@ export default function PersonalDashboardPage() {
                       <div key={item.status} className="space-y-1">
                         <div className="flex items-center justify-between text-sm">
                           <span className="font-medium">
-                            {item.status_name || getTaskStatusLabel(item.status)}
+                            {getTaskStatusLabel(item.status)}
                           </span>
                           <span className="text-muted-foreground">
                             平均 {item.average_days} 日

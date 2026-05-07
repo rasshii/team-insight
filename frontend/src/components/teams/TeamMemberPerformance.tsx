@@ -45,11 +45,25 @@ export function TeamMemberPerformance({ teamId, members }: TeamMemberPerformance
             ))
           ) : (
             members.map((member) => {
-              const performance = performanceData?.find((p: any) => p.user_id === member.user_id) || {
+              const performance: {
+                completed_tasks: number
+                active_tasks: number
+                efficiency: number
+                trend: string
+              } = (performanceData?.find(
+                (p: { user_id: number }) => p.user_id === member.user_id
+              ) as
+                | {
+                    completed_tasks: number
+                    active_tasks: number
+                    efficiency: number
+                    trend: string
+                  }
+                | undefined) ?? {
                 completed_tasks: 0,
                 active_tasks: 0,
                 efficiency: 0,
-                trend: 'stable'
+                trend: 'stable',
               }
               const initials = member.user.name
                 .split(' ')

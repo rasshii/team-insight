@@ -31,7 +31,7 @@ export default function DashboardPage() {
       totalProjects: projectsData.total || 0,
       totalTeams: 0, // チーム機能は未実装
       totalIssues: tasksData.total || 0,
-      activeIssues: tasksData.tasks?.filter(task => task.status !== 'closed').length || 0,
+      activeIssues: tasksData.tasks?.filter(task => task.status !== 'CLOSED').length || 0,
     }
   } : null;
 
