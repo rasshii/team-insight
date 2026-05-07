@@ -2,7 +2,7 @@
  * ユーザー設定関連のカスタムフック
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { userSettingsService } from '@/services/user-settings.service'
 import { UserSettingsUpdate } from '@/types/user-settings'
 import { toast } from '@/components/ui/use-toast'
@@ -59,7 +59,7 @@ export const useLoginHistory = (page: number = 1, pageSize: number = 20) => {
   return useQuery({
     queryKey: QUERY_KEYS.loginHistory(page),
     queryFn: () => userSettingsService.getLoginHistory(page, pageSize),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -70,7 +70,7 @@ export const useActivityLogs = (page: number = 1, pageSize: number = 50, action?
   return useQuery({
     queryKey: QUERY_KEYS.activityLogs(page, action),
     queryFn: () => userSettingsService.getActivityLogs(page, pageSize, action),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   })
 }
 

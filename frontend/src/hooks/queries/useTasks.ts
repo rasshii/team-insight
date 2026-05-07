@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast'
  */
 export const useTasks = (params?: TaskFilterParams) => {
   return useQuery({
-    queryKey: queryKeys.tasks.list(params),
+    queryKey: queryKeys.tasks.list(params as Record<string, unknown> | undefined),
     queryFn: () => taskService.getTasks(params),
     staleTime: 3 * 60 * 1000, // 3分
   })

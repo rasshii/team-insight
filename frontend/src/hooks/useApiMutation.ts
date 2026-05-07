@@ -2,7 +2,7 @@ import { useMutation, useQueryClient, type UseMutationOptions, type QueryKey } f
 import { useToast } from '@/hooks/use-toast'
 import { isApiError } from '@/lib/error-handler'
 
-export interface UseApiMutationOptions<TData = unknown, TError = unknown, TVariables = void> 
+export interface UseApiMutationOptions<TData = unknown, TError = unknown, TVariables = void>
   extends Omit<UseMutationOptions<TData, TError, TVariables>, 'mutationFn'> {
   // 成功時のメッセージ設定
   successMessage?: string | ((data: TData) => string)
@@ -12,17 +12,17 @@ export interface UseApiMutationOptions<TData = unknown, TError = unknown, TVaria
   successDescription?: string | ((data: TData) => string)
   // 無効化するキャッシュキー
   invalidateQueries?: QueryKey[]
-  // 更新するキャッシュキー
+  // 更新するキャッシュキー (queryKey は固定キーまたは data から導出する関数を許容)
   setQueryData?: {
-    queryKey: QueryKey
+    queryKey: QueryKey | ((data: TData) => QueryKey)
     updater: (data: TData) => any
   }[]
   // キャッシュから削除するキー
   removeQueries?: QueryKey[]
   // トースト通知を無効化
   disableToast?: boolean
-  // 成功時の追加処理
-  onSuccessCallback?: (data: TData) => void
+  // 成功時の追加処理 (variables も受け取れる)
+  onSuccessCallback?: (data: TData, variables: TVariables) => void
   // エラー時の追加処理
   onErrorCallback?: (error: TError) => void
 }
@@ -73,7 +73,8 @@ export function useApiMutation<TData = unknown, TError = unknown, TVariables = v
 
       // キャッシュの更新
       for (const { queryKey, updater } of setQueryData) {
-        queryClient.setQueryData(queryKey, updater(data))
+        const resolvedKey = typeof queryKey === 'function' ? queryKey(data) : queryKey
+        queryClient.setQueryData(resolvedKey, updater(data))
       }
 
       // キャッシュの削除
@@ -99,8 +100,8 @@ export function useApiMutation<TData = unknown, TError = unknown, TVariables = v
         })
       }
 
-      // カスタムコールバック
-      onSuccessCallback?.(data)
+      // カスタムコールバック (variables も渡す)
+      onSuccessCallback?.(data, variables)
 
       // 元のonSuccessを呼び出し
       restOptions.onSuccess?.(data, variables, context)
